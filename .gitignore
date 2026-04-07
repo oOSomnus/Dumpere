@@ -51,3 +51,11 @@ CLAUDE.md
 
 # AI tooling
 .playwright-mcp/
+.cursor/
+.agents/
+.mcp/
+.vscode/
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
