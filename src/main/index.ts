@@ -1,0 +1,120 @@
+import { app, BrowserWindow, nativeTheme, screen, shell } from 'electron'
+import log from 'electron-log'
+import { store } from './store'
+import { setupIPCHandlers } from './ipc-handlers'
+
+// Configure logging
+log.transports.file.level = 'info'
+log.transports.console.level = 'debug'
+
+let mainWindow: BrowserWindow | null = null
+
+function getSavedBounds(): { x: number; y: number; width: number; height: number } {
+  const saved = store.get('windowBounds')
+  if (saved) {
+    // Validate against current display config
+    const displays = screen.getAllDisplays()
+    const onDisplay = displays.some(d => {
+      const { x, y, width, height } = d.bounds
+      return saved.x >= x && saved.x < x + width && saved.y >= y && saved.y < y + height
+    })
+    if (onDisplay) return saved
+  }
+  // Default: primary display, 1200x800, centered
+  const primary = screen.getPrimaryDisplay()
+  const { width: screenWidth, height: screenHeight } = primary.workAreaSize
+  return {
+    x: Math.round((screenWidth - 1200) / 2),
+    y: Math.round((screenHeight - 800) / 2),
+    width: 1200,
+    height: 800
+  }
+}
+
+function createWindow() {
+  log.info('Creating main window')
+
+  const bounds = getSavedBounds()
+  const isMaximized = store.get('windowMaximized', false)
+
+  mainWindow = new BrowserWindow({
+    ...bounds,
+    minWidth: 800,
+    minHeight: 600,
+    title: 'DumpIt',
+    show: false,
+    webPreferences: {
+      preload: require.resolve('../preload/index.js'),
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: false
+    }
+  })
+
+  // Restore maximized state
+  if (isMaximized) {
+    mainWindow.maximize()
+  }
+
+  // Track bounds changes
+  mainWindow.on('resize', saveBounds)
+  mainWindow.on('move', saveBounds)
+  mainWindow.on('maximize', () => store.set('windowMaximized', true))
+  mainWindow.on('unmaximize', () => store.set('windowMaximized', false))
+
+  // Show when ready
+  mainWindow.once('ready-to-show', () => {
+    mainWindow?.show()
+    log.info('Window shown')
+  })
+
+  // Send initial theme
+  mainWindow.webContents.send('theme:changed', nativeTheme.shouldUseDarkColors)
+  nativeTheme.on('updated', () => {
+    mainWindow?.webContents.send('theme:changed', nativeTheme.shouldUseDarkColors)
+  })
+
+  // Open external links in browser
+  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    shell.openExternal(url)
+    return { action: 'deny' }
+  })
+
+  // Load the app
+  if (process.env.VITE_DEV_SERVER_URL) {
+    mainWindow.loadURL(process.env.VITE_DEV_SERVER_URL)
+    mainWindow.webContents.openDevTools()
+  } else {
+    mainWindow.loadFile(require.resolve('../renderer/index.html'))
+  }
+
+  mainWindow.on('closed', () => {
+    mainWindow = null
+  })
+
+  log.info('Window created successfully')
+}
+
+function saveBounds() {
+  if (!mainWindow || mainWindow.isMaximized()) return
+  const bounds = mainWindow.getBounds()
+  store.set('windowBounds', bounds)
+}
+
+app.whenReady().then(() => {
+  log.info('App ready, starting DumpIt')
+  setupIPCHandlers()
+  createWindow()
+
+  app.on('activate', () => {
+    if (BrowserWindow.getAllWindows().length === 0) {
+      createWindow()
+    }
+  })
+})
+
+app.on('window-all-closed', () => {
+  if (process.platform !== 'darwin') {
+    app.quit()
+  }
+})
