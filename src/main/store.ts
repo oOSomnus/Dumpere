@@ -8,6 +8,12 @@ interface WindowBounds {
   height: number
 }
 
+interface RecentVault {
+  path: string
+  name: string
+  lastOpened: number
+}
+
 interface StoreSchema {
   dumps: DumpEntry[]
   projects: Project[]
@@ -16,6 +22,8 @@ interface StoreSchema {
   dumpOrder: string[]  // Array of dump IDs in user-defined order
   windowBounds: WindowBounds | null
   windowMaximized: boolean
+  recentVaults: RecentVault[]
+  currentVault: { path: string; name: string } | null
 }
 
 export const store = new Store<StoreSchema>({
@@ -27,6 +35,8 @@ export const store = new Store<StoreSchema>({
     summaries: [],
     dumpOrder: [],
     windowBounds: null,
-    windowMaximized: false
+    windowMaximized: false,
+    recentVaults: [],
+    currentVault: null
   }
 })
