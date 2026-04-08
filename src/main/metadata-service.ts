@@ -37,6 +37,8 @@ function enqueueWrite<T>(operation: () => Promise<T>): Promise<T> {
         const result = await operation()
         resolve(result)
       } catch (err) {
+        // Reset queue to resolved so future writes can proceed
+        writeQueue = Promise.resolve()
         reject(err)
       }
     })
@@ -77,63 +79,74 @@ export async function createDump(input: CreateDumpInput): Promise<DumpMetadata |
   }
 
   const vaultPath = vaultState.vaultPath
-  let copiedFiles: VaultStoredFile[] = []
-  let copiedPaths: string[] = []  // For rollback
 
-  try {
-    // Step 1: Copy files to vault subdirectories
-    if (input.filePaths.length > 0) {
-      copiedFiles = await copyFilesToVault(vaultPath, input.filePaths)
-      // Track full paths for rollback
-      copiedPaths = copiedFiles.map(f => join(vaultPath, '.dumpere', f.path))
-    }
+  // Wrap entire read-modify-write in enqueueWrite to prevent race conditions
+  // Per META-02: "Use a write queue that serializes all writes through a single async function"
+  // This ensures no two createDump calls can read-modify-write concurrently
+  return enqueueWrite(async () => {
+    let copiedFiles: VaultStoredFile[] = []
+    let copiedPaths: string[] = []  // For rollback
 
-    // Step 2: Read current metadata
-    let metadata = await readMetadata(vaultPath)
-    if (!metadata) {
-      // Initialize if doesn't exist
-      metadata = {
-        version: '1.0',
+    try {
+      // Step 1: Copy files to vault subdirectories (outside queue - file I/O parallel)
+      if (input.filePaths.length > 0) {
+        copiedFiles = await copyFilesToVault(vaultPath, input.filePaths)
+        // Track full paths for rollback
+        copiedPaths = copiedFiles.map(f => join(vaultPath, '.dumpere', f.path))
+      }
+
+      // Step 2: Read current metadata (inside queue - serialized)
+      let metadata = await readMetadata(vaultPath)
+      if (!metadata) {
+        // Initialize if doesn't exist
+        metadata = {
+          version: '1.0',
+          created: new Date().toISOString(),
+          dumps: []
+        }
+      }
+
+      // Step 3: Create new dump entry
+      const newDump: DumpMetadata = {
+        id: randomUUID(),
         created: new Date().toISOString(),
-        dumps: []
+        text: input.text,
+        files: copiedFiles.map(f => ({
+          id: f.id,
+          type: f.type,
+          path: f.path,  // e.g., "images/uuid.ext"
+          name: f.name   // original filename
+        })),
+        tags: [],
+        order: 0
       }
-    }
 
-    // Step 3: Create new dump entry
-    const newDump: DumpMetadata = {
-      id: randomUUID(),
-      created: new Date().toISOString(),
-      text: input.text,
-      files: copiedFiles.map(f => ({
-        id: f.id,
-        type: f.type,
-        path: f.path,  // e.g., "images/uuid.ext"
-        name: f.name   // original filename
-      })),
-      tags: [],
-      order: 0
-    }
+      // Step 4: Prepend to dumps array (newest first)
+      metadata.dumps.unshift(newDump)
 
-    // Step 4: Prepend to dumps array (newest first)
-    metadata.dumps.unshift(newDump)
+      // Step 5: Write metadata (inside queue - serialized)
+      // Note: writeMetadata does NOT use enqueueWrite internally when called from here
+      // because we're already inside an enqueued operation. It just does the atomic write.
+      const metadataPath = join(vaultPath, '.dumpere', 'metadata.json')
+      const tempPath = `${metadataPath}.tmp`
+      await writeFile(tempPath, JSON.stringify(metadata, null, 2), 'utf-8')
+      await rename(tempPath, metadataPath)
 
-    // Step 5: Write metadata (serialized, atomic)
-    await writeMetadata(vaultPath, metadata)
+      log.info(`Dump created: ${newDump.id} with ${copiedFiles.length} files`)
+      return newDump
 
-    log.info(`Dump created: ${newDump.id} with ${copiedFiles.length} files`)
-    return newDump
-
-  } catch (err) {
-    // Rollback: delete copied files if metadata write failed (D-04)
-    log.error(`Dump creation failed, rolling back ${copiedPaths.length} files:`, err)
-    for (const filePath of copiedPaths) {
-      try {
-        await unlink(filePath)
-        log.debug(`Rollback deleted: ${filePath}`)
-      } catch (deleteErr) {
-        log.warn(`Rollback failed for: ${filePath}`, deleteErr)
+    } catch (err) {
+      // Rollback: delete copied files if metadata write failed (D-04)
+      log.error(`Dump creation failed, rolling back ${copiedPaths.length} files:`, err)
+      for (const filePath of copiedPaths) {
+        try {
+          await unlink(filePath)
+          log.debug(`Rollback deleted: ${filePath}`)
+        } catch (deleteErr) {
+          log.warn(`Rollback failed for: ${filePath}`, deleteErr)
+        }
       }
+      throw err
     }
-    throw err
-  }
+  })
 }
