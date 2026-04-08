@@ -11,9 +11,12 @@ A minimalist desktop app for quick work completion tracking. Press Enter to inst
 - Electron + TypeScript + React
 - Local filesystem storage only
 
-## Dev
+## Commands
 
 ```bash
-pnpm install
-pnpm dev
+pnpm install          # Install dependencies
+pnpm dev              # Start development server
+pnpm build            # Build for production
+pnpm test:e2e         # Run Playwright E2E tests
+pnpm test:e2e:headed  # Run E2E tests with visible browser
 ```
