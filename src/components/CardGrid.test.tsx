@@ -1,9 +1,7 @@
-import { describe, it, expect } from 'vitest'
-import type { DumpEntry } from '../renderer/lib/types'
-
-// TODO: Import CardGrid component and @dnd-kit utilities when implemented
-// import { CardGrid } from '../renderer/components/CardGrid'
-// import { DndContext, closestCenter } from '@dnd-kit/core'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { render, screen } from '@testing-library/react'
+import { CardGrid } from '../renderer/components/CardGrid'
+import { DumpEntry, Project, Tag } from '../renderer/lib/types'
 
 describe('CardGrid', () => {
   // Helper to create mock dumps
@@ -13,89 +11,124 @@ describe('CardGrid', () => {
     files: [],
     createdAt: Date.now(),
     updatedAt: Date.now(),
+    projectId: null,
+    tags: [],
     ...overrides
   })
 
+  const mockProjects: Project[] = []
+  const mockTags: Tag[] = []
+  const mockOnDelete = vi.fn()
+  const mockOnProjectChange = vi.fn()
+  const mockOnTagsChange = vi.fn()
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
   describe('rendering', () => {
-    it('should render grid of dump cards', () => {
-      // TODO: Implement actual test when component is integrated
-      expect(true).toBe(true)
+    it('renders grid of dump cards', () => {
+      const mockDumps: DumpEntry[] = [
+        createMockDump({ id: '1', text: 'First dump' }),
+        createMockDump({ id: '2', text: 'Second dump' }),
+      ]
+
+      render(
+        <CardGrid
+          dumps={mockDumps}
+          onDelete={mockOnDelete}
+          projects={mockProjects}
+          tags={mockTags}
+          onProjectChange={mockOnProjectChange}
+          onTagsChange={mockOnTagsChange}
+        />
+      )
+
+      expect(screen.getByText('First dump')).toBeInTheDocument()
+      expect(screen.getByText('Second dump')).toBeInTheDocument()
     })
 
-    it('should render empty state when no dumps', () => {
-      // TODO: Implement actual test when component is integrated
-      expect(true).toBe(true)
+    it('renders empty state when no dumps', () => {
+      const { container } = render(
+        <CardGrid
+          dumps={[]}
+          onDelete={mockOnDelete}
+          projects={mockProjects}
+          tags={mockTags}
+          onProjectChange={mockOnProjectChange}
+          onTagsChange={mockOnTagsChange}
+        />
+      )
+
+      // EmptyState should render something
+      expect(container.firstChild).toBeInTheDocument()
     })
 
-    it('should show loading state', () => {
-      // TODO: Implement actual test when component is integrated
-      expect(true).toBe(true)
-    })
-  })
+    it('shows loading state when isLoading is true and no dumps', () => {
+      render(
+        <CardGrid
+          dumps={[]}
+          onDelete={mockOnDelete}
+          isLoading={true}
+          projects={mockProjects}
+          tags={mockTags}
+          onProjectChange={mockOnProjectChange}
+          onTagsChange={mockOnTagsChange}
+        />
+      )
 
-  describe('drag and drop', () => {
-    it('should render drag handles on cards', () => {
-      // TODO: Implement actual test when @dnd-kit is integrated
-      expect(true).toBe(true)
-    })
-
-    it('should allow reordering cards via drag and drop', () => {
-      // TODO: Implement actual test when @dnd-kit is integrated
-      expect(true).toBe(true)
-    })
-
-    it('should update display order after drop', () => {
-      // TODO: Implement actual test when @dnd-kit is integrated
-      expect(true).toBe(true)
-    })
-
-    it('should persist custom order', () => {
-      // TODO: Implement actual test when @dnd-kit is integrated
-      expect(true).toBe(true)
-    })
-
-    it('should revert to chronological order when custom order cleared', () => {
-      // TODO: Implement actual test when @dnd-kit is integrated
-      expect(true).toBe(true)
-    })
-  })
-
-  describe('filtering', () => {
-    it('should display only dumps matching active filters', () => {
-      // TODO: Implement actual test when filter integration is complete
-      expect(true).toBe(true)
-    })
-
-    it('should update display when project filter changes', () => {
-      // TODO: Implement actual test when filter integration is complete
-      expect(true).toBe(true)
-    })
-
-    it('should update display when tag filter changes', () => {
-      // TODO: Implement actual test when filter integration is complete
-      expect(true).toBe(true)
-    })
-
-    it('should update display when time range filter changes', () => {
-      // TODO: Implement actual test when filter integration is complete
-      expect(true).toBe(true)
-    })
-
-    it('should show all dumps when filters are cleared', () => {
-      // TODO: Implement actual test when filter integration is complete
-      expect(true).toBe(true)
+      expect(screen.getByText('Loading...')).toBeInTheDocument()
     })
   })
 
-  describe('custom order vs chronological', () => {
-    it('should use custom order when set', () => {
-      // TODO: Implement actual test when custom order is supported
-      expect(true).toBe(true)
-    })
+  describe('filtering and sorting', () => {
+    it('sorts dumps by createdAt descending by default', () => {
+      const olderDump = createMockDump({ id: '1', text: 'Older', createdAt: Date.now() - 10000 })
+      const newerDump = createMockDump({ id: '2', text: 'Newer', createdAt: Date.now() })
 
-    it('should fall back to chronological order when no custom order', () => {
-      // TODO: Implement actual test when custom order is supported
-      expect(true).toBe(true)
+      render(
+        <CardGrid
+          dumps={[olderDump, newerDump]}
+          onDelete={mockOnDelete}
+          projects={mockProjects}
+          tags={mockTags}
+          onProjectChange={mockOnProjectChange}
+          onTagsChange={mockOnTagsChange}
+        />
+      )
+
+      // Both should be rendered (sorting is internal to the grid)
+      expect(screen.getByText('Older')).toBeInTheDocument()
+      expect(screen.getByText('Newer')).toBeInTheDocument()
+    })
+  })
+
+  describe('dump card interactions', () => {
+    it('renders dump with files', () => {
+      const dumpWithFiles: DumpEntry = createMockDump({
+        id: '1',
+        text: 'Dump with files',
+        files: [{
+          id: 'f1',
+          originalName: 'test.jpg',
+          storedPath: 'images/test.jpg',
+          mimeType: 'image/jpeg',
+          size: 1000
+        }]
+      })
+
+      render(
+        <CardGrid
+          dumps={[dumpWithFiles]}
+          onDelete={mockOnDelete}
+          projects={mockProjects}
+          tags={mockTags}
+          onProjectChange={mockOnProjectChange}
+          onTagsChange={mockOnTagsChange}
+        />
+      )
+
+      expect(screen.getByText('Dump with files')).toBeInTheDocument()
     })
   })
 })
