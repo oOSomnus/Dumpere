@@ -2,6 +2,7 @@ import { ipcMain, BrowserWindow, dialog, app, clipboard } from 'electron'
 import log from 'electron-log'
 import { store } from './store'
 import { copyFiles, deleteFile, getFileUrl, getDumpsDir } from './file-service'
+import { createVault, openVault, getVaultState, onVaultStateChange, VaultState } from './vault-service'
 import { DumpEntry, StoredFile, Project, Tag, SummaryEntry } from '../renderer/lib/types'
 import archiver from 'archiver'
 import { createWriteStream } from 'fs'
@@ -560,6 +561,44 @@ export function setupIPCHandlers(): void {
     log.info(`Summary exported: ${result.filePath}`)
 
     return result.filePath
+  })
+
+  // vault:get-state — get current vault state
+  ipcMain.handle('vault:get-state', (): VaultState => {
+    return getVaultState()
+  })
+
+  // vault:create — create a new vault
+  ipcMain.handle('vault:create', async (): Promise<VaultState> => {
+    log.info('IPC: vault:create')
+    return await createVault()
+  })
+
+  // vault:open — open an existing vault
+  ipcMain.handle('vault:open', async (_, vaultPath?: string): Promise<VaultState> => {
+    log.info('IPC: vault:open')
+    return await openVault(vaultPath)
+  })
+
+  // vault:close — close current vault (permitted operation per D-01)
+  ipcMain.handle('vault:close', async (): Promise<VaultState> => {
+    log.info('IPC: vault:close')
+    const { BrowserWindow } = await import('electron')
+    // Reset vault state
+    const vaultState: VaultState = { isOpen: false, vaultPath: null, vaultName: null }
+    // Notify all windows
+    BrowserWindow.getAllWindows().forEach(win => {
+      win.webContents.send('vault:state-changed', vaultState)
+    })
+    return vaultState
+  })
+
+  // Forward vault state changes to all windows
+  onVaultStateChange((state: VaultState) => {
+    const { BrowserWindow } = require('electron')
+    BrowserWindow.getAllWindows().forEach(win => {
+      win.webContents.send('vault:state-changed', state)
+    })
   })
 
   log.info('IPC handlers registered')
