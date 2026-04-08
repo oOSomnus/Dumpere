@@ -3,6 +3,7 @@ import log from 'electron-log'
 import { store } from './store'
 import { copyFiles, deleteFile, getFileUrl, getDumpsDir } from './file-service'
 import { createVault, openVault, getVaultState, onVaultStateChange, VaultState, RecentVault } from './vault-service'
+import { createDump, readMetadata, VaultMetadata, DumpMetadata } from './metadata-service'
 import { DumpEntry, StoredFile, Project, Tag, SummaryEntry } from '../renderer/lib/types'
 import archiver from 'archiver'
 import { createWriteStream } from 'fs'
@@ -596,6 +597,29 @@ export function setupIPCHandlers(): void {
   // vault:get-recent — get list of recent vaults
   ipcMain.handle('vault:get-recent', (): RecentVault[] => {
     return store.get('recentVaults', [])
+  })
+
+  // dump:create — create a new dump with files (per FILE-01, META-01, META-02)
+  ipcMain.handle('dump:create', async (_, input: { text: string; filePaths: string[] }): Promise<DumpMetadata | null> => {
+    log.info(`IPC: dump:create — text length: ${input.text.length}, files: ${input.filePaths.length}`)
+    try {
+      const result = await createDump(input)
+      log.info(`dump:create success: ${result?.id}`)
+      return result
+    } catch (err) {
+      log.error('dump:create failed:', err)
+      throw err
+    }
+  })
+
+  // dump:get — retrieve all dumps from vault metadata (per META-01)
+  ipcMain.handle('dump:get', async (): Promise<DumpMetadata[]> => {
+    const vaultState = getVaultState()
+    if (!vaultState.isOpen || !vaultState.vaultPath) {
+      return []  // No vault open = no dumps
+    }
+    const metadata = await readMetadata(vaultState.vaultPath)
+    return metadata?.dumps ?? []
   })
 
   // Forward vault state changes to all windows
