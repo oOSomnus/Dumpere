@@ -9,6 +9,9 @@ import { useProjects } from './hooks/useProjects'
 import { useTags } from './hooks/useTags'
 import { useFilter } from './hooks/useFilter'
 import { useSearch } from './hooks/useSearch'
+import { useVault } from './hooks/useVault'
+import { WelcomeScreen } from './components/WelcomeScreen'
+import { VaultPlaceholder } from './components/VaultPlaceholder'
 import { DumpEntry } from './lib/types'
 
 const api = typeof window !== 'undefined' && window.electronAPI
@@ -25,6 +28,24 @@ const api = typeof window !== 'undefined' && window.electronAPI
     }
 
 export function App() {
+  const { vaultState, recentVaults, isLoading: vaultLoading, error: vaultError, createVault, openVault } = useVault()
+
+  // If no vault is open, show WelcomeScreen (VAULT-01, FILE-02)
+  if (!vaultState.isOpen) {
+    return (
+      <WelcomeScreen
+        vaultState={vaultState}
+        recentVaults={recentVaults}
+        isLoading={vaultLoading}
+        error={vaultError}
+        onCreateVault={createVault}
+        onOpenVault={openVault}
+      />
+    )
+  }
+
+  // Vault is open - render main app with VaultPlaceholder
+  // Note: DumpInput hidden per D-10 - it will be shown in Phase 2
   const { dumps, submitDump, deleteDump, isLoading, error } = useDump()
   const { projects, activeProjectId, setActiveProject, createProject, updateProject, deleteProject } = useProjects()
   const { tags, createTag, deleteTag, getAISuggestions } = useTags()
@@ -184,46 +205,12 @@ export function App() {
         </div>
       )}
 
-      {/* Main content - Phase 4: view switching */}
+      {/* Main content */}
       <div className="flex-1 overflow-y-auto">
-        {currentView === 'summaries' ? (
-          <SummaryPanel
-            projects={projects}
-            activeProjectId={filters.projectId}
-          />
-        ) : (
-          <CardGrid
-            dumps={dumps}
-            onDelete={deleteDump}
-            isLoading={isLoading}
-            filters={filters}
-            onReorder={handleReorder}
-            dumpOrder={dumpOrder}
-            applyFilters={applyFilters}
-            searchResults={searchQuery ? searchResults : undefined}
-            searchQuery={searchQuery}
-            onExportSelected={handleExportSelected}
-            projects={projects}
-            tags={tags}
-            onProjectChange={handleDumpProjectChange}
-            onTagsChange={handleDumpTagsChange}
-          />
-        )}
+        <VaultPlaceholder vaultName={vaultState.vaultName} />
       </div>
 
-      {/* Bottom dump input bar */}
-      <DumpInput
-        onSubmit={handleSubmit}
-        projects={projects}
-        activeProjectId={activeProjectId}
-        onProjectSelect={handleProjectSelect}
-        allTags={tags}
-        selectedTagIds={selectedTagIds}
-        onTagsChange={setSelectedTagIds}
-        getAISuggestions={getAISuggestions}
-        onCreateTag={createTag}
-        dumpText={currentDumpText}
-      />
+      {/* DumpInput hidden until Phase 2 */}
     </AppShell>
   )
 }
