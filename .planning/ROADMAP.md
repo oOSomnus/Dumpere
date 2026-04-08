@@ -3,7 +3,7 @@
 ## Milestones
 
 - ✅ **v1.0 MVP** — Phases 1-7 (34 plans) — shipped 2026-04-07
-- 📋 **v1.1** — Planning (2 phases)
+- ✅ **v1.1** — Complete (2 phases, 5 plans) — 2026-04-08
 
 ---
 
@@ -25,7 +25,7 @@ Full milestone details: [`.planning/milestones/v1.0-ROADMAP.md`](.planning/miles
 
 ---
 
-## 📋 v1.1 Project-based Storage (PLANNING)
+## ✅ v1.1 Project-based Storage (COMPLETE)
 
 **Goal:** Enforce project-first storage architecture -- all dump content must exist within a project vault
 
@@ -34,8 +34,8 @@ Full milestone details: [`.planning/milestones/v1.0-ROADMAP.md`](.planning/miles
 
 ### Phases
 
-- [ ] **Phase 1: Vault Foundation** - Create/open vaults with security hardening and dump input guard
-- [ ] **Phase 2: File + Metadata Layer** - File type subdirectory storage and serialized metadata persistence
+- [x] **Phase 1: Vault Foundation** - Create/open vaults with security hardening and dump input guard
+- [x] **Phase 2: File + Metadata Layer** - File type subdirectory storage and serialized metadata persistence
 
 ### Phase Details
 
@@ -89,6 +89,7 @@ Full milestone details: [`.planning/milestones/v1.0-ROADMAP.md`](.planning/miles
 **Plans:**
 - [x] 02-01-PLAN.md — Service Layer (metadata-service.ts with serialized write queue, file-service.ts vault-awareness)
 - [x] 02-02-PLAN.md — IPC Integration (dump:create/dump:get handlers, preload bridge extension)
+- [x] 02-03-PLAN.md — Gap Closure: Race condition fix (wrap entire read-modify-write in enqueueWrite, queue rejection recovery, mock API fixes)
 
 **Wave Structure:**
 
@@ -96,6 +97,7 @@ Full milestone details: [`.planning/milestones/v1.0-ROADMAP.md`](.planning/miles
 |------|-------|-------------|
 | 1 | 02-01 | Service layer (metadata + file services) |
 | 2 | 02-02 | IPC handlers + preload bridge |
+| 3 | 02-03 | Gap closure (race condition fix) |
 
 ---
 
@@ -103,8 +105,8 @@ Full milestone details: [`.planning/milestones/v1.0-ROADMAP.md`](.planning/miles
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Vault Foundation | 0/2 | Not started | - |
-| 2. File + Metadata Layer | 0/2 | Not started | - |
+| 1. Vault Foundation | 2/2 | ✅ Complete | 2026-04-08 |
+| 2. File + Metadata Layer | 3/3 | ✅ Complete | 2026-04-08 |
 
 ### Coverage
 
@@ -131,4 +133,4 @@ Full milestone details: [`.planning/milestones/v1.0-ROADMAP.md`](.planning/miles
 
 ---
 
-*Last updated: 2026-04-08 — Phase 2 plans created (2 plans, 2 waves)*
+*Last updated: 2026-04-08 — v1.1 complete: Vault Foundation + File/Metadata Layer (2 phases, 5 plans)*

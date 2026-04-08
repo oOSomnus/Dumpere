@@ -2,6 +2,11 @@ import { app, BrowserWindow, nativeTheme, screen, shell } from 'electron'
 import log from 'electron-log'
 import { store } from './store'
 import { setupIPCHandlers } from './ipc-handlers'
+import { fileURLToPath } from 'url'
+import { dirname, resolve } from 'path'
+
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = dirname(__filename)
 
 // Configure logging
 log.transports.file.level = 'info'
@@ -44,7 +49,7 @@ function createWindow() {
     title: 'DumpIt',
     show: false,
     webPreferences: {
-      preload: require.resolve('../preload/index.js'),
+      preload: resolve(__dirname, '../preload/index.js'),
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: false
@@ -85,7 +90,7 @@ function createWindow() {
     mainWindow.loadURL(process.env.VITE_DEV_SERVER_URL)
     mainWindow.webContents.openDevTools()
   } else {
-    mainWindow.loadFile(require.resolve('../renderer/index.html'))
+    mainWindow.loadFile(resolve(__dirname, '../renderer/index.html'))
   }
 
   mainWindow.on('closed', () => {

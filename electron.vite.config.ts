@@ -11,12 +11,12 @@ export default defineConfig({
       {
         entry: 'src/main/index.ts',
         onstart(args) { args.startup() },
-        vite: { build: { outDir: 'dist/main', rollupOptions: { external: ['electron', 'electron-store', 'electron-log'] } } }
+        vite: { build: { outDir: 'dist/main', rollupOptions: { external: ['electron', 'electron-store', 'electron-log'], output: { format: 'cjs' } } } }
       },
       {
         entry: 'src/preload/index.ts',
         onstart(args) { args.reload() },
-        vite: { build: { outDir: 'dist/preload' } }
+        vite: { build: { outDir: 'dist/preload', rollupOptions: { output: { format: 'cjs' } } } }
       }
     ]),
     renderer()

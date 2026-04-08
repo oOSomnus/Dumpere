@@ -25,6 +25,8 @@ export interface VaultFile {
   type: 'image' | 'video' | 'audio' | 'file'
   path: string  // relative path like "images/uuid.ext"
   name: string  // original filename
+  mimeType: string
+  size: number
 }
 
 // Serialized write queue - prevents concurrent write races
@@ -115,7 +117,9 @@ export async function createDump(input: CreateDumpInput): Promise<DumpMetadata |
           id: f.id,
           type: f.type,
           path: f.path,  // e.g., "images/uuid.ext"
-          name: f.name   // original filename
+          name: f.name,  // original filename
+          mimeType: f.mimeType,
+          size: f.size
         })),
         tags: [],
         order: 0

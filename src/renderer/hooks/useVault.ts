@@ -12,7 +12,25 @@ export interface RecentVault {
   lastOpened: number
 }
 
-const api = window.electronAPI
+interface ElectronAPI {
+  getVaultState: () => Promise<VaultState>
+  getRecentVaults: () => Promise<RecentVault[]>
+  onVaultStateChange: (callback: (state: VaultState) => void) => void
+  createVault: () => Promise<VaultState>
+  openVault: (vaultPath?: string) => Promise<VaultState>
+  closeVault: () => Promise<VaultState>
+}
+
+const fallbackApi: ElectronAPI = {
+  getVaultState: async () => ({ isOpen: false, vaultPath: null, vaultName: null }),
+  getRecentVaults: async () => [],
+  onVaultStateChange: () => {},
+  createVault: async () => { throw new Error('Not available in browser') },
+  openVault: async () => { throw new Error('Not available in browser') },
+  closeVault: async () => { throw new Error('Not available in browser') },
+}
+
+const api = (typeof window !== 'undefined' && window.electronAPI) ? window.electronAPI as ElectronAPI : fallbackApi
 
 export function useVault() {
   const [vaultState, setVaultState] = useState<VaultState>({

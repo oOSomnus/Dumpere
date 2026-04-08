@@ -53,7 +53,7 @@ export interface ElectronAPI {
   // File operations
   copyFiles: (tempPaths: string[]) => Promise<StoredFile[]>
   deleteFile: (storedPath: string) => Promise<void>
-  getFileUrl: (storedPath: string) => string
+  getFileUrl: (storedPath: string) => Promise<string>
 
   // Store operations
   getDumps: () => Promise<DumpEntry[]>
@@ -136,13 +136,15 @@ export interface VaultFile {
   type: 'image' | 'video' | 'audio' | 'file'
   path: string  // relative path like "images/uuid.ext"
   name: string  // original filename
+  mimeType: string
+  size: number
 }
 
 // Default mock API for browser testing
 export const mockElectronAPI: ElectronAPI = {
   copyFiles: async () => [],
   deleteFile: async () => {},
-  getFileUrl: (path: string) => `file://${path}`,
+  getFileUrl: async (path: string) => `file://${path}`,
   getDumps: async () => [],
   saveDump: async (dump) => ({ ...dump, id: crypto.randomUUID() }) as DumpEntry,
   deleteDump: async () => {},

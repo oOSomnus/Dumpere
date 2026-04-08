@@ -119,7 +119,14 @@ export async function copyFilesToVault(
 
 export async function deleteVaultFile(vaultPath: string, relativePath: string): Promise<void> {
   // relativePath is like "images/uuid.ext"
-  const fullPath = join(vaultPath, '.dumpere', relativePath)
+  const vaultDir = join(vaultPath, '.dumpere')
+  const fullPath = join(vaultDir, relativePath)
+
+  // Ensure path stays within vault directory
+  if (!fullPath.startsWith(vaultDir)) {
+    throw new Error('Invalid file path: traversal detected')
+  }
+
   try {
     await unlink(fullPath)
     log.info(`Deleted vault file: ${relativePath}`)
