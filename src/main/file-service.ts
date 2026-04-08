@@ -142,9 +142,6 @@ export function getVaultFileUrl(vaultPath: string, relativePath: string): string
   return `file://${fullPath.replace(/\\/g, '/')}`
 }
 
-// Legacy exports for backward compatibility during transition
-export { getMimeType }
-
 export async function copyFiles(tempPaths: string[]): Promise<StoredFile[]> {
   const dumpsDir = getDumpsDir()
   await mkdir(dumpsDir, { recursive: true })
