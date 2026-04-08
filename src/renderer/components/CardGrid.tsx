@@ -1,5 +1,5 @@
 import { useState, ReactNode } from 'react'
-import { DumpEntry } from '../lib/types'
+import { DumpEntry, Project, Tag } from '../lib/types'
 import { DumpCard } from './DumpCard'
 import { ExpandedCard } from './ExpandedCard'
 import { EmptyState } from './EmptyState'
@@ -37,6 +37,11 @@ interface CardGridProps {
   searchQuery?: string            // current search term
   // Phase 3: multi-select export
   onExportSelected?: (dumpIds: string[]) => void
+  // Phase 6: project/tag editing in ExpandedCard
+  projects: Project[]
+  tags: Tag[]
+  onProjectChange: (dumpId: string, projectId: string | null) => void
+  onTagsChange: (dumpId: string, tagIds: string[]) => void
 }
 
 export function CardGrid({
@@ -49,7 +54,11 @@ export function CardGrid({
   applyFilters,
   searchResults,
   searchQuery,
-  onExportSelected
+  onExportSelected,
+  projects,
+  tags,
+  onProjectChange,
+  onTagsChange
 }: CardGridProps) {
   const [selectedDump, setSelectedDump] = useState<DumpEntry | null>(null)
 
@@ -228,6 +237,10 @@ export function CardGrid({
       <ExpandedCard
         dump={selectedDump}
         onClose={() => setSelectedDump(null)}
+        projects={projects}
+        tags={tags}
+        onProjectChange={onProjectChange}
+        onTagsChange={onTagsChange}
       />
 
       {/* Floating action bar for multi-select (EXPT-01) */}

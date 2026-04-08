@@ -203,6 +203,10 @@ export function App() {
             searchResults={searchQuery ? searchResults : undefined}
             searchQuery={searchQuery}
             onExportSelected={handleExportSelected}
+            projects={projects}
+            tags={tags}
+            onProjectChange={handleDumpProjectChange}
+            onTagsChange={handleDumpTagsChange}
           />
         )}
       </div>

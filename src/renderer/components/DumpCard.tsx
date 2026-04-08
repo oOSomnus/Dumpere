@@ -59,6 +59,7 @@ export function DumpCard({
   const overflowCount = tags.length - MAX_VISIBLE_TAGS
 
   return (
+    <>
     <div
       className={cn(
         'relative rounded-[0.625rem] p-4 cursor-pointer transition-all duration-150',
@@ -218,5 +219,6 @@ export function DumpCard({
         }}
         destructive
       />
+    </>
   )
 }
