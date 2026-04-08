@@ -4,6 +4,7 @@ import { formatRelativeTime } from '../lib/utils-time'
 import { cn } from '../../lib/utils'
 import { FileText, Image, Video, Music, File, X, Check } from 'lucide-react'
 import * as Checkbox from '@radix-ui/react-checkbox'
+import { ConfirmDialog } from './ConfirmDialog'
 
 const getFileUrl = (path: string) =>
   typeof window !== 'undefined' && window.electronAPI
@@ -46,6 +47,7 @@ export function DumpCard({
   highlightedText,
 }: DumpCardProps) {
   const [isHovered, setIsHovered] = useState(false)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const timestamp = formatRelativeTime(dump.createdAt)
 
   // Get first image file for thumbnail
@@ -77,9 +79,7 @@ export function DumpCard({
         style={{ color: 'var(--destructive)' }}
         onClick={(e) => {
           e.stopPropagation()
-          if (window.confirm('Delete this dump? This cannot be undone.')) {
-            onDelete(dump.id)
-          }
+          setShowDeleteConfirm(true)
         }}
       >
         <X className="w-4 h-4" />
@@ -206,5 +206,17 @@ export function DumpCard({
         )}
       </div>
     </div>
+      <ConfirmDialog
+        open={showDeleteConfirm}
+        onOpenChange={setShowDeleteConfirm}
+        title="Delete this dump?"
+        description="This cannot be undone."
+        confirmLabel="Delete"
+        onConfirm={() => {
+          onDelete(dump.id)
+          setShowDeleteConfirm(false)
+        }}
+        destructive
+      />
   )
 }
