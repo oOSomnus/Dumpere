@@ -1,5 +1,11 @@
 import { contextBridge, ipcRenderer } from 'electron'
 
+interface VaultState {
+  isOpen: boolean
+  vaultPath: string | null
+  vaultName: string | null
+}
+
 // Expose a safe API to the renderer process
 contextBridge.exposeInMainWorld('electronAPI', {
   // File operations
@@ -117,5 +123,30 @@ contextBridge.exposeInMainWorld('electronAPI', {
   },
   exportSummary: (summaryId: string) => {
     return ipcRenderer.invoke('ai:export-summary', summaryId)
+  },
+
+  // Vault operations
+  getVaultState: () => {
+    return ipcRenderer.invoke('vault:get-state')
+  },
+
+  createVault: () => {
+    return ipcRenderer.invoke('vault:create')
+  },
+
+  openVault: (vaultPath?: string) => {
+    return ipcRenderer.invoke('vault:open', vaultPath)
+  },
+
+  closeVault: () => {
+    return ipcRenderer.invoke('vault:close')
+  },
+
+  onVaultStateChange: (callback: (state: VaultState) => void) => {
+    ipcRenderer.on('vault:state-changed', (_, state) => callback(state))
+  },
+
+  getRecentVaults: () => {
+    return ipcRenderer.invoke('vault:get-recent')
   },
 })

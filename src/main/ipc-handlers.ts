@@ -2,7 +2,7 @@ import { ipcMain, BrowserWindow, dialog, app, clipboard } from 'electron'
 import log from 'electron-log'
 import { store } from './store'
 import { copyFiles, deleteFile, getFileUrl, getDumpsDir } from './file-service'
-import { createVault, openVault, getVaultState, onVaultStateChange, VaultState } from './vault-service'
+import { createVault, openVault, getVaultState, onVaultStateChange, VaultState, RecentVault } from './vault-service'
 import { DumpEntry, StoredFile, Project, Tag, SummaryEntry } from '../renderer/lib/types'
 import archiver from 'archiver'
 import { createWriteStream } from 'fs'
@@ -591,6 +591,11 @@ export function setupIPCHandlers(): void {
       win.webContents.send('vault:state-changed', vaultState)
     })
     return vaultState
+  })
+
+  // vault:get-recent — get list of recent vaults
+  ipcMain.handle('vault:get-recent', (): RecentVault[] => {
+    return store.get('recentVaults', [])
   })
 
   // Forward vault state changes to all windows
