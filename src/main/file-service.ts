@@ -1,6 +1,6 @@
 import { app } from 'electron'
 import { copyFile, mkdir, unlink, stat } from 'fs/promises'
-import { join, basename } from 'path'
+import { join, basename, resolve as pathResolve } from 'path'
 import { randomUUID } from 'crypto'
 import log from 'electron-log'
 import { StoredFile } from '../renderer/lib/types'
@@ -47,6 +47,96 @@ export function getMimeType(filePath: string): string {
   }
   return mimeMap[ext] || 'application/octet-stream'
 }
+
+export interface VaultStoredFile {
+  id: string
+  type: 'image' | 'video' | 'audio' | 'file'
+  path: string  // relative path like "images/uuid.ext"
+  name: string  // original filename
+  mimeType: string
+  size: number
+}
+
+export function getFileCategory(mimeType: string): 'image' | 'video' | 'audio' | 'file' {
+  if (mimeType.startsWith('image/')) return 'image'
+  if (mimeType.startsWith('video/')) return 'video'
+  if (mimeType.startsWith('audio/')) return 'audio'
+  return 'file'
+}
+
+export async function copyFilesToVault(
+  vaultPath: string,
+  tempPaths: string[]
+): Promise<VaultStoredFile[]> {
+  const results: VaultStoredFile[] = []
+
+  for (const tempPath of tempPaths) {
+    try {
+      const id = randomUUID()
+      const originalName = basename(tempPath)
+      const ext = originalName.split('.').pop() || ''
+      const mimeType = getMimeType(tempPath)
+      const category = getFileCategory(mimeType)  // per D-02
+
+      // Build stored filename: UUID with extension
+      const storedName = ext ? `${id}.${ext}` : id
+
+      // Build target path: vaultPath/.dumpere/{category}s/uuid.ext
+      // Note: pluralize category (images/, videos/, audio/, files/) per D-09
+      const targetDir = join(vaultPath, '.dumpere', `${category}s`)
+      const targetPath = join(targetDir, storedName)
+
+      // Ensure directory exists
+      await mkdir(targetDir, { recursive: true })
+
+      // Copy file (D-01: copy to vault, original stays in place)
+      await copyFile(tempPath, targetPath)
+
+      // Get file size
+      const { size } = await stat(targetPath)
+
+      // Store relative path for metadata (e.g., "images/uuid.ext")
+      const relativePath = `${category}s/${storedName}`
+
+      results.push({
+        id,
+        type: category,
+        path: relativePath,
+        name: originalName,
+        mimeType,
+        size
+      })
+
+      log.info(`Copied to vault: ${originalName} -> ${relativePath}`)
+    } catch (err) {
+      log.error(`Failed to copy file to vault: ${tempPath}`, err)
+      throw err
+    }
+  }
+
+  return results
+}
+
+export async function deleteVaultFile(vaultPath: string, relativePath: string): Promise<void> {
+  // relativePath is like "images/uuid.ext"
+  const fullPath = join(vaultPath, '.dumpere', relativePath)
+  try {
+    await unlink(fullPath)
+    log.info(`Deleted vault file: ${relativePath}`)
+  } catch (err) {
+    log.error(`Failed to delete vault file: ${relativePath}`, err)
+    throw err
+  }
+}
+
+export function getVaultFileUrl(vaultPath: string, relativePath: string): string {
+  // relativePath is like "images/uuid.ext"
+  const fullPath = join(vaultPath, '.dumpere', relativePath)
+  return `file://${fullPath.replace(/\\/g, '/')}`
+}
+
+// Legacy exports for backward compatibility during transition
+export { getMimeType }
 
 export async function copyFiles(tempPaths: string[]): Promise<StoredFile[]> {
   const dumpsDir = getDumpsDir()
