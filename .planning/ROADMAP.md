@@ -131,6 +131,16 @@ Full milestone details: [`.planning/milestones/v1.0-ROADMAP.md`](.planning/miles
 2. **File + Metadata second** because file storage and metadata persistence require vault path infrastructure from Phase 1
 3. This maps cleanly to the security-first approach: validation and security hardening (Phase 1) before file operations (Phase 2)
 
+### Phase 3: 支持build二进制，包括linux和windows平台
+
+**Goal:** [To be planned]
+**Requirements**: TBD
+**Depends on:** Phase 2
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd-plan-phase 3 to break down)
+
 ---
 
 *Last updated: 2026-04-08 — v1.1 complete: Vault Foundation + File/Metadata Layer (2 phases, 5 plans)*
