@@ -149,4 +149,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getRecentVaults: () => {
     return ipcRenderer.invoke('vault:get-recent')
   },
+
+  // Dump operations (vault-based, per FILE-01, META-01, META-02)
+  createDump: (input: { text: string; filePaths: string[] }) => {
+    return ipcRenderer.invoke('dump:create', input)
+  },
+
+  getDumpsFromVault: () => {
+    return ipcRenderer.invoke('dump:get')
+  },
 })
