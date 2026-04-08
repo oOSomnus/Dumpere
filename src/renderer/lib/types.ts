@@ -170,4 +170,16 @@ export const mockElectronAPI: ElectronAPI = {
   generateSummary: async () => null,
   getSummaries: async () => [],
   exportSummary: async () => null,
+  // Vault dump operations (per FILE-01, META-01, META-02)
+  createDump: async (input: { text: string; filePaths: string[] }) => {
+    return {
+      id: crypto.randomUUID(),
+      created: new Date().toISOString(),
+      text: input.text,
+      files: [],
+      tags: [],
+      order: 0
+    }
+  },
+  getDumpsFromVault: async () => [],
 }
