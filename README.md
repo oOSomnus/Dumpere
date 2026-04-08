@@ -1,3 +1,5 @@
+<img src="images/Dumpere.png" width="100%" />
+
 # Dumpere
 
 A minimalist desktop app for quick work completion tracking. Press Enter to instantly dump text, images, videos, audio, and files together — no friction, no ceremony.
