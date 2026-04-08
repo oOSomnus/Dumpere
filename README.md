@@ -1,4 +1,4 @@
-<img src="images/Dumpere.png" width="70%" />
+<p align="center"><img src="images/Dumpere.png" width="60%" /></p>
 
 # Dumpere
 
