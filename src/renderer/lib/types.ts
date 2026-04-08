@@ -78,6 +78,10 @@ export interface ElectronAPI {
   // Dump update operation (for project/tag assignment)
   updateDump: (id: string, updates: { projectId?: string | null; tags?: string[] }) => Promise<DumpEntry>
 
+  // Vault dump operations (per FILE-01, META-01, META-02)
+  createDump: (input: { text: string; filePaths: string[] }) => Promise<DumpMetadata | null>
+  getDumpsFromVault: () => Promise<DumpMetadata[]>
+
   // Window state
   getWindowBounds: () => Promise<WindowBounds | null>
   setWindowBounds: (bounds: WindowBounds) => Promise<void>
@@ -109,6 +113,29 @@ declare global {
   interface Window {
     electronAPI: ElectronAPI
   }
+}
+
+// Vault metadata types (per META-01 schema)
+export interface VaultMetadata {
+  version: string
+  created: string  // ISO-8601
+  dumps: DumpMetadata[]
+}
+
+export interface DumpMetadata {
+  id: string
+  created: string  // ISO-8601
+  text: string
+  files: VaultFile[]
+  tags: string[]
+  order: number
+}
+
+export interface VaultFile {
+  id: string
+  type: 'image' | 'video' | 'audio' | 'file'
+  path: string  // relative path like "images/uuid.ext"
+  name: string  // original filename
 }
 
 // Default mock API for browser testing
