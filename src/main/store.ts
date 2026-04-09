@@ -26,6 +26,7 @@ interface StoreSchema {
   windowMaximized: boolean
   recentVaults: RecentVault[]
   currentVault: { path: string; name: string } | null
+  theme?: 'light' | 'dark' | 'system'
 }
 
 export const store = new Store<StoreSchema>({
@@ -46,6 +47,7 @@ export const store = new Store<StoreSchema>({
     windowBounds: null,
     windowMaximized: false,
     recentVaults: [],
-    currentVault: null
+    currentVault: null,
+    theme: 'system'
   }
 })

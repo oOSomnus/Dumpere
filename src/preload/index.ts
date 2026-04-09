@@ -90,6 +90,15 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on('theme:changed', (_, isDark) => callback(isDark))
   },
 
+  // Theme operations
+  getTheme: (): Promise<'light' | 'dark' | 'system'> => {
+    return ipcRenderer.invoke('theme:get')
+  },
+
+  setTheme: (theme: 'light' | 'dark' | 'system'): Promise<void> => {
+    return ipcRenderer.invoke('theme:set', theme)
+  },
+
   // Export operations
   exportDumps: (dumpIds: string[], projectName: string) => {
     return ipcRenderer.invoke('export:dumps', dumpIds, projectName)

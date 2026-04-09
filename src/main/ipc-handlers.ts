@@ -1,4 +1,4 @@
-import { ipcMain, BrowserWindow, dialog, app, clipboard } from 'electron'
+import { ipcMain, BrowserWindow, dialog, app, clipboard, nativeTheme } from 'electron'
 import log from 'electron-log'
 import { store } from './store'
 import { copyFiles, deleteFile, getFileUrl, getDumpsDir } from './file-service'
@@ -777,6 +777,21 @@ export function setupIPCHandlers(): void {
     BrowserWindow.getAllWindows().forEach(win => {
       win.webContents.send('vault:state-changed', state)
     })
+  })
+
+  // theme:get — return stored theme preference
+  ipcMain.handle('theme:get', (): 'light' | 'dark' | 'system' => {
+    return store.get('theme', 'system')
+  })
+
+  // theme:set — persist theme preference and notify all windows
+  ipcMain.handle('theme:set', (_, theme: 'light' | 'dark' | 'system'): void => {
+    store.set('theme', theme)
+    const isDark = theme === 'dark' || (theme === 'system' && nativeTheme.shouldUseDarkColors)
+    BrowserWindow.getAllWindows().forEach(win => {
+      win.webContents.send('theme:changed', isDark)
+    })
+    log.info(`Theme set to: ${theme} (isDark: ${isDark})`)
   })
 
   log.info('IPC handlers registered')

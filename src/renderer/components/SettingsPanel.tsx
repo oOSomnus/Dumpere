@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react'
 import { ArrowLeft, Save, SlidersHorizontal } from 'lucide-react'
 import { SummarySettings, mockElectronAPI } from '../lib/types'
 import { cn } from '../../lib/utils'
+import { useTheme } from '../hooks/useTheme'
+import { Switch } from '../../components/ui/switch'
 
 const api = typeof window !== 'undefined' && window.electronAPI
   ? window.electronAPI
@@ -24,6 +26,7 @@ export function SettingsPanel({ onBackToDumps }: SettingsPanelProps) {
   const [isSaving, setIsSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
+  const { isDark, isLoaded: themeLoaded, toggleTheme } = useTheme()
 
   useEffect(() => {
     const loadSettings = async () => {
@@ -143,83 +146,43 @@ export function SettingsPanel({ onBackToDumps }: SettingsPanelProps) {
           Loading summary settings...
         </div>
       ) : (
-        <div
-          className="rounded-2xl border p-6 space-y-5 max-w-2xl"
-          style={{
-            borderColor: 'var(--border)',
-            backgroundColor: 'var(--card)'
-          }}
-        >
-          <div className="space-y-2">
-            <label className="block text-sm font-medium" style={{ color: 'var(--foreground)' }}>
-              Provider
-            </label>
-            <select
-              value={settings.provider}
-              onChange={(e) => handleProviderChange(e.target.value as SummarySettings['provider'])}
-              className="w-full rounded-lg px-3 py-2 border text-sm"
-              style={{
-                backgroundColor: 'var(--input)',
-                borderColor: 'var(--border)',
-                color: 'var(--foreground)'
-              }}
-            >
-              <option value="ollama">Ollama</option>
-              <option value="openai">OpenAI Compatible</option>
-            </select>
-          </div>
-
-          <div className="space-y-2">
-            <label className="block text-sm font-medium" style={{ color: 'var(--foreground)' }}>
-              Base URL
-            </label>
-            <input
-              type="url"
-              value={settings.baseUrl}
-              onChange={(e) => updateField('baseUrl', e.target.value)}
-              placeholder={settings.provider === 'openai' ? 'https://api.openai.com/v1' : 'http://localhost:11434'}
-              className="w-full rounded-lg px-3 py-2 border text-sm"
-              style={{
-                backgroundColor: 'var(--input)',
-                borderColor: 'var(--border)',
-                color: 'var(--foreground)'
-              }}
-            />
-            <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
-              {settings.provider === 'openai'
-                ? 'Use a full API base URL, usually including /v1.'
-                : 'Default Ollama endpoint is http://localhost:11434.'}
-            </p>
-          </div>
-
-          <div className="space-y-2">
-            <label className="block text-sm font-medium" style={{ color: 'var(--foreground)' }}>
-              Model
-            </label>
-            <input
-              type="text"
-              value={settings.model}
-              onChange={(e) => updateField('model', e.target.value)}
-              placeholder={settings.provider === 'openai' ? 'gpt-4.1-mini' : 'mistral'}
-              className="w-full rounded-lg px-3 py-2 border text-sm"
-              style={{
-                backgroundColor: 'var(--input)',
-                borderColor: 'var(--border)',
-                color: 'var(--foreground)'
-              }}
-            />
-          </div>
-
-          {settings.provider === 'openai' && (
+        <>
+          {/* Summary Settings Card */}
+          <div
+            className="rounded-2xl border p-6 space-y-5 max-w-2xl"
+            style={{
+              borderColor: 'var(--border)',
+              backgroundColor: 'var(--card)'
+            }}
+          >
             <div className="space-y-2">
               <label className="block text-sm font-medium" style={{ color: 'var(--foreground)' }}>
-                API Key
+                Provider
+              </label>
+              <select
+                value={settings.provider}
+                onChange={(e) => handleProviderChange(e.target.value as SummarySettings['provider'])}
+                className="w-full rounded-lg px-3 py-2 border text-sm"
+                style={{
+                  backgroundColor: 'var(--input)',
+                  borderColor: 'var(--border)',
+                  color: 'var(--foreground)'
+                }}
+              >
+                <option value="ollama">Ollama</option>
+                <option value="openai">OpenAI Compatible</option>
+              </select>
+            </div>
+
+            <div className="space-y-2">
+              <label className="block text-sm font-medium" style={{ color: 'var(--foreground)' }}>
+                Base URL
               </label>
               <input
-                type="password"
-                value={settings.apiKey}
-                onChange={(e) => updateField('apiKey', e.target.value)}
-                placeholder="sk-..."
+                type="url"
+                value={settings.baseUrl}
+                onChange={(e) => updateField('baseUrl', e.target.value)}
+                placeholder={settings.provider === 'openai' ? 'https://api.openai.com/v1' : 'http://localhost:11434'}
                 className="w-full rounded-lg px-3 py-2 border text-sm"
                 style={{
                   backgroundColor: 'var(--input)',
@@ -228,32 +191,111 @@ export function SettingsPanel({ onBackToDumps }: SettingsPanelProps) {
                 }}
               />
               <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
-                Saved locally on this machine and only used for summary generation requests.
+                {settings.provider === 'openai'
+                  ? 'Use a full API base URL, usually including /v1.'
+                  : 'Default Ollama endpoint is http://localhost:11434.'}
               </p>
             </div>
-          )}
 
-          <div className="flex items-center justify-between gap-3 pt-2">
-            <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
-              Changes apply to the next generated summary.
-            </p>
-            <button
-              onClick={handleSave}
-              disabled={isSaving}
-              className={cn(
-                'inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors',
-                'disabled:opacity-50 disabled:cursor-not-allowed'
-              )}
-              style={{
-                backgroundColor: 'var(--primary)',
-                color: 'var(--primary-foreground)'
-              }}
-            >
-              <Save className="w-4 h-4" />
-              {isSaving ? 'Saving...' : 'Save Settings'}
-            </button>
+            <div className="space-y-2">
+              <label className="block text-sm font-medium" style={{ color: 'var(--foreground)' }}>
+                Model
+              </label>
+              <input
+                type="text"
+                value={settings.model}
+                onChange={(e) => updateField('model', e.target.value)}
+                placeholder={settings.provider === 'openai' ? 'gpt-4.1-mini' : 'mistral'}
+                className="w-full rounded-lg px-3 py-2 border text-sm"
+                style={{
+                  backgroundColor: 'var(--input)',
+                  borderColor: 'var(--border)',
+                  color: 'var(--foreground)'
+                }}
+              />
+            </div>
+
+            {settings.provider === 'openai' && (
+              <div className="space-y-2">
+                <label className="block text-sm font-medium" style={{ color: 'var(--foreground)' }}>
+                  API Key
+                </label>
+                <input
+                  type="password"
+                  value={settings.apiKey}
+                  onChange={(e) => updateField('apiKey', e.target.value)}
+                  placeholder="sk-..."
+                  className="w-full rounded-lg px-3 py-2 border text-sm"
+                  style={{
+                    backgroundColor: 'var(--input)',
+                    borderColor: 'var(--border)',
+                    color: 'var(--foreground)'
+                  }}
+                />
+                <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
+                  Saved locally on this machine and only used for summary generation requests.
+                </p>
+              </div>
+            )}
+
+            <div className="flex items-center justify-between gap-3 pt-2">
+              <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
+                Changes apply to the next generated summary.
+              </p>
+              <button
+                onClick={handleSave}
+                disabled={isSaving}
+                className={cn(
+                  'inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors',
+                  'disabled:opacity-50 disabled:cursor-not-allowed'
+                )}
+                style={{
+                  backgroundColor: 'var(--primary)',
+                  color: 'var(--primary-foreground)'
+                }}
+              >
+                <Save className="w-4 h-4" />
+                {isSaving ? 'Saving...' : 'Save Settings'}
+              </button>
+            </div>
           </div>
-        </div>
+
+          {/* Appearance: Dark Mode */}
+          <div
+            className="rounded-2xl border p-6 space-y-4"
+            style={{
+              borderColor: 'var(--border)',
+              backgroundColor: 'var(--card)'
+            }}
+          >
+            <h2 className="text-lg font-semibold" style={{ color: 'var(--foreground)' }}>
+              Appearance
+            </h2>
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <p className="text-sm font-medium" style={{ color: 'var(--foreground)' }}>
+                  Dark mode
+                </p>
+                <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
+                  Switch between light and dark themes
+                </p>
+              </div>
+              <div className="flex items-center gap-3">
+                <span className="text-xs font-medium" style={{ color: !isDark ? 'var(--foreground)' : 'var(--muted-foreground)' }}>
+                  {themeLoaded ? (!isDark ? 'On' : 'Off') : ''}
+                </span>
+                <Switch
+                  checked={isDark}
+                  onCheckedChange={toggleTheme}
+                  disabled={!themeLoaded}
+                />
+                <span className="text-xs font-medium" style={{ color: isDark ? 'var(--foreground)' : 'var(--muted-foreground)' }}>
+                  {themeLoaded ? (isDark ? 'On' : 'Off') : ''}
+                </span>
+              </div>
+            </div>
+          </div>
+        </>
       )}
     </div>
   )
