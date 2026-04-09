@@ -1,4 +1,4 @@
-<p align="center"><img src="images/Dumpere-icon.png" width="60%" /></p>
+<p align="center"><img src="images/Dumpere-icon.png" width="30%" /></p>
 
 # Dumpere
 
