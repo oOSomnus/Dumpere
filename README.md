@@ -1,4 +1,4 @@
-<p align="center"><img src="images/Dumpere.png" width="60%" /></p>
+<p align="center"><img src="images/Dumpere-icon.png" width="60%" /></p>
 
 # Dumpere
 
@@ -22,14 +22,9 @@ pnpm pack             # Package into unpacked dir (for testing)
 pnpm dist             # Build distributable installers for current platform
 pnpm dist:linux       # Build Linux packages (AppImage, deb)
 pnpm dist:win         # Build Windows packages (nsis, portable)
-pnpm dist:mac         # Build macOS packages (dmg)
+pnpm dist:mac         # Build macOS packages (dmg on macOS, zip elsewhere)
+pnpm dist:mac:dmg     # Build a macOS DMG (run on macOS)
 pnpm test             # Run unit tests
 pnpm test:e2e         # Run Playwright E2E tests
 pnpm test:e2e:headed  # Run E2E tests with visible browser
-```
-
-Recommended Windows packaging flow:
-
-```bash
-pnpm clean && pnpm dist:win
 ```
