@@ -63,6 +63,7 @@ export function MarkdownPreview({ content, className }: MarkdownPreviewProps) {
                   {children}
                 </code>
               </pre>
+            );
           },
           a: ({ href, children }) => (
             <a
