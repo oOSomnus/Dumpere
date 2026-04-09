@@ -65,15 +65,19 @@ export function useTheme() {
 
   // Listen for theme:changed from main process (e.g., from theme:set in another window)
   useEffect(() => {
-    if (typeof window !== 'undefined' && window.electronAPI?.onThemeChange) {
-      window.electronAPI.onThemeChange((dark: boolean) => {
-        // When main broadcasts a change, sync effective dark state
-        // but don't override user preference — just apply the class
+    if (typeof window === 'undefined' || !window.electronAPI?.onThemeChange) return
+
+    let isMounted = true
+    window.electronAPI.onThemeChange((dark: boolean) => {
+      if (!isMounted) return
+      // Only apply if in system mode, otherwise user preference takes precedence
+      if (themeSetting === 'system') {
         setIsDark(dark)
         applyThemeClass(dark)
-      })
-    }
-  }, [])
+      }
+    })
+    return () => { isMounted = false }
+  }, [themeSetting])
 
   const setTheme = useCallback(async (setting: ThemeSetting) => {
     setThemeSetting(setting)

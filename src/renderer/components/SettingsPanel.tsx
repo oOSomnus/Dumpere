@@ -281,8 +281,8 @@ export function SettingsPanel({ onBackToDumps }: SettingsPanelProps) {
                 </p>
               </div>
               <div className="flex items-center gap-3">
-                <span className="text-xs font-medium" style={{ color: !isDark ? 'var(--foreground)' : 'var(--muted-foreground)' }}>
-                  {themeLoaded ? (!isDark ? 'On' : 'Off') : ''}
+                <span className="text-xs font-medium" style={{ color: isDark ? 'var(--muted-foreground)' : 'var(--foreground)' }}>
+                  {themeLoaded ? (isDark ? 'On' : 'Off') : ''}
                 </span>
                 <Switch
                   checked={isDark}
