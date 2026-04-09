@@ -44,6 +44,7 @@ function VaultAppContent({ vaultName }: VaultAppContentProps) {
   const { filters, setProjectFilter, toggleTagFilter, setDatePreset, toggleDate, setDateKeys, clearDateFilter, applyFilters } = useFilter()
   const { searchQuery, setSearchQuery, search } = useSearch()
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([])
+  const [isSearchInputFocused, setIsSearchInputFocused] = useState(false)
   const deferredSearchQuery = useDeferredValue(searchQuery)
 
   const [currentView, setCurrentView] = useState<AppView>('grid')
@@ -201,6 +202,7 @@ function VaultAppContent({ vaultName }: VaultAppContentProps) {
         onExportProject={handleExportProject}
         onImportProject={handleImportProject}
         searchQuery={searchQuery}
+        onSearchFocusChange={setIsSearchInputFocused}
         onSearchChange={(query) => {
           setCurrentView('grid')
           setSearchQuery(query)
@@ -264,6 +266,7 @@ function VaultAppContent({ vaultName }: VaultAppContentProps) {
       {currentView === 'grid' && (
         <DumpInput
           onSubmit={handleSubmit}
+          shouldAutoFocus={!isSearchInputFocused}
           projects={projects}
           activeProjectId={activeProjectId}
           onProjectSelect={handleComposerProjectSelect}

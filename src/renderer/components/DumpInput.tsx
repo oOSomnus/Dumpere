@@ -13,6 +13,7 @@ interface FileChipData {
 
 interface DumpInputProps {
   onSubmit: (text: string, filePaths: string[], projectId: string | null, tagIds: string[]) => Promise<void>
+  shouldAutoFocus?: boolean
   // Phase 2: Project support
   projects: Project[]
   activeProjectId: string | null
@@ -50,6 +51,7 @@ function getFallbackFileName(file: File): string {
 
 export function DumpInput({
   onSubmit,
+  shouldAutoFocus = true,
   projects,
   activeProjectId,
   onProjectSelect,
@@ -67,10 +69,10 @@ export function DumpInput({
   const inputRef = useRef<HTMLTextAreaElement>(null)
 
   const focusInput = useCallback(() => {
-    if (tagInputOpen || isSubmitting) return
+    if (!shouldAutoFocus || tagInputOpen || isSubmitting) return
     if (typeof document !== 'undefined' && document.querySelector('[role="dialog"]')) return
     window.requestAnimationFrame(() => inputRef.current?.focus())
-  }, [isSubmitting, tagInputOpen])
+  }, [isSubmitting, shouldAutoFocus, tagInputOpen])
 
   useEffect(() => {
     focusInput()

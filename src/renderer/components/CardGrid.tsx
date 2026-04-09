@@ -108,12 +108,21 @@ export function CardGrid({
 
   const renderHighlightedText = (matchedText: string, query: string): ReactNode => {
     if (!query) return matchedText
-    const regex = new RegExp(`(${escapeRegex(query)})`, 'gi')
+    const queryTerms = query
+      .trim()
+      .split(/\s+/)
+      .filter(Boolean)
+
+    if (queryTerms.length === 0) {
+      return matchedText
+    }
+
+    const regex = new RegExp(`(${queryTerms.map(escapeRegex).join('|')})`, 'gi')
     const parts = matchedText.split(regex)
-    const normalizedQuery = query.toLowerCase()
+    const normalizedTerms = new Set(queryTerms.map(term => term.toLowerCase()))
 
     return parts.map((part, index) => (
-      part.toLowerCase() === normalizedQuery ? <mark key={index}>{part}</mark> : part
+      normalizedTerms.has(part.toLowerCase()) ? <mark key={index}>{part}</mark> : part
     ))
   }
 

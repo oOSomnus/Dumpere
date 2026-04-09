@@ -23,6 +23,7 @@ interface SidebarProps {
   onDeleteProject: (id: string) => void
   searchQuery?: string
   onSearchChange?: (query: string) => void
+  onSearchFocusChange?: (focused: boolean) => void
   onExportProject?: (projectId: string) => void
   onImportProject?: (projectId: string) => void
   currentView?: 'grid' | 'summaries' | 'settings'
@@ -53,6 +54,7 @@ export function Sidebar({
   onDeleteProject,
   searchQuery = '',
   onSearchChange,
+  onSearchFocusChange,
   onExportProject,
   onImportProject,
   currentView = 'grid',
@@ -141,6 +143,8 @@ export function Sidebar({
           <input
             type="text"
             value={searchQuery}
+            onFocus={() => onSearchFocusChange?.(true)}
+            onBlur={() => onSearchFocusChange?.(false)}
             onChange={(e) => {
               onViewChange?.('grid')
               onSearchChange(e.target.value)

@@ -16,6 +16,14 @@ export interface UseSearchReturn {
 }
 
 const CONTEXT_CHARS = 50
+
+function getQueryTerms(query: string): string[] {
+  return query
+    .toLowerCase()
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+}
 /**
  * Search hook for filtering dumps by text content.
  * Provides an immediate query value and search helpers.
@@ -28,22 +36,28 @@ export function useSearch(): UseSearchReturn {
    * Returns results with context (50 chars before/after match).
    */
   const search = useCallback((query: string, dumps: DumpEntry[]): SearchResult[] => {
-    if (!query.trim()) {
+    const queryTerms = getQueryTerms(query)
+
+    if (queryTerms.length === 0) {
       return []
     }
 
-    const lowerQuery = query.toLowerCase()
     const results: SearchResult[] = []
 
     for (const dump of dumps) {
       const text = dump.text
       const lowerText = text.toLowerCase()
-      const matchIndex = lowerText.indexOf(lowerQuery)
+      const matchIndexes = queryTerms
+        .map(term => lowerText.indexOf(term))
+        .filter(index => index !== -1)
+      const matchesAllTerms = queryTerms.every(term => lowerText.includes(term))
+      const matchIndex = matchIndexes.length > 0 ? Math.min(...matchIndexes) : -1
 
-      if (matchIndex !== -1) {
+      if (matchesAllTerms && matchIndex !== -1) {
         // Calculate context boundaries
         const matchStart = matchIndex
-        const matchEnd = matchIndex + query.length
+        const primaryTerm = queryTerms.find(term => lowerText.indexOf(term) === matchIndex) || queryTerms[0]
+        const matchEnd = matchIndex + primaryTerm.length
 
         // Extract context before match
         const contextStart = Math.max(0, matchStart - CONTEXT_CHARS)

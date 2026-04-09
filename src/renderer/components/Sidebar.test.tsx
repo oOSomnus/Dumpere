@@ -70,4 +70,20 @@ describe('Sidebar', () => {
       expect(onDeleteTag).toHaveBeenCalledWith('tag-1')
     })
   })
+
+  it('reports search input focus changes', () => {
+    const onSearchFocusChange = vi.fn()
+    renderSidebar({
+      searchQuery: '',
+      onSearchChange: vi.fn(),
+      onSearchFocusChange
+    })
+
+    const searchInput = screen.getByPlaceholderText('Search dumps...')
+    fireEvent.focus(searchInput)
+    fireEvent.blur(searchInput)
+
+    expect(onSearchFocusChange).toHaveBeenNthCalledWith(1, true)
+    expect(onSearchFocusChange).toHaveBeenNthCalledWith(2, false)
+  })
 })

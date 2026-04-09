@@ -114,4 +114,20 @@ describe('ExpandedCard', () => {
     expect(document.querySelector('video')).toBeInTheDocument()
     expect(document.querySelector('audio')).toBeInTheDocument()
   })
+
+  it('does not show unassigned in the project selector trigger', () => {
+    render(
+      <ExpandedCard
+        dump={dump}
+        onClose={vi.fn()}
+        projects={[{ id: 'project-1', name: 'Inbox', createdAt: 1 }]}
+        tags={[]}
+        onProjectChange={vi.fn()}
+        onTagsChange={vi.fn()}
+      />
+    )
+
+    expect(screen.getByText('No Project')).toBeInTheDocument()
+    expect(screen.queryByText('Unassigned')).not.toBeInTheDocument()
+  })
 })

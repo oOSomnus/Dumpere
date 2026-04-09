@@ -205,8 +205,8 @@ export function ExpandedCard({ dump, onClose, projects, tags, onProjectChange, o
                 <div className="flex items-center gap-2">
                   <span className="text-sm" style={{ color: 'var(--muted-foreground)' }}>Project:</span>
                   <Select.Root
-                    value={dump.projectId || 'unassigned'}
-                    onValueChange={(value) => handleProjectSelect(value === 'unassigned' ? null : value)}
+                    value={dump.projectId ?? undefined}
+                    onValueChange={handleProjectSelect}
                   >
                     <Select.Trigger
                       className={cn(
@@ -220,7 +220,7 @@ export function ExpandedCard({ dump, onClose, projects, tags, onProjectChange, o
                         color: 'var(--foreground)'
                       }}
                     >
-                      <Select.Value />
+                      <Select.Value placeholder="No Project" />
                       <ChevronDown className="w-4 h-4" style={{ color: 'var(--muted-foreground)' }} />
                     </Select.Trigger>
                     <Select.Portal>
@@ -232,9 +232,6 @@ export function ExpandedCard({ dump, onClose, projects, tags, onProjectChange, o
                         }}
                       >
                         <Select.Viewport>
-                          <Select.Item value="unassigned">
-                            <Select.ItemText>Unassigned</Select.ItemText>
-                          </Select.Item>
                           {projects.map(project => (
                             <Select.Item key={project.id} value={project.id}>
                               <Select.ItemText>{project.name}</Select.ItemText>

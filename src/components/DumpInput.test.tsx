@@ -139,6 +139,33 @@ describe('DumpInput', () => {
     })
   })
 
+  it('does not autofocus the textarea when auto focus is disabled', async () => {
+    render(
+      <DumpInput
+        onSubmit={mockOnSubmit}
+        shouldAutoFocus={false}
+        projects={mockProjects}
+        activeProjectId={null}
+        onProjectSelect={vi.fn()}
+        allTags={baseTags}
+        selectedTagIds={[]}
+        onTagsChange={vi.fn()}
+        getAISuggestions={vi.fn(() => [])}
+        onCreateTag={vi.fn(async (name: string) => ({
+          id: 'tag-new',
+          name,
+          createdAt: Date.now()
+        }))}
+      />
+    )
+
+    const textarea = screen.getByPlaceholderText(/Dump something/i)
+
+    await waitFor(() => {
+      expect(document.activeElement).not.toBe(textarea)
+    })
+  })
+
   it('submits when Enter is pressed twice with no tag text', async () => {
     renderHarness({ initialProjectId: 'project-1' })
 
