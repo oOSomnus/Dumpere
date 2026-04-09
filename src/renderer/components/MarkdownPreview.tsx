@@ -58,10 +58,11 @@ export function MarkdownPreview({ content, className }: MarkdownPreviewProps) {
               )
             }
             return (
-              <code className={className} {...props}>
-                {children}
-              </code>
-            )
+              <pre className="bg-muted rounded my-2 p-3 overflow-x-auto text-sm">
+                <code className={className} {...props}>
+                  {children}
+                </code>
+              </pre>
           },
           a: ({ href, children }) => (
             <a
