@@ -4,7 +4,7 @@ import { useSummary } from '../hooks/useSummary'
 import { useWorkpad } from '../hooks/useWorkpad'
 import { formatRelativeTime } from '../lib/utils-time'
 import { cn } from '../../lib/utils'
-import { FileText, AlertCircle, ArrowLeft, Settings, Download, PencilLine, Eye, Clipboard, Check } from 'lucide-react'
+import { FileText, AlertCircle, ArrowLeft, Settings, Download, PencilLine, Eye, Clipboard, Check, Columns2 } from 'lucide-react'
 import { MarkdownPreview } from './MarkdownPreview'
 
 const api = typeof window !== 'undefined' && window.electronAPI
@@ -21,7 +21,7 @@ interface SummaryPanelProps {
 export function SummaryPanel({ projects, activeProjectId, onBackToDumps, onOpenSettings }: SummaryPanelProps) {
   const [summaryType, setSummaryType] = useState<'daily' | 'weekly'>('daily')
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(activeProjectId)
-  const [workpadMode, setWorkpadMode] = useState<'edit' | 'preview'>('edit')
+  const [workpadMode, setWorkpadMode] = useState<'edit' | 'split' | 'preview'>('edit')
   const [copied, setCopied] = useState(false)
   const { currentSummary, summaries, isLoading, error, generateSummary, clearError, setCurrentSummary } = useSummary()
   const {
@@ -140,6 +140,17 @@ export function SummaryPanel({ projects, activeProjectId, onBackToDumps, onOpenS
                 Edit
               </button>
               <button
+                onClick={() => setWorkpadMode('split')}
+                className="inline-flex items-center gap-2 px-3 py-2 text-sm"
+                style={{
+                  backgroundColor: workpadMode === 'split' ? 'var(--accent)' : 'transparent',
+                  color: workpadMode === 'split' ? 'var(--accent-foreground)' : 'var(--foreground)'
+                }}
+              >
+                <Columns2 className="w-4 h-4" />
+                Split
+              </button>
+              <button
                 onClick={() => setWorkpadMode('preview')}
                 className="inline-flex items-center gap-2 px-3 py-2 text-sm"
                 style={{
@@ -187,6 +198,32 @@ export function SummaryPanel({ projects, activeProjectId, onBackToDumps, onOpenS
                 minHeight: '520px'
               }}
             />
+          ) : workpadMode === 'split' ? (
+            <div className="flex flex-1 min-h-[520px] flex-col gap-4 lg:flex-row">
+              <textarea
+                value={workpadContent}
+                onChange={(event) => setWorkpadContent(event.target.value)}
+                placeholder="Write your running project notes here. You can also quote dumps into this workpad."
+                className="min-h-[260px] w-full flex-1 resize-none rounded-xl border p-4 text-sm outline-none"
+                style={{
+                  borderColor: 'var(--border)',
+                  backgroundColor: 'var(--secondary)',
+                  color: 'var(--foreground)'
+                }}
+              />
+              <div
+                className="min-h-[260px] flex-1 rounded-xl border p-4 overflow-y-auto"
+                style={{ borderColor: 'var(--border)', backgroundColor: 'var(--secondary)' }}
+              >
+                {workpadContent.trim() ? (
+                  <MarkdownPreview content={workpadContent} />
+                ) : (
+                  <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
+                    Nothing in this workpad yet.
+                  </p>
+                )}
+              </div>
+            </div>
           ) : (
             <div
               className="flex-1 rounded-xl border p-4 overflow-y-auto"

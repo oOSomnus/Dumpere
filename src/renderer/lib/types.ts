@@ -76,6 +76,7 @@ export interface ElectronAPI {
   // File operations
   copyFiles: (tempPaths: string[]) => Promise<StoredFile[]>
   deleteFile: (storedPath: string) => Promise<void>
+  openFile: (storedPath: string) => Promise<void>
   getFileUrl: (storedPath: string) => Promise<string>
 
   // Store operations
@@ -174,6 +175,7 @@ export interface VaultFile {
 export const mockElectronAPI: ElectronAPI = {
   copyFiles: async () => [],
   deleteFile: async () => {},
+  openFile: async () => {},
   getFileUrl: async (path: string) => `file://${path}`,
   getDumps: async () => [],
   saveDump: async (dump) => ({ ...dump, id: crypto.randomUUID() }) as DumpEntry,

@@ -29,8 +29,25 @@ interface ExpandedCardProps {
   onQuoteToWorkpad?: (dump: DumpEntry) => Promise<void> | void
 }
 
+function getElectronAPI() {
+  return typeof window !== 'undefined' && window.electronAPI
+    ? window.electronAPI
+    : null
+}
+
 function MediaPreview({ file }: { file: { storedPath: string; mimeType: string; originalName: string } }) {
   const fileUrl = useFileUrl(file.storedPath)
+  const handleOpenFile = async () => {
+    const api = getElectronAPI()
+    if (!api) return
+
+    try {
+      await api.openFile(file.storedPath)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Could not open file'
+      alert(message)
+    }
+  }
 
   if (!fileUrl) {
     return (
@@ -45,13 +62,19 @@ function MediaPreview({ file }: { file: { storedPath: string; mimeType: string; 
 
   if (file.mimeType.startsWith('image/')) {
     return (
-      <a href={fileUrl} download={file.originalName} target="_blank" rel="noopener noreferrer">
+      <button
+        type="button"
+        onClick={() => void handleOpenFile()}
+        className="block w-full text-left"
+        aria-label={`Open ${file.originalName}`}
+        title="Open with default app"
+      >
         <img
           src={fileUrl}
           alt={file.originalName}
           className="max-w-full max-h-96 rounded object-contain cursor-pointer hover:opacity-90 transition-opacity"
         />
-      </a>
+      </button>
     )
   }
 
@@ -79,36 +102,31 @@ function MediaPreview({ file }: { file: { storedPath: string; mimeType: string; 
 }
 
 function FileAttachment({ file }: { file: { storedPath: string; mimeType: string; originalName: string; size: number } }) {
-  const fileUrl = useFileUrl(file.storedPath)
   const sizeKB = Math.round(file.size / 1024)
   const sizeStr = sizeKB > 1024 ? `${(sizeKB / 1024).toFixed(1)} MB` : `${sizeKB} KB`
+  const handleOpenFile = async () => {
+    const api = getElectronAPI()
+    if (!api) return
 
-  if (!fileUrl) {
-    return (
-      <div
-        className={cn(
-          'flex items-center gap-2 p-3 rounded-md border'
-        )}
-        style={{ borderColor: 'var(--border)', backgroundColor: 'var(--secondary)' }}
-      >
-        <File className="w-4 h-4" style={{ color: 'var(--muted-foreground)' }} />
-        <div className="flex-1 min-w-0">
-          <p className="text-sm truncate" style={{ color: 'var(--foreground)' }}>{file.originalName}</p>
-          <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>{sizeStr}</p>
-        </div>
-      </div>
-    )
+    try {
+      await api.openFile(file.storedPath)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Could not open file'
+      alert(message)
+    }
   }
 
   return (
-    <a
-      href={fileUrl}
-      download={file.originalName}
+    <button
+      type="button"
+      onClick={() => void handleOpenFile()}
       className={cn(
-        'flex items-center gap-2 p-3 rounded-md transition-colors',
+        'flex w-full items-center gap-2 p-3 rounded-md transition-colors text-left',
         'border hover:border-primary'
       )}
       style={{ borderColor: 'var(--border)', backgroundColor: 'var(--secondary)' }}
+      aria-label={`Open ${file.originalName}`}
+      title="Open with default app"
     >
       <File className="w-4 h-4" style={{ color: 'var(--muted-foreground)' }} />
       <div className="flex-1 min-w-0">
@@ -116,7 +134,7 @@ function FileAttachment({ file }: { file: { storedPath: string; mimeType: string
         <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>{sizeStr}</p>
       </div>
       <Download className="w-4 h-4" style={{ color: 'var(--muted-foreground)' }} />
-    </a>
+    </button>
   )
 }
 

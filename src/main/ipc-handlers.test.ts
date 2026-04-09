@@ -31,6 +31,9 @@ vi.mock('electron', () => ({
   },
   clipboard: {
     writeText: vi.fn()
+  },
+  shell: {
+    openPath: vi.fn()
   }
 }))
 
@@ -63,7 +66,8 @@ vi.mock('./file-service', () => ({
   copyFiles: vi.fn(),
   deleteFile: vi.fn(),
   getFileUrl: vi.fn((path: string) => `file://${path}`),
-  getDumpsDir: vi.fn(() => '/dumps')
+  getDumpsDir: vi.fn(() => '/dumps'),
+  resolveStoredPath: vi.fn((path: string) => `/tmp/${path}`)
 }))
 
 vi.mock('./vault-service', () => ({
@@ -123,7 +127,7 @@ vi.mock('adm-zip', () => ({
 }))
 
 // Import after mocking
-import { ipcMain, dialog } from 'electron'
+import { ipcMain, dialog, shell } from 'electron'
 import { writeFile as mockedWriteFile } from 'fs/promises'
 import { setupIPCHandlers } from './ipc-handlers'
 
@@ -165,6 +169,22 @@ describe('IPC Handlers - AI operations', () => {
   })
 
   describe('dump handlers', () => {
+    it('opens files with the system default app', async () => {
+      const handler = ipcHandlers['file:open']
+      vi.mocked(shell.openPath).mockResolvedValueOnce('')
+
+      await expect(handler(null, 'dumps/report.pdf')).resolves.toBeUndefined()
+
+      expect(shell.openPath).toHaveBeenCalledWith('/tmp/dumps/report.pdf')
+    })
+
+    it('throws when the system fails to open a file', async () => {
+      const handler = ipcHandlers['file:open']
+      vi.mocked(shell.openPath).mockResolvedValueOnce('No application is associated with this file')
+
+      await expect(handler(null, 'dumps/report.pdf')).rejects.toThrow('No application is associated with this file')
+    })
+
     it('assigns a new id when saving a dump', async () => {
       const handler = ipcHandlers['store:save-dump']
       const result = await handler(null, {

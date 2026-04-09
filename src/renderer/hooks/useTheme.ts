@@ -70,14 +70,11 @@ export function useTheme() {
     let isMounted = true
     window.electronAPI.onThemeChange((dark: boolean) => {
       if (!isMounted) return
-      // Only apply if in system mode, otherwise user preference takes precedence
-      if (themeSetting === 'system') {
-        setIsDark(dark)
-        applyThemeClass(dark)
-      }
+      setIsDark(dark)
+      applyThemeClass(dark)
     })
     return () => { isMounted = false }
-  }, [themeSetting])
+  }, [])
 
   const setTheme = useCallback(async (setting: ThemeSetting) => {
     setThemeSetting(setting)
@@ -89,8 +86,10 @@ export function useTheme() {
     applyThemeClass(effective)
   }, [osPrefersDark])
 
-  const toggleTheme = useCallback(async () => {
-    const next = isDark ? 'light' : 'dark'
+  const toggleTheme = useCallback(async (checked?: boolean) => {
+    const next = typeof checked === 'boolean'
+      ? (checked ? 'dark' : 'light')
+      : (isDark ? 'light' : 'dark')
     await setTheme(next)
   }, [isDark, setTheme])
 

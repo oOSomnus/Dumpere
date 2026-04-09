@@ -1,5 +1,4 @@
 import { ReactNode } from 'react'
-import { useTheme } from '../hooks/useTheme'
 
 interface AppShellProps {
   children: ReactNode
@@ -7,11 +6,9 @@ interface AppShellProps {
 }
 
 export function AppShell({ children, sidebar }: AppShellProps) {
-  const isDark = useTheme()
-
   return (
     <div
-      className={`${isDark ? 'dark' : ''} theme`}
+      className="theme"
       style={{
         display: 'flex',
         flexDirection: 'row',

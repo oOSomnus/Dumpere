@@ -282,7 +282,7 @@ export function SettingsPanel({ onBackToDumps }: SettingsPanelProps) {
               </div>
               <div className="flex items-center gap-3">
                 <span className="text-xs font-medium" style={{ color: isDark ? 'var(--muted-foreground)' : 'var(--foreground)' }}>
-                  {themeLoaded ? (isDark ? 'On' : 'Off') : ''}
+                  {themeLoaded ? 'Off' : ''}
                 </span>
                 <Switch
                   checked={isDark}
@@ -290,7 +290,7 @@ export function SettingsPanel({ onBackToDumps }: SettingsPanelProps) {
                   disabled={!themeLoaded}
                 />
                 <span className="text-xs font-medium" style={{ color: isDark ? 'var(--foreground)' : 'var(--muted-foreground)' }}>
-                  {themeLoaded ? (isDark ? 'On' : 'Off') : ''}
+                  {themeLoaded ? 'On' : ''}
                 </span>
               </div>
             </div>

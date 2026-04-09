@@ -1,7 +1,7 @@
-import { ipcMain, BrowserWindow, dialog, app, clipboard, nativeTheme } from 'electron'
+import { ipcMain, BrowserWindow, dialog, app, clipboard, nativeTheme, shell } from 'electron'
 import log from 'electron-log'
 import { store } from './store'
-import { copyFiles, deleteFile, getFileUrl, getDumpsDir } from './file-service'
+import { copyFiles, deleteFile, getFileUrl, getDumpsDir, resolveStoredPath } from './file-service'
 import { createVault, openVault, getVaultState, onVaultStateChange, VaultState, RecentVault } from './vault-service'
 import { createDump, readMetadata, VaultMetadata, DumpMetadata } from './metadata-service'
 import { DumpEntry, StoredFile, Project, Tag, SummaryEntry, SummarySettings, ProjectWorkpad } from '../renderer/lib/types'
@@ -116,6 +116,18 @@ export function setupIPCHandlers(): void {
   ipcMain.handle('file:delete', async (_, storedPath: string): Promise<void> => {
     log.debug(`file:delete called for: ${storedPath}`)
     await deleteFile(storedPath)
+  })
+
+  // file:open — open stored file in the system default application
+  ipcMain.handle('file:open', async (_, storedPath: string): Promise<void> => {
+    log.debug(`file:open called for: ${storedPath}`)
+    const fullPath = resolveStoredPath(storedPath)
+    const error = await shell.openPath(fullPath)
+
+    if (error) {
+      log.error(`Failed to open file: ${storedPath}`, error)
+      throw new Error(error)
+    }
   })
 
   // file:get-url — get file URL for renderer

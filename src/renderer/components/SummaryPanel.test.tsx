@@ -121,4 +121,13 @@ describe('SummaryPanel', () => {
 
     expect(screen.getByText('Notes')).toBeInTheDocument()
   })
+
+  it('shows editor and preview together in split mode', () => {
+    render(<SummaryPanel projects={projects} activeProjectId={null} />)
+
+    fireEvent.click(screen.getByText('Split'))
+
+    expect(screen.getByDisplayValue('## Notes')).toBeInTheDocument()
+    expect(screen.getByText('Notes')).toBeInTheDocument()
+  })
 })

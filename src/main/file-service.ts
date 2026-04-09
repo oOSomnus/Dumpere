@@ -184,10 +184,7 @@ export async function copyFiles(tempPaths: string[]): Promise<StoredFile[]> {
 
 export async function deleteFile(storedPath: string): Promise<void> {
   try {
-    // Resolve relative to app data directory
-    const fullPath = storedPath.startsWith('dumps/')
-      ? join(app.getPath('userData'), storedPath)
-      : storedPath
+    const fullPath = resolveStoredPath(storedPath)
 
     await unlink(fullPath)
     log.info(`Deleted file: ${storedPath}`)
@@ -197,11 +194,15 @@ export async function deleteFile(storedPath: string): Promise<void> {
   }
 }
 
+export function resolveStoredPath(storedPath: string): string {
+  return storedPath.startsWith('dumps/')
+    ? join(app.getPath('userData'), storedPath)
+    : storedPath
+}
+
 export function getFileUrl(storedPath: string): string {
   // Return a URL that can be used in renderer to load the file
   // For local files in app data, use file:// protocol
-  const fullPath = storedPath.startsWith('dumps/')
-    ? join(app.getPath('userData'), storedPath)
-    : storedPath
+  const fullPath = resolveStoredPath(storedPath)
   return `file://${fullPath.replace(/\\/g, '/')}`
 }

@@ -11,6 +11,7 @@ import { useTags } from './hooks/useTags'
 import { useFilter } from './hooks/useFilter'
 import { useSearch } from './hooks/useSearch'
 import { useVault } from './hooks/useVault'
+import { useTheme } from './hooks/useTheme'
 import { WelcomeScreen } from './components/WelcomeScreen'
 import { DumpEntry } from './lib/types'
 import { appendMarkdownSection, formatDumpReferences } from './lib/workpad-utils'
@@ -278,6 +279,7 @@ function VaultAppContent({ vaultName }: VaultAppContentProps) {
 }
 
 export function App() {
+  useTheme()
   const { vaultState, recentVaults, isLoading: vaultLoading, error: vaultError, createVault, openVault } = useVault()
 
   if (!vaultState.isOpen) {

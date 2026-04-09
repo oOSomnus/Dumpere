@@ -17,6 +17,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
     return ipcRenderer.invoke('file:delete', storedPath)
   },
 
+  openFile: (storedPath: string) => {
+    return ipcRenderer.invoke('file:open', storedPath)
+  },
+
   getFileUrl: (storedPath: string) => {
     return ipcRenderer.invoke('file:get-url', storedPath)
   },
