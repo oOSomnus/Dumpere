@@ -1,7 +1,7 @@
 {
   "name": "dumpere",
   "private": true,
-  "version": "0.0.1",
+  "version": "0.1.0",
   "description": "Minimalist desktop app for quick work completion tracking",
   "author": "Yihang Zhu <yihangz@umich.edu>",
   "type": "module",
