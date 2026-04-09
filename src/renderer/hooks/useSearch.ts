@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useEffect } from 'react'
+import { useState, useCallback } from 'react'
 import { DumpEntry } from '../lib/types'
 
 export interface SearchResult {
@@ -16,25 +16,12 @@ export interface UseSearchReturn {
 }
 
 const CONTEXT_CHARS = 50
-const DEBOUNCE_MS = 200
-
 /**
  * Search hook for filtering dumps by text content.
- * Provides debounced search query and search results with context.
+ * Provides an immediate query value and search helpers.
  */
 export function useSearch(): UseSearchReturn {
-  const [searchQuery, setSearchQueryState] = useState('')
-  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null)
-
-  // Debounced setter for search query
-  const setSearchQuery = useCallback((query: string) => {
-    if (debounceTimerRef.current) {
-      clearTimeout(debounceTimerRef.current)
-    }
-    debounceTimerRef.current = setTimeout(() => {
-      setSearchQueryState(query)
-    }, DEBOUNCE_MS)
-  }, [])
+  const [searchQuery, setSearchQuery] = useState('')
 
   /**
    * Search through dumps for matching text.
@@ -101,15 +88,6 @@ export function useSearch(): UseSearchReturn {
     const after = contextEnd < text.length ? '...' : ''
 
     return before + text.slice(contextStart, contextEnd) + after
-  }, [])
-
-  // Cleanup timer on unmount
-  useEffect(() => {
-    return () => {
-      if (debounceTimerRef.current) {
-        clearTimeout(debounceTimerRef.current)
-      }
-    }
   }, [])
 
   return {

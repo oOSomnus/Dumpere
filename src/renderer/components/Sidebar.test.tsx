@@ -1,65 +1,73 @@
-import { describe, it, expect } from 'vitest'
-import type { Project, Tag } from '../lib/types'
+import type { ComponentProps } from 'react'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { Sidebar } from './Sidebar'
+import type { DateFilterState, Project, Tag } from '../lib/types'
 
-// TODO: Import Sidebar component when implemented
-// import { Sidebar } from './Sidebar'
+vi.mock('./DateFilterPopover', () => ({
+  DateFilterPopover: () => <div>Date Filter</div>
+}))
+
+const dateFilter: DateFilterState = {
+  mode: 'all',
+  preset: null,
+  dates: []
+}
+
+const projects: Project[] = []
+const tags: Tag[] = [
+  { id: 'tag-1', name: 'urgent', createdAt: 1 },
+  { id: 'tag-2', name: 'bug', createdAt: 2 }
+]
+
+function renderSidebar(overrides: Partial<ComponentProps<typeof Sidebar>> = {}) {
+  return render(
+    <Sidebar
+      projects={projects}
+      tags={tags}
+      activeProjectId={null}
+      selectedTagIds={[]}
+      dateFilter={dateFilter}
+      onProjectSelect={vi.fn()}
+      onTagToggle={vi.fn()}
+      onDeleteTag={vi.fn(async () => {})}
+      onDatePresetChange={vi.fn()}
+      onToggleDate={vi.fn()}
+      onSetDateKeys={vi.fn()}
+      onClearDateFilter={vi.fn()}
+      onCreateProject={vi.fn()}
+      onUpdateProject={vi.fn()}
+      onDeleteProject={vi.fn()}
+      onViewChange={vi.fn()}
+      {...overrides}
+    />
+  )
+}
 
 describe('Sidebar', () => {
-  describe('rendering', () => {
-    it('should render project list', () => {
-      // TODO: Implement actual test when component is created
-      expect(true).toBe(true)
-    })
-
-    it('should render tag filters', () => {
-      // TODO: Implement actual test when component is created
-      expect(true).toBe(true)
-    })
-
-    it('should render time range buttons', () => {
-      // TODO: Implement actual test when component is created
-      expect(true).toBe(true)
-    })
+  beforeEach(() => {
+    vi.restoreAllMocks()
   })
 
-  describe('project selection', () => {
-    it('should call onProjectSelect when project is clicked', () => {
-      // TODO: Implement actual test when component is created
-      expect(true).toBe(true)
-    })
+  it('toggles a tag filter when a tag label is clicked', () => {
+    const onTagToggle = vi.fn()
+    renderSidebar({ onTagToggle })
 
-    it('should highlight selected project', () => {
-      // TODO: Implement actual test when component is created
-      expect(true).toBe(true)
-    })
+    fireEvent.click(screen.getByLabelText('Toggle tag filter bug'))
+
+    expect(onTagToggle).toHaveBeenCalledWith('tag-2')
   })
 
-  describe('tag filtering', () => {
-    it('should toggle tag checkbox when clicked', () => {
-      // TODO: Implement actual test when component is created
-      expect(true).toBe(true)
-    })
+  it('deletes a tag from the sidebar after confirmation', async () => {
+    const onDeleteTag = vi.fn(async () => {})
+    vi.spyOn(window, 'confirm').mockReturnValue(true)
 
-    it('should call onTagsChange with updated tagIds', () => {
-      // TODO: Implement actual test when component is created
-      expect(true).toBe(true)
-    })
-  })
+    renderSidebar({ onDeleteTag })
 
-  describe('time range filtering', () => {
-    it('should call onTimeRangeChange with "today" when today button clicked', () => {
-      // TODO: Implement actual test when component is created
-      expect(true).toBe(true)
-    })
+    fireEvent.click(screen.getByLabelText('Delete tag urgent'))
 
-    it('should call onTimeRangeChange with "week" when week button clicked', () => {
-      // TODO: Implement actual test when component is created
-      expect(true).toBe(true)
-    })
-
-    it('should call onTimeRangeChange with "month" when month button clicked', () => {
-      // TODO: Implement actual test when component is created
-      expect(true).toBe(true)
+    await waitFor(() => {
+      expect(onDeleteTag).toHaveBeenCalledWith('tag-1')
     })
   })
 })

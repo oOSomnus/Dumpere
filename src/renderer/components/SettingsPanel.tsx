@@ -1,0 +1,260 @@
+import { useEffect, useState } from 'react'
+import { ArrowLeft, Save, SlidersHorizontal } from 'lucide-react'
+import { SummarySettings, mockElectronAPI } from '../lib/types'
+import { cn } from '../../lib/utils'
+
+const api = typeof window !== 'undefined' && window.electronAPI
+  ? window.electronAPI
+  : mockElectronAPI
+
+const DEFAULT_SETTINGS: SummarySettings = {
+  provider: 'ollama',
+  baseUrl: 'http://localhost:11434',
+  apiKey: '',
+  model: 'mistral'
+}
+
+interface SettingsPanelProps {
+  onBackToDumps?: () => void
+}
+
+export function SettingsPanel({ onBackToDumps }: SettingsPanelProps) {
+  const [settings, setSettings] = useState<SummarySettings>(DEFAULT_SETTINGS)
+  const [isLoading, setIsLoading] = useState(true)
+  const [isSaving, setIsSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [successMessage, setSuccessMessage] = useState<string | null>(null)
+
+  useEffect(() => {
+    const loadSettings = async () => {
+      try {
+        const stored = await api.getSummarySettings()
+        setSettings(stored)
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Could not load summary settings'
+        setError(message)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    loadSettings()
+  }, [])
+
+  const updateField = <K extends keyof SummarySettings>(field: K, value: SummarySettings[K]) => {
+    setSettings(prev => ({ ...prev, [field]: value }))
+    setError(null)
+    setSuccessMessage(null)
+  }
+
+  const handleProviderChange = (provider: SummarySettings['provider']) => {
+    setSettings(prev => ({
+      ...prev,
+      provider,
+      baseUrl: provider === 'openai' ? 'https://api.openai.com/v1' : 'http://localhost:11434',
+      model: provider === 'openai' ? 'gpt-4.1-mini' : 'mistral',
+      apiKey: prev.apiKey,
+    }))
+    setError(null)
+    setSuccessMessage(null)
+  }
+
+  const handleSave = async () => {
+    setIsSaving(true)
+    setError(null)
+    setSuccessMessage(null)
+
+    try {
+      const saved = await api.updateSummarySettings(settings)
+      setSettings(saved)
+      setSuccessMessage('Summary settings saved.')
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Could not save summary settings'
+      setError(message)
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  return (
+    <div className="flex flex-col h-full p-6 gap-6">
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <div
+            className="w-10 h-10 rounded-xl flex items-center justify-center"
+            style={{ backgroundColor: 'var(--accent)', color: 'var(--accent-foreground)' }}
+          >
+            <SlidersHorizontal className="w-5 h-5" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-semibold" style={{ color: 'var(--foreground)' }}>
+              Summary Settings
+            </h1>
+            <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
+              Configure the AI backend used for daily and weekly summaries.
+            </p>
+          </div>
+        </div>
+
+        {onBackToDumps && (
+          <button
+            onClick={onBackToDumps}
+            className={cn(
+              'inline-flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors',
+              'hover:opacity-90'
+            )}
+            style={{
+              backgroundColor: 'var(--secondary)',
+              color: 'var(--secondary-foreground)'
+            }}
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Back to Dumps
+          </button>
+        )}
+      </div>
+
+      {error && (
+        <div
+          className="px-4 py-3 rounded-lg text-sm"
+          style={{
+            backgroundColor: 'var(--destructive)',
+            color: 'var(--destructive-foreground)'
+          }}
+        >
+          {error}
+        </div>
+      )}
+
+      {successMessage && (
+        <div
+          className="px-4 py-3 rounded-lg text-sm"
+          style={{
+            backgroundColor: 'var(--accent)',
+            color: 'var(--accent-foreground)'
+          }}
+        >
+          {successMessage}
+        </div>
+      )}
+
+      {isLoading ? (
+        <div className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
+          Loading summary settings...
+        </div>
+      ) : (
+        <div
+          className="rounded-2xl border p-6 space-y-5 max-w-2xl"
+          style={{
+            borderColor: 'var(--border)',
+            backgroundColor: 'var(--card)'
+          }}
+        >
+          <div className="space-y-2">
+            <label className="block text-sm font-medium" style={{ color: 'var(--foreground)' }}>
+              Provider
+            </label>
+            <select
+              value={settings.provider}
+              onChange={(e) => handleProviderChange(e.target.value as SummarySettings['provider'])}
+              className="w-full rounded-lg px-3 py-2 border text-sm"
+              style={{
+                backgroundColor: 'var(--input)',
+                borderColor: 'var(--border)',
+                color: 'var(--foreground)'
+              }}
+            >
+              <option value="ollama">Ollama</option>
+              <option value="openai">OpenAI Compatible</option>
+            </select>
+          </div>
+
+          <div className="space-y-2">
+            <label className="block text-sm font-medium" style={{ color: 'var(--foreground)' }}>
+              Base URL
+            </label>
+            <input
+              type="url"
+              value={settings.baseUrl}
+              onChange={(e) => updateField('baseUrl', e.target.value)}
+              placeholder={settings.provider === 'openai' ? 'https://api.openai.com/v1' : 'http://localhost:11434'}
+              className="w-full rounded-lg px-3 py-2 border text-sm"
+              style={{
+                backgroundColor: 'var(--input)',
+                borderColor: 'var(--border)',
+                color: 'var(--foreground)'
+              }}
+            />
+            <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
+              {settings.provider === 'openai'
+                ? 'Use a full API base URL, usually including /v1.'
+                : 'Default Ollama endpoint is http://localhost:11434.'}
+            </p>
+          </div>
+
+          <div className="space-y-2">
+            <label className="block text-sm font-medium" style={{ color: 'var(--foreground)' }}>
+              Model
+            </label>
+            <input
+              type="text"
+              value={settings.model}
+              onChange={(e) => updateField('model', e.target.value)}
+              placeholder={settings.provider === 'openai' ? 'gpt-4.1-mini' : 'mistral'}
+              className="w-full rounded-lg px-3 py-2 border text-sm"
+              style={{
+                backgroundColor: 'var(--input)',
+                borderColor: 'var(--border)',
+                color: 'var(--foreground)'
+              }}
+            />
+          </div>
+
+          {settings.provider === 'openai' && (
+            <div className="space-y-2">
+              <label className="block text-sm font-medium" style={{ color: 'var(--foreground)' }}>
+                API Key
+              </label>
+              <input
+                type="password"
+                value={settings.apiKey}
+                onChange={(e) => updateField('apiKey', e.target.value)}
+                placeholder="sk-..."
+                className="w-full rounded-lg px-3 py-2 border text-sm"
+                style={{
+                  backgroundColor: 'var(--input)',
+                  borderColor: 'var(--border)',
+                  color: 'var(--foreground)'
+                }}
+              />
+              <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
+                Saved locally on this machine and only used for summary generation requests.
+              </p>
+            </div>
+          )}
+
+          <div className="flex items-center justify-between gap-3 pt-2">
+            <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
+              Changes apply to the next generated summary.
+            </p>
+            <button
+              onClick={handleSave}
+              disabled={isSaving}
+              className={cn(
+                'inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors',
+                'disabled:opacity-50 disabled:cursor-not-allowed'
+              )}
+              style={{
+                backgroundColor: 'var(--primary)',
+                color: 'var(--primary-foreground)'
+              }}
+            >
+              <Save className="w-4 h-4" />
+              {isSaving ? 'Saving...' : 'Save Settings'}
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}

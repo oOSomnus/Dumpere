@@ -1,85 +1,72 @@
 import { describe, it, expect } from 'vitest'
-import type { DumpEntry, Project, Tag } from '../lib/types'
-
-// TODO: Import applyFilters function when implemented
-// import { applyFilters } from './useFilter'
+import { act, renderHook } from '@testing-library/react'
+import type { DumpEntry } from '../lib/types'
+import { hasActiveFilters, useFilter } from './useFilter'
+import { toLocalDateKey } from '../lib/date-utils'
 
 describe('useFilter', () => {
-  // Helper to create mock dumps
   const createMockDump = (overrides: Partial<DumpEntry> = {}): DumpEntry => ({
     id: crypto.randomUUID(),
     text: 'Test dump',
     files: [],
     createdAt: Date.now(),
     updatedAt: Date.now(),
+    projectId: null,
+    tags: [],
     ...overrides
   })
 
-  describe('filter by projectId', () => {
-    it('should return dumps matching the projectId', () => {
-      // TODO: Implement actual test when hook is created
-      expect(true).toBe(true)
+  it('filters by project and tag ids together', () => {
+    const { result } = renderHook(() => useFilter())
+    const matchingDump = createMockDump({ projectId: 'project-a', tags: ['tag-a', 'tag-b'] })
+    const nonMatchingDump = createMockDump({ projectId: 'project-b', tags: ['tag-a'] })
+
+    act(() => {
+      result.current.setProjectFilter('project-a')
+      result.current.toggleTagFilter('tag-a')
     })
 
-    it('should return empty array when no dumps match projectId', () => {
-      // TODO: Implement actual test when hook is created
-      expect(true).toBe(true)
-    })
+    const filtered = result.current.applyFilters([matchingDump, nonMatchingDump])
+    expect(filtered).toEqual([matchingDump])
   })
 
-  describe('filter by tagIds (AND logic)', () => {
-    it('should return dumps that have ALL specified tags', () => {
-      // TODO: Implement actual test when hook is created
-      expect(true).toBe(true)
+  it('applies preset date filters using local date keys', () => {
+    const { result } = renderHook(() => useFilter())
+    const todayDump = createMockDump({ createdAt: Date.now() })
+    const oldDump = createMockDump({ createdAt: Date.now() - 10 * 24 * 60 * 60 * 1000 })
+
+    act(() => {
+      result.current.setDatePreset('today')
     })
 
-    it('should return empty array when no dumps have all tags', () => {
-      // TODO: Implement actual test when hook is created
-      expect(true).toBe(true)
-    })
+    const filtered = result.current.applyFilters([todayDump, oldDump])
+    expect(filtered).toEqual([todayDump])
   })
 
-  describe('filter by timeRange', () => {
-    it('should return dumps from today when timeRange is "today"', () => {
-      // TODO: Implement actual test when hook is created
-      expect(true).toBe(true)
+  it('supports custom multi-date selection', () => {
+    const { result } = renderHook(() => useFilter())
+    const aprilEighth = new Date(2026, 3, 8, 10, 0, 0).getTime()
+    const aprilNinth = new Date(2026, 3, 9, 10, 0, 0).getTime()
+    const targetDateKey = toLocalDateKey(aprilEighth)
+    const selectedDump = createMockDump({ createdAt: aprilEighth })
+    const hiddenDump = createMockDump({ createdAt: aprilNinth })
+
+    act(() => {
+      result.current.setDateKeys([targetDateKey])
     })
 
-    it('should return dumps from this week when timeRange is "week"', () => {
-      // TODO: Implement actual test when hook is created
-      expect(true).toBe(true)
-    })
-
-    it('should return dumps from this month when timeRange is "month"', () => {
-      // TODO: Implement actual test when hook is created
-      expect(true).toBe(true)
-    })
+    const filtered = result.current.applyFilters([selectedDump, hiddenDump])
+    expect(filtered).toEqual([selectedDump])
   })
 
-  describe('combined filters', () => {
-    it('should combine project and tag filters', () => {
-      // TODO: Implement actual test when hook is created
-      expect(true).toBe(true)
+  it('reports whether filters are active', () => {
+    const { result } = renderHook(() => useFilter())
+    expect(hasActiveFilters(result.current.filters)).toBe(false)
+
+    act(() => {
+      result.current.toggleTagFilter('tag-a')
     })
 
-    it('should combine project and time filters', () => {
-      // TODO: Implement actual test when hook is created
-      expect(true).toBe(true)
-    })
-
-    it('should combine tag and time filters', () => {
-      // TODO: Implement actual test when hook is created
-      expect(true).toBe(true)
-    })
-
-    it('should combine all filters (project, tags, timeRange)', () => {
-      // TODO: Implement actual test when hook is created
-      expect(true).toBe(true)
-    })
-
-    it('should return empty array when combined filters match nothing', () => {
-      // TODO: Implement actual test when hook is created
-      expect(true).toBe(true)
-    })
+    expect(hasActiveFilters(result.current.filters)).toBe(true)
   })
 })

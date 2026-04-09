@@ -1,19 +1,23 @@
 import { useState, useRef } from 'react'
 import * as Checkbox from '@radix-ui/react-checkbox'
-import { Project, Tag } from '../lib/types'
-import { TimeRange } from './TimeRangeFilter'
+import { DateFilterState, DatePreset, Project, Tag } from '../lib/types'
 import { cn } from '../../lib/utils'
-import { Plus, Check, Trash2, Edit2, Download, Upload, FileText } from 'lucide-react'
+import { Plus, Check, Trash2, Edit2, Download, Upload, FileText, LayoutGrid, Settings } from 'lucide-react'
+import { DateFilterPopover } from './DateFilterPopover'
 
 interface SidebarProps {
   projects: Project[]
   tags: Tag[]
   activeProjectId: string | null
   selectedTagIds: string[]
-  timeRange: TimeRange
+  dateFilter: DateFilterState
   onProjectSelect: (projectId: string | null) => void
   onTagToggle: (tagId: string) => void
-  onTimeRangeChange: (range: TimeRange) => void
+  onDeleteTag: (tagId: string) => Promise<void> | void
+  onDatePresetChange: (preset: DatePreset | null) => void
+  onToggleDate: (dateKey: string) => void
+  onSetDateKeys: (dateKeys: string[]) => void
+  onClearDateFilter: () => void
   onCreateProject: (name: string) => void
   onUpdateProject: (id: string, name: string) => void
   onDeleteProject: (id: string) => void
@@ -21,9 +25,8 @@ interface SidebarProps {
   onSearchChange?: (query: string) => void
   onExportProject?: (projectId: string) => void
   onImportProject?: (projectId: string) => void
-  // Phase 4: Summaries view
-  onSummariesClick?: () => void
-  isSummariesActive?: boolean
+  currentView?: 'grid' | 'summaries' | 'settings'
+  onViewChange?: (view: 'grid' | 'summaries' | 'settings') => void
 }
 
 interface ContextMenuState {
@@ -37,10 +40,14 @@ export function Sidebar({
   tags,
   activeProjectId,
   selectedTagIds,
-  timeRange,
+  dateFilter,
   onProjectSelect,
   onTagToggle,
-  onTimeRangeChange,
+  onDeleteTag,
+  onDatePresetChange,
+  onToggleDate,
+  onSetDateKeys,
+  onClearDateFilter,
   onCreateProject,
   onUpdateProject,
   onDeleteProject,
@@ -48,8 +55,8 @@ export function Sidebar({
   onSearchChange,
   onExportProject,
   onImportProject,
-  onSummariesClick,
-  isSummariesActive,
+  currentView = 'grid',
+  onViewChange,
 }: SidebarProps) {
   const [isCreatingProject, setIsCreatingProject] = useState(false)
   const [newProjectName, setNewProjectName] = useState('')
@@ -58,6 +65,12 @@ export function Sidebar({
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null)
   const newProjectInputRef = useRef<HTMLInputElement>(null)
   const editInputRef = useRef<HTMLInputElement>(null)
+  const presetOptions: Array<{ value: DatePreset | null; label: string }> = [
+    { value: null, label: 'All Time' },
+    { value: 'today', label: 'Today' },
+    { value: 'week', label: 'This Week' },
+    { value: 'month', label: 'This Month' }
+  ]
 
   // Handle creating a new project
   const handleCreateProject = () => {
@@ -102,6 +115,15 @@ export function Sidebar({
   // Close context menu on click
   const closeContextMenu = () => setContextMenu(null)
 
+  const handleDeleteTag = async (tag: Tag) => {
+    const confirmed = window.confirm(
+      `Delete tag '${tag.name}'? It will be removed from all dumps and filters.`
+    )
+
+    if (!confirmed) return
+    await onDeleteTag(tag.id)
+  }
+
   return (
     <aside
       className="flex flex-col h-full"
@@ -119,7 +141,10 @@ export function Sidebar({
           <input
             type="text"
             value={searchQuery}
-            onChange={(e) => onSearchChange(e.target.value)}
+            onChange={(e) => {
+              onViewChange?.('grid')
+              onSearchChange(e.target.value)
+            }}
             placeholder="Search dumps..."
             className="w-full px-3 py-2 rounded-md text-sm"
             style={{
@@ -261,34 +286,49 @@ export function Sidebar({
 
         <div className="space-y-1">
           {tags.map(tag => (
-            <label
+            <div
               key={tag.id}
-              className="flex items-center gap-2 px-3 py-2 rounded-md text-sm cursor-pointer hover:bg-sidebar-accent transition-colors"
+              className="group flex items-center gap-2 px-3 py-2 rounded-md text-sm hover:bg-sidebar-accent transition-colors"
             >
-              <Checkbox.Root
-                checked={selectedTagIds.includes(tag.id)}
-                onCheckedChange={() => onTagToggle(tag.id)}
-                className={cn(
-                  'w-4 h-4 rounded border flex items-center justify-center',
-                  'transition-colors duration-150'
-                )}
-                style={{
-                  backgroundColor: selectedTagIds.includes(tag.id) ? 'var(--accent)' : 'transparent',
-                  borderColor: selectedTagIds.includes(tag.id) ? 'var(--accent)' : 'var(--border)',
+              <label className="flex min-w-0 flex-1 items-center gap-2 cursor-pointer">
+                <Checkbox.Root
+                  checked={selectedTagIds.includes(tag.id)}
+                  onCheckedChange={() => onTagToggle(tag.id)}
+                  aria-label={`Toggle tag filter ${tag.name}`}
+                  className={cn(
+                    'w-4 h-4 rounded border flex items-center justify-center',
+                    'transition-colors duration-150'
+                  )}
+                  style={{
+                    backgroundColor: selectedTagIds.includes(tag.id) ? 'var(--accent)' : 'transparent',
+                    borderColor: selectedTagIds.includes(tag.id) ? 'var(--accent)' : 'var(--border)',
+                  }}
+                >
+                  <Checkbox.Indicator>
+                    <Check className="w-3 h-3" style={{ color: 'var(--accent-foreground)' }} />
+                  </Checkbox.Indicator>
+                </Checkbox.Root>
+                <span
+                  className="truncate flex-1"
+                  style={{ color: 'var(--sidebar-foreground)' }}
+                  title={tag.name}
+                >
+                  {tag.name}
+                </span>
+              </label>
+              <button
+                type="button"
+                onClick={(event) => {
+                  event.stopPropagation()
+                  void handleDeleteTag(tag)
                 }}
+                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md opacity-0 transition-opacity group-hover:opacity-100"
+                style={{ color: 'var(--muted-foreground)' }}
+                aria-label={`Delete tag ${tag.name}`}
               >
-                <Checkbox.Indicator>
-                  <Check className="w-3 h-3" style={{ color: 'var(--accent-foreground)' }} />
-                </Checkbox.Indicator>
-              </Checkbox.Root>
-              <span
-                className="truncate flex-1"
-                style={{ color: 'var(--sidebar-foreground)' }}
-                title={tag.name}
-              >
-                {tag.name}
-              </span>
-            </label>
+                <Trash2 className="w-4 h-4" />
+              </button>
+            </div>
           ))}
 
           {/* Empty state */}
@@ -300,37 +340,39 @@ export function Sidebar({
         </div>
       </div>
 
-      {/* Time Range Section */}
+      {/* Date Filter Section */}
       <div className="p-3">
         <h2 className="text-sm font-semibold mb-2" style={{ color: 'var(--sidebar-foreground)' }}>
-          Time Range
+          Dates
         </h2>
-        {/* TimeRangeFilter is imported but we render inline since we need access to props */}
         <div className="flex flex-col gap-1">
-          {(['today', 'week', 'month', null] as TimeRange[]).map((range) => {
-            const labels: Record<string, string> = {
-              today: 'Today',
-              week: 'This Week',
-              month: 'This Month',
-              null: 'All Time'
-            }
-            return (
-              <button
-                key={labels[range ?? 'null']}
-                onClick={() => onTimeRangeChange(range)}
-                className={cn(
-                  'w-full text-left px-3 py-2 rounded-md text-sm transition-colors duration-150',
-                  'hover:bg-sidebar-accent'
-                )}
-                style={{
-                  backgroundColor: timeRange === range ? 'var(--sidebar-accent)' : 'transparent',
-                  color: 'var(--sidebar-foreground)',
-                }}
-              >
-                {labels[range ?? 'null']}
-              </button>
-            )
-          })}
+          {presetOptions.map((preset) => (
+            <button
+              key={preset.label}
+              onClick={() => onDatePresetChange(preset.value)}
+              className={cn(
+                'w-full text-left px-3 py-2 rounded-md text-sm transition-colors duration-150',
+                'hover:bg-sidebar-accent'
+              )}
+              style={{
+                backgroundColor:
+                  (preset.value === null && dateFilter.mode === 'all') ||
+                  (preset.value !== null && dateFilter.mode === 'preset' && dateFilter.preset === preset.value)
+                    ? 'var(--sidebar-accent)'
+                    : 'transparent',
+                color: 'var(--sidebar-foreground)',
+              }}
+            >
+              {preset.label}
+            </button>
+          ))}
+
+          <DateFilterPopover
+            selectedDates={dateFilter.mode === 'dates' ? dateFilter.dates : []}
+            onToggleDate={onToggleDate}
+            onSetDateKeys={onSetDateKeys}
+            onClear={onClearDateFilter}
+          />
         </div>
       </div>
 
@@ -400,20 +442,52 @@ export function Sidebar({
 
       {/* Phase 4: Summaries Button */}
       <div className="p-3 border-t" style={{ borderColor: 'var(--sidebar-border)' }}>
-        <button
-          onClick={onSummariesClick}
-          className={cn(
-            'w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors',
-            'hover:bg-sidebar-accent'
-          )}
-          style={{
-            backgroundColor: isSummariesActive ? 'var(--sidebar-accent)' : 'transparent',
-            color: 'var(--sidebar-foreground)'
-          }}
-        >
-          <FileText className="w-4 h-4" />
-          <span>Summaries</span>
-        </button>
+        <div className="space-y-1">
+          <button
+            onClick={() => onViewChange?.('grid')}
+            className={cn(
+              'w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors',
+              'hover:bg-sidebar-accent'
+            )}
+            style={{
+              backgroundColor: currentView === 'grid' ? 'var(--sidebar-accent)' : 'transparent',
+              color: 'var(--sidebar-foreground)'
+            }}
+          >
+            <LayoutGrid className="w-4 h-4" />
+            <span>Dumps</span>
+          </button>
+
+          <button
+            onClick={() => onViewChange?.('summaries')}
+            className={cn(
+              'w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors',
+              'hover:bg-sidebar-accent'
+            )}
+            style={{
+              backgroundColor: currentView === 'summaries' ? 'var(--sidebar-accent)' : 'transparent',
+              color: 'var(--sidebar-foreground)'
+            }}
+          >
+            <FileText className="w-4 h-4" />
+            <span>Summaries</span>
+          </button>
+
+          <button
+            onClick={() => onViewChange?.('settings')}
+            className={cn(
+              'w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors',
+              'hover:bg-sidebar-accent'
+            )}
+            style={{
+              backgroundColor: currentView === 'settings' ? 'var(--sidebar-accent)' : 'transparent',
+              color: 'var(--sidebar-foreground)'
+            }}
+          >
+            <Settings className="w-4 h-4" />
+            <span>Settings</span>
+          </button>
+        </div>
       </div>
     </aside>
   )

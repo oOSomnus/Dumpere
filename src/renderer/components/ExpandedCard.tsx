@@ -1,15 +1,11 @@
 import { useEffect, useRef } from 'react'
 import * as Dialog from '@radix-ui/react-dialog'
 import * as Select from '@radix-ui/react-select'
-import { DumpEntry, Project, Tag, mockElectronAPI } from '../lib/types'
+import { DumpEntry, Project, Tag } from '../lib/types'
 import { formatRelativeTime } from '../lib/utils-time'
 import { cn } from '../../lib/utils'
-import { X, Download, Image, Video, Music, File, FileText, Check, ChevronDown, Copy } from 'lucide-react'
-
-const getFileUrl = (path: string) =>
-  typeof window !== 'undefined' && window.electronAPI
-    ? window.electronAPI.getFileUrl(path)
-    : mockElectronAPI.getFileUrl(path)
+import { X, Download, Image, Video, Music, File, Check, ChevronDown, Copy, NotebookPen } from 'lucide-react'
+import { useFileUrl } from '../hooks/useFileUrl'
 
 function formatDumpAsMarkdown(dump: DumpEntry): string {
   let md = `${dump.text || ''}\n`
@@ -30,10 +26,22 @@ interface ExpandedCardProps {
   tags: Tag[]
   onProjectChange: (dumpId: string, projectId: string | null) => void
   onTagsChange: (dumpId: string, tagIds: string[]) => void
+  onQuoteToWorkpad?: (dump: DumpEntry) => Promise<void> | void
 }
 
 function MediaPreview({ file }: { file: { storedPath: string; mimeType: string; originalName: string } }) {
-  const fileUrl = getFileUrl(file.storedPath)
+  const fileUrl = useFileUrl(file.storedPath)
+
+  if (!fileUrl) {
+    return (
+      <div
+        className="flex items-center justify-center rounded border p-6"
+        style={{ borderColor: 'var(--border)', backgroundColor: 'var(--secondary)' }}
+      >
+        <Image className="w-8 h-8" style={{ color: 'var(--muted-foreground)' }} />
+      </div>
+    )
+  }
 
   if (file.mimeType.startsWith('image/')) {
     return (
@@ -71,9 +79,26 @@ function MediaPreview({ file }: { file: { storedPath: string; mimeType: string; 
 }
 
 function FileAttachment({ file }: { file: { storedPath: string; mimeType: string; originalName: string; size: number } }) {
-  const fileUrl = getFileUrl(file.storedPath)
+  const fileUrl = useFileUrl(file.storedPath)
   const sizeKB = Math.round(file.size / 1024)
   const sizeStr = sizeKB > 1024 ? `${(sizeKB / 1024).toFixed(1)} MB` : `${sizeKB} KB`
+
+  if (!fileUrl) {
+    return (
+      <div
+        className={cn(
+          'flex items-center gap-2 p-3 rounded-md border'
+        )}
+        style={{ borderColor: 'var(--border)', backgroundColor: 'var(--secondary)' }}
+      >
+        <File className="w-4 h-4" style={{ color: 'var(--muted-foreground)' }} />
+        <div className="flex-1 min-w-0">
+          <p className="text-sm truncate" style={{ color: 'var(--foreground)' }}>{file.originalName}</p>
+          <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>{sizeStr}</p>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <a
@@ -95,7 +120,7 @@ function FileAttachment({ file }: { file: { storedPath: string; mimeType: string
   )
 }
 
-export function ExpandedCard({ dump, onClose, projects, tags, onProjectChange, onTagsChange }: ExpandedCardProps) {
+export function ExpandedCard({ dump, onClose, projects, tags, onProjectChange, onTagsChange, onQuoteToWorkpad }: ExpandedCardProps) {
   const overlayRef = useRef<HTMLDivElement>(null)
 
   // Close on Escape key
@@ -114,10 +139,6 @@ export function ExpandedCard({ dump, onClose, projects, tags, onProjectChange, o
 
   const mediaFiles = dump.files.filter(isMediaFile)
   const otherFiles = dump.files.filter(f => !isMediaFile(f))
-
-  // Find project name for display
-  const currentProject = dump.projectId ? projects.find(p => p.id === dump.projectId) : null
-  const currentProjectName = currentProject?.name || 'Unassigned'
 
   // Find tag names for display
   const currentTags = dump.tags.map(tagId => tags.find(t => t.id === tagId)).filter(Boolean) as Tag[]
@@ -250,6 +271,19 @@ export function ExpandedCard({ dump, onClose, projects, tags, onProjectChange, o
               </div>
 
               <div className="flex items-center gap-1">
+                {onQuoteToWorkpad && (
+                  <button
+                    onClick={() => {
+                      void onQuoteToWorkpad(dump)
+                    }}
+                    className="p-1 rounded hover:bg-accent transition-colors"
+                    style={{ color: 'var(--foreground)' }}
+                    aria-label="Quote to workpad"
+                    title="Quote to workpad"
+                  >
+                    <NotebookPen className="w-5 h-5" />
+                  </button>
+                )}
                 <button
                   onClick={async () => {
                     if (dump) {

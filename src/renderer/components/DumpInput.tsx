@@ -1,8 +1,8 @@
-import { useState, useRef, KeyboardEvent, DragEvent, ClipboardEvent } from 'react'
+import { useState, useRef, useCallback, useEffect, KeyboardEvent, DragEvent, ClipboardEvent } from 'react'
 import { FileChip } from './FileChip'
 import { ProjectSelector } from './ProjectSelector'
 import { TagInput } from './TagInput'
-import { Project, Tag } from '../lib/types'
+import { Project, Tag, mockElectronAPI } from '../lib/types'
 import { cn } from '../../lib/utils'
 
 interface FileChipData {
@@ -23,7 +23,29 @@ interface DumpInputProps {
   onTagsChange: (tagIds: string[]) => void
   getAISuggestions: (text: string) => Tag[]
   onCreateTag: (name: string) => Promise<Tag>
-  dumpText: string  // current text for AI suggestions
+}
+
+const api = typeof window !== 'undefined' && window.electronAPI
+  ? window.electronAPI
+  : mockElectronAPI
+
+const MIME_EXTENSION_MAP: Record<string, string> = {
+  'image/png': 'png',
+  'image/jpeg': 'jpg',
+  'image/gif': 'gif',
+  'image/webp': 'webp',
+  'application/pdf': 'pdf',
+  'text/plain': 'txt',
+}
+
+function getFallbackFileName(file: File): string {
+  if (file.name.trim()) {
+    return file.name.trim()
+  }
+
+  const ext = MIME_EXTENSION_MAP[file.type] || 'bin'
+  const prefix = file.type.startsWith('image/') ? 'pasted-image' : 'pasted-file'
+  return `${prefix}.${ext}`
 }
 
 export function DumpInput({
@@ -36,38 +58,65 @@ export function DumpInput({
   onTagsChange,
   getAISuggestions,
   onCreateTag,
-  dumpText
 }: DumpInputProps) {
   const [text, setText] = useState('')
   const [attachedFiles, setAttachedFiles] = useState<FileChipData[]>([])
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [tagInputOpen, setTagInputOpen] = useState(false)
+  const [projectError, setProjectError] = useState<string | null>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
 
+  const focusInput = useCallback(() => {
+    if (tagInputOpen || isSubmitting) return
+    if (typeof document !== 'undefined' && document.querySelector('[role="dialog"]')) return
+    window.requestAnimationFrame(() => inputRef.current?.focus())
+  }, [isSubmitting, tagInputOpen])
+
+  useEffect(() => {
+    focusInput()
+  }, [focusInput])
+
+  useEffect(() => {
+    const handleWindowFocus = () => focusInput()
+    window.addEventListener('focus', handleWindowFocus)
+    return () => window.removeEventListener('focus', handleWindowFocus)
+  }, [focusInput])
+
+  useEffect(() => {
+    if (activeProjectId) {
+      setProjectError(null)
+    }
+  }, [activeProjectId])
+
   const handleKeyDown = async (e: KeyboardEvent<HTMLTextAreaElement>) => {
-    // D-05: Enter opens tag selection popup (if not already open)
-    // Second Enter (after selecting tags) submits
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
-      if (!tagInputOpen) {
-        // First Enter: open tag popup
-        setTagInputOpen(true)
-      } else {
-        // TagInput is open - user pressed Enter again, submit with tags
-        await submit()
+
+      if (tagInputOpen) {
+        void submit()
+        return
       }
+
+      setTagInputOpen(true)
     }
   }
 
   const submit = async () => {
     const hasContent = text.trim() || attachedFiles.length > 0
     if (!hasContent || isSubmitting) return
+    if (!activeProjectId) {
+      setProjectError(
+        projects.length === 0
+          ? 'Create a project before saving a dump.'
+          : 'Assign a project before saving a dump.'
+      )
+      return
+    }
 
     setIsSubmitting(true)
+    let shouldRestoreFocus = false
 
     try {
-      // D-06: Mixed content — text + multiple files
-      // Pass projectId and tagIds to onSubmit
       await onSubmit(
         text.trim(),
         attachedFiles.map(f => f.path),
@@ -75,12 +124,18 @@ export function DumpInput({
         selectedTagIds
       )
 
-      // D-07: Instant feedback — clear immediately (optimistic)
       setText('')
       setAttachedFiles([])
       setTagInputOpen(false)
+      shouldRestoreFocus = true
     } finally {
       setIsSubmitting(false)
+      if (shouldRestoreFocus) {
+        window.requestAnimationFrame(() => {
+          if (typeof document !== 'undefined' && document.querySelector('[role="dialog"]')) return
+          inputRef.current?.focus()
+        })
+      }
     }
   }
 
@@ -89,10 +144,10 @@ export function DumpInput({
     e.stopPropagation()
 
     const files = Array.from(e.dataTransfer.files)
-    addFiles(files)
+    void addFiles(files)
   }
 
-  const handlePaste = (e: ClipboardEvent<HTMLTextAreaElement>) => {
+  const handlePaste = async (e: ClipboardEvent<HTMLTextAreaElement>) => {
     // Handle paste of files (D-02 through D-05)
     const items = Array.from(e.clipboardData.items)
     const fileItems = items.filter(item => item.kind === 'file')
@@ -100,17 +155,36 @@ export function DumpInput({
     if (fileItems.length > 0) {
       e.preventDefault()
       const files = fileItems.map(item => item.getAsFile()).filter(Boolean) as File[]
-      addFiles(files)
+      await addFiles(files)
     }
   }
 
-  const addFiles = (files: File[]) => {
-    const chips: FileChipData[] = files.map(f => ({
-      id: crypto.randomUUID(),
-      name: f.name,
-      // Electron provides path property on dropped files
-      path: (f as File & { path?: string }).path || ''
-    })).filter(chip => chip.path) // Only add if path is available
+  const addFiles = async (files: File[]) => {
+    const chips = await Promise.all(files.map(async (file) => {
+      const name = getFallbackFileName(file)
+      const existingPath = (file as File & { path?: string }).path || ''
+
+      if (existingPath) {
+        return {
+          id: crypto.randomUUID(),
+          name,
+          path: existingPath
+        } satisfies FileChipData
+      }
+
+      const data = await file.arrayBuffer()
+      const tempPath = await api.createTempAttachment({
+        name,
+        mimeType: file.type,
+        data
+      })
+
+      return {
+        id: crypto.randomUUID(),
+        name,
+        path: tempPath
+      } satisfies FileChipData
+    }))
 
     if (chips.length > 0) {
       setAttachedFiles(prev => [...prev, ...chips])
@@ -121,9 +195,20 @@ export function DumpInput({
     setAttachedFiles(prev => prev.filter(f => f.id !== id))
   }
 
-  // When text changes, update dumpText for AI suggestions
   const handleTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setText(e.target.value)
+  }
+
+  const handleTagOpenChange = (open: boolean) => {
+    setTagInputOpen(open)
+    if (!open) {
+      focusInput()
+    }
+  }
+
+  const handleProjectSelect = (projectId: string | null) => {
+    setProjectError(null)
+    onProjectSelect(projectId)
   }
 
   return (
@@ -141,7 +226,9 @@ export function DumpInput({
       {/* TagInput popup — positioned above the input */}
       <TagInput
         open={tagInputOpen}
-        onOpenChange={setTagInputOpen}
+        onOpenChange={handleTagOpenChange}
+        onSubmit={submit}
+        onReturnFocus={focusInput}
         selectedTagIds={selectedTagIds}
         onTagsChange={onTagsChange}
         allTags={allTags}
@@ -172,7 +259,10 @@ export function DumpInput({
         <ProjectSelector
           projects={projects}
           activeProjectId={activeProjectId}
-          onSelect={onProjectSelect}
+          onSelect={handleProjectSelect}
+          allowAllProjects={false}
+          emptyLabel={projects.length === 0 ? 'No Projects' : 'Assign Project'}
+          hasError={!!projectError}
         />
 
         <textarea
@@ -203,6 +293,15 @@ export function DumpInput({
           </span>
         )}
       </div>
+
+      {projectError && (
+        <div
+          className="px-4 pb-3 text-xs"
+          style={{ color: 'var(--destructive)' }}
+        >
+          {projectError}
+        </div>
+      )}
     </div>
   )
 }

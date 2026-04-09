@@ -45,12 +45,6 @@ export function useSummary(): UseSummaryReturn {
     setError(null)
 
     try {
-      // Check if Ollama is available first
-      const isHealthy = await api.checkOllamaHealth()
-      if (!isHealthy) {
-        throw new Error('AI summaries require Ollama to be running. Download from ollama.ai to enable this feature.')
-      }
-
       const summary = await api.generateSummary({ type, projectId })
       if (summary) {
         setCurrentSummary(summary)

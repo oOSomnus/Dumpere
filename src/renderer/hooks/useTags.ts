@@ -7,7 +7,7 @@ const api = typeof window !== 'undefined' && window.electronAPI
 
 // Input validation constants
 const MAX_TAG_NAME_LENGTH = 30
-const TAG_NAME_REGEX = /^[a-zA-Z0-9-]+$/
+const TAG_NAME_REGEX = /^(?=.*[a-zA-Z0-9])[a-zA-Z0-9 -]+$/
 
 // AI suggestion settings
 const MAX_SUGGESTIONS = 3
@@ -47,21 +47,21 @@ export function useTags(): UseTagsReturn {
   }, [])
 
   const createTag = async (name: string): Promise<Tag> => {
+    const normalizedName = name.trim().toLowerCase().replace(/\s+/g, ' ')
+
     // Input validation
-    if (!name || name.trim().length === 0) {
+    if (!normalizedName) {
       throw new Error('Tag name is required')
     }
-    if (name.length > MAX_TAG_NAME_LENGTH) {
+    if (normalizedName.length > MAX_TAG_NAME_LENGTH) {
       throw new Error(`Tag name must be ${MAX_TAG_NAME_LENGTH} characters or less`)
     }
-    if (!TAG_NAME_REGEX.test(name)) {
-      throw new Error('Tag name must contain only alphanumeric characters and hyphens')
+    if (!TAG_NAME_REGEX.test(normalizedName)) {
+      throw new Error('Tag name must contain only alphanumeric characters, spaces, and hyphens')
     }
 
-    const trimmedName = name.trim().toLowerCase()
-
     // Deduplicate by name - if tag with same name exists, return existing
-    const existingTag = tags.find(t => t.name.toLowerCase() === trimmedName)
+    const existingTag = tags.find(t => t.name.toLowerCase() === normalizedName)
     if (existingTag) {
       return existingTag
     }
@@ -69,7 +69,7 @@ export function useTags(): UseTagsReturn {
     const now = Date.now()
     const newTag: Tag = {
       id: crypto.randomUUID(),
-      name: trimmedName,
+      name: normalizedName,
       createdAt: now
     }
 

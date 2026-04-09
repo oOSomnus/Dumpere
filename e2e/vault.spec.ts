@@ -2,6 +2,24 @@ import { test, expect, _electron as electron } from '@playwright/test'
 import path from 'path'
 import fs from 'fs'
 import os from 'os'
+import { fileURLToPath } from 'url'
+
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
+const appPath = path.join(__dirname, '../dist/main/index.js')
+const electronEnv = {
+  ...process.env,
+  ELECTRON_DISABLE_SANDBOX: '1',
+}
+
+delete electronEnv.ELECTRON_RUN_AS_NODE
+
+async function launchApp() {
+  return electron.launch({
+    args: ['--no-sandbox', appPath],
+    env: electronEnv,
+  })
+}
 
 test.describe('Vault E2E Tests', () => {
   let tempDirs: string[] = []
@@ -21,10 +39,8 @@ test.describe('Vault E2E Tests', () => {
     return dir
   }
 
-  test('welcome screen displays', async ({ _electron }) => {
-    const electronApp = await _electron.launch({
-      args: [path.join(__dirname, '../dist')],
-    })
+  test('welcome screen displays', async () => {
+    const electronApp = await launchApp()
 
     const window = await electronApp.firstWindow()
     await window.waitForLoadState('domcontentloaded')
@@ -37,10 +53,8 @@ test.describe('Vault E2E Tests', () => {
     await electronApp.close()
   })
 
-  test('create vault success', async ({ _electron }) => {
-    const electronApp = await _electron.launch({
-      args: [path.join(__dirname, '../dist')],
-    })
+  test('create vault success', async () => {
+    const electronApp = await launchApp()
 
     const window = await electronApp.firstWindow()
     await window.waitForLoadState('domcontentloaded')
@@ -54,7 +68,7 @@ test.describe('Vault E2E Tests', () => {
     }, emptyDir)
 
     await window.getByRole('button', { name: /Create Vault/i }).click()
-    await expect(window.getByRole('heading', { name: 'Dumpere' })).toBeVisible({ timeout: 5000 })
+    await expect(window.getByText(`Vault opened: ${path.basename(emptyDir)}`)).toBeVisible({ timeout: 5000 })
 
     const dumpereDir = path.join(emptyDir, '.dumpere')
     expect(fs.existsSync(dumpereDir)).toBe(true)
@@ -71,10 +85,8 @@ test.describe('Vault E2E Tests', () => {
     await electronApp.close()
   })
 
-  test('create vault rejects non-empty', async ({ _electron }) => {
-    const electronApp = await _electron.launch({
-      args: [path.join(__dirname, '../dist')],
-    })
+  test('create vault rejects non-empty', async () => {
+    const electronApp = await launchApp()
 
     const window = await electronApp.firstWindow()
     await window.waitForLoadState('domcontentloaded')
@@ -94,10 +106,8 @@ test.describe('Vault E2E Tests', () => {
     await electronApp.close()
   })
 
-  test('open vault success', async ({ _electron }) => {
-    const electronApp = await _electron.launch({
-      args: [path.join(__dirname, '../dist')],
-    })
+  test('open vault success', async () => {
+    const electronApp = await launchApp()
 
     const window = await electronApp.firstWindow()
     await window.waitForLoadState('domcontentloaded')
@@ -121,17 +131,13 @@ test.describe('Vault E2E Tests', () => {
     }, vaultDir)
 
     await window.getByRole('button', { name: /Open Vault/i }).click()
-    await window.waitForTimeout(1000)
-
-    await expect(window.getByRole('heading', { name: 'Dumpere' })).toBeVisible()
+    await expect(window.getByText(`Vault opened: ${path.basename(vaultDir)}`)).toBeVisible({ timeout: 5000 })
 
     await electronApp.close()
   })
 
-  test('open vault rejects invalid', async ({ _electron }) => {
-    const electronApp = await _electron.launch({
-      args: [path.join(__dirname, '../dist')],
-    })
+  test('open vault rejects invalid', async () => {
+    const electronApp = await launchApp()
 
     const window = await electronApp.firstWindow()
     await window.waitForLoadState('domcontentloaded')
@@ -150,10 +156,8 @@ test.describe('Vault E2E Tests', () => {
     await electronApp.close()
   })
 
-  test('vault-first enforcement', async ({ _electron }) => {
-    const electronApp = await _electron.launch({
-      args: [path.join(__dirname, '../dist')],
-    })
+  test('vault-first enforcement', async () => {
+    const electronApp = await launchApp()
 
     const window = await electronApp.firstWindow()
     await window.waitForLoadState('domcontentloaded')

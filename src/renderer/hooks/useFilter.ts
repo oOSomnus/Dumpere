@@ -1,46 +1,68 @@
 import { useState, useCallback } from 'react'
-import { DumpEntry } from '../lib/types'
+import { DateFilterState, DatePreset, DumpEntry } from '../lib/types'
+import { getPresetDateKeys, toLocalDateKey } from '../lib/date-utils'
 
 export interface FilterState {
-  projectId: string | null  // null = All Projects
-  tagIds: string[]           // empty = All Tags
-  timeRange: 'today' | 'week' | 'month' | null  // null = All Time
-  sortBy: 'createdAt' | 'custom'  // chronological vs custom order
+  projectId: string | null
+  tagIds: string[]
+  dateFilter: DateFilterState
+  sortBy: 'createdAt' | 'custom'
 }
 
 export interface UseFilterReturn {
   filters: FilterState
   setProjectFilter: (projectId: string | null) => void
   toggleTagFilter: (tagId: string) => void
-  setTimeRangeFilter: (range: 'today' | 'week' | 'month' | null) => void
+  setDatePreset: (preset: DatePreset | null) => void
+  toggleDate: (dateKey: string) => void
+  setDateKeys: (dateKeys: string[]) => void
+  clearDateFilter: () => void
   setSortBy: (sort: 'createdAt' | 'custom') => void
   applyFilters: (dumps: DumpEntry[], dumpOrder?: string[]) => DumpEntry[]
 }
 
-function getTimeRangeStart(range: 'today' | 'week' | 'month'): number {
-  const now = Date.now()
-  switch (range) {
-    case 'today':
-      return new Date().setHours(0, 0, 0, 0)
-    case 'week':
-      return new Date().setDate(new Date().getDate() - 7)
-    case 'month':
-      return new Date().setMonth(new Date().getMonth() - 1)
+const EMPTY_DATE_FILTER: DateFilterState = {
+  mode: 'all',
+  preset: null,
+  dates: []
+}
+
+function sortDateKeys(dateKeys: string[]): string[] {
+  return [...new Set(dateKeys)].sort((a, b) => a.localeCompare(b))
+}
+
+export function hasActiveFilters(filters: FilterState): boolean {
+  return (
+    filters.projectId !== null ||
+    filters.tagIds.length > 0 ||
+    filters.dateFilter.mode !== 'all'
+  )
+}
+
+function matchesDateFilter(dump: DumpEntry, dateFilter: DateFilterState): boolean {
+  if (dateFilter.mode === 'all') {
+    return true
   }
+
+  const dumpDateKey = toLocalDateKey(dump.createdAt)
+  const selectedDates = dateFilter.mode === 'preset' && dateFilter.preset
+    ? getPresetDateKeys(dateFilter.preset)
+    : dateFilter.dates
+
+  return selectedDates.includes(dumpDateKey)
 }
 
 export function useFilter(): UseFilterReturn {
   const [filters, setFilters] = useState<FilterState>({
     projectId: null,
     tagIds: [],
-    timeRange: null,
+    dateFilter: EMPTY_DATE_FILTER,
     sortBy: 'createdAt'
   })
 
   const setProjectFilter = useCallback((projectId: string | null) => {
     setFilters(prev => ({
       ...prev,
-      // Toggle off if same project clicked
       projectId: prev.projectId === projectId ? null : projectId
     }))
   }, [])
@@ -50,7 +72,6 @@ export function useFilter(): UseFilterReturn {
       const hasTag = prev.tagIds.includes(tagId)
       return {
         ...prev,
-        // Checkbox behavior: add if not present, remove if present
         tagIds: hasTag
           ? prev.tagIds.filter(id => id !== tagId)
           : [...prev.tagIds, tagId]
@@ -58,11 +79,47 @@ export function useFilter(): UseFilterReturn {
     })
   }, [])
 
-  const setTimeRangeFilter = useCallback((range: 'today' | 'week' | 'month' | null) => {
+  const setDatePreset = useCallback((preset: DatePreset | null) => {
     setFilters(prev => ({
       ...prev,
-      // Toggle off if same range clicked
-      timeRange: prev.timeRange === range ? null : range
+      dateFilter: prev.dateFilter.mode === 'preset' && prev.dateFilter.preset === preset
+        ? EMPTY_DATE_FILTER
+        : preset
+          ? { mode: 'preset', preset, dates: [] }
+          : EMPTY_DATE_FILTER
+    }))
+  }, [])
+
+  const toggleDate = useCallback((dateKey: string) => {
+    setFilters(prev => {
+      const currentDates = prev.dateFilter.mode === 'dates' ? prev.dateFilter.dates : []
+      const nextDates = currentDates.includes(dateKey)
+        ? currentDates.filter(existing => existing !== dateKey)
+        : [...currentDates, dateKey]
+
+      return {
+        ...prev,
+        dateFilter: nextDates.length > 0
+          ? { mode: 'dates', preset: null, dates: sortDateKeys(nextDates) }
+          : EMPTY_DATE_FILTER
+      }
+    })
+  }, [])
+
+  const setDateKeys = useCallback((dateKeys: string[]) => {
+    const nextDates = sortDateKeys(dateKeys)
+    setFilters(prev => ({
+      ...prev,
+      dateFilter: nextDates.length > 0
+        ? { mode: 'dates', preset: null, dates: nextDates }
+        : EMPTY_DATE_FILTER
+    }))
+  }, [])
+
+  const clearDateFilter = useCallback(() => {
+    setFilters(prev => ({
+      ...prev,
+      dateFilter: EMPTY_DATE_FILTER
     }))
   }, [])
 
@@ -71,32 +128,24 @@ export function useFilter(): UseFilterReturn {
   }, [])
 
   const applyFilters = useCallback((dumps: DumpEntry[], dumpOrder: string[] = []): DumpEntry[] => {
-    let filtered = dumps.filter(dump => {
-      // Project filter (ORGA-01)
+    let filtered = dumps.filter((dump) => {
       if (filters.projectId && dump.projectId !== filters.projectId) {
         return false
       }
 
-      // Tag filter with AND logic (ORGA-02, ORGA-05)
-      // All selected tags must be present (every, not some)
       if (filters.tagIds.length > 0) {
         const hasAllTags = filters.tagIds.every(tagId => dump.tags.includes(tagId))
         if (!hasAllTags) return false
       }
 
-      // Time range filter (ORGA-03)
-      if (filters.timeRange) {
-        const startOf = getTimeRangeStart(filters.timeRange)
-        if (dump.createdAt < startOf) return false
+      if (!matchesDateFilter(dump, filters.dateFilter)) {
+        return false
       }
 
       return true
     })
 
-    // Sorting (ORGA-04)
     if (filters.sortBy === 'custom' && dumpOrder.length > 0) {
-      // Sort by dumpOrder array position
-      // Items not in dumpOrder go at the end (sorted by createdAt)
       const orderedDumps: { dump: DumpEntry; orderIndex: number }[] = []
       const unorderedDumps: DumpEntry[] = []
 
@@ -109,14 +158,10 @@ export function useFilter(): UseFilterReturn {
         }
       })
 
-      // Sort ordered items by their position in dumpOrder
       orderedDumps.sort((a, b) => a.orderIndex - b.orderIndex)
-      // Sort unordered by createdAt descending
       unorderedDumps.sort((a, b) => b.createdAt - a.createdAt)
-
-      filtered = [...orderedDumps.map(o => o.dump), ...unorderedDumps]
+      filtered = [...orderedDumps.map(item => item.dump), ...unorderedDumps]
     } else {
-      // Default: sort by createdAt descending (newest first)
       filtered.sort((a, b) => b.createdAt - a.createdAt)
     }
 
@@ -127,7 +172,10 @@ export function useFilter(): UseFilterReturn {
     filters,
     setProjectFilter,
     toggleTagFilter,
-    setTimeRangeFilter,
+    setDatePreset,
+    toggleDate,
+    setDateKeys,
+    clearDateFilter,
     setSortBy,
     applyFilters
   }

@@ -1,9 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { renderHook, waitFor, act } from '@testing-library/react'
-import { useVault } from './useVault'
-import { VaultState, RecentVault } from './useVault'
+import type { VaultState, RecentVault } from './useVault'
 
-// Mock window.electronAPI
 const mockGetVaultState = vi.fn()
 const mockGetRecentVaults = vi.fn()
 const mockOnVaultStateChange = vi.fn()
@@ -11,32 +9,36 @@ const mockCreateVault = vi.fn()
 const mockOpenVault = vi.fn()
 const mockCloseVault = vi.fn()
 
-vi.stubGlobal('window', {
-  electronAPI: {
-    getVaultState: mockGetVaultState,
-    getRecentVaults: mockGetRecentVaults,
-    onVaultStateChange: mockOnVaultStateChange,
-    createVault: mockCreateVault,
-    openVault: mockOpenVault,
-    closeVault: mockCloseVault,
-  }
-})
+async function renderUseVault() {
+  const { useVault } = await import('./useVault')
+  return renderHook(() => useVault())
+}
 
 describe('useVault', () => {
   const closedState: VaultState = { isOpen: false, vaultPath: null, vaultName: null }
   const openState: VaultState = { isOpen: true, vaultPath: '/test/vault', vaultName: 'test-vault' }
 
   beforeEach(() => {
+    vi.resetModules()
     vi.clearAllMocks()
+
+    window.electronAPI = {
+      ...(window.electronAPI ?? {}),
+      getVaultState: mockGetVaultState,
+      getRecentVaults: mockGetRecentVaults,
+      onVaultStateChange: mockOnVaultStateChange,
+      createVault: mockCreateVault,
+      openVault: mockOpenVault,
+      closeVault: mockCloseVault,
+    } as typeof window.electronAPI
+
     mockGetVaultState.mockResolvedValue(closedState)
     mockGetRecentVaults.mockResolvedValue([])
-    mockOnVaultStateChange.mockImplementation((cb: (state: VaultState) => void) => {
-      // Store callback for later triggering
-    })
+    mockOnVaultStateChange.mockImplementation((_cb: (state: VaultState) => void) => {})
   })
 
   it('loads initial vault state on mount', async () => {
-    const { result } = renderHook(() => useVault())
+    const { result } = await renderUseVault()
 
     await waitFor(() => {
       expect(mockGetVaultState).toHaveBeenCalled()
@@ -51,7 +53,7 @@ describe('useVault', () => {
     ]
     mockGetRecentVaults.mockResolvedValueOnce(recentVaults)
 
-    const { result } = renderHook(() => useVault())
+    const { result } = await renderUseVault()
 
     await waitFor(() => {
       expect(mockGetRecentVaults).toHaveBeenCalled()
@@ -64,7 +66,7 @@ describe('useVault', () => {
     mockCreateVault.mockResolvedValueOnce(openState)
     mockGetRecentVaults.mockResolvedValue([{ path: '/test/vault', name: 'test-vault', lastOpened: Date.now() }])
 
-    const { result } = renderHook(() => useVault())
+    const { result } = await renderUseVault()
 
     await act(async () => {
       await result.current.createVault()
@@ -78,7 +80,7 @@ describe('useVault', () => {
   it('createVault sets error on failure', async () => {
     mockCreateVault.mockRejectedValueOnce(new Error('Failed to create'))
 
-    const { result } = renderHook(() => useVault())
+    const { result } = await renderUseVault()
 
     await act(async () => {
       try {
@@ -92,7 +94,7 @@ describe('useVault', () => {
   it('openVault updates state on success', async () => {
     mockOpenVault.mockResolvedValueOnce(openState)
 
-    const { result } = renderHook(() => useVault())
+    const { result } = await renderUseVault()
 
     await act(async () => {
       await result.current.openVault('/test/vault')
@@ -105,7 +107,7 @@ describe('useVault', () => {
   it('closeVault updates state to closed', async () => {
     mockCloseVault.mockResolvedValueOnce(closedState)
 
-    const { result } = renderHook(() => useVault())
+    const { result } = await renderUseVault()
 
     await act(async () => {
       await result.current.closeVault()
@@ -116,22 +118,29 @@ describe('useVault', () => {
   })
 
   it('subscribes to vault state changes', async () => {
-    renderHook(() => useVault())
+    await renderUseVault()
 
     expect(mockOnVaultStateChange).toHaveBeenCalledWith(expect.any(Function))
   })
 
   it('isLoading is true during vault operations', async () => {
-    mockCreateVault.mockImplementation(() => new Promise(resolve => setTimeout(() => resolve(openState), 100)))
+    mockCreateVault.mockImplementation(
+      () => new Promise(resolve => setTimeout(() => resolve(openState), 25))
+    )
 
-    const { result } = renderHook(() => useVault())
+    const { result } = await renderUseVault()
 
     expect(result.current.isLoading).toBe(false)
 
+    let createPromise!: Promise<void>
     act(() => {
-      result.current.createVault()
+      createPromise = result.current.createVault()
     })
 
     expect(result.current.isLoading).toBe(true)
+
+    await act(async () => {
+      await createPromise
+    })
   })
 })

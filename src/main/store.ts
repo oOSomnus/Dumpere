@@ -1,5 +1,5 @@
 import Store from 'electron-store'
-import { DumpEntry, Project, Tag, SummaryEntry } from '../renderer/lib/types'
+import { DumpEntry, Project, Tag, SummaryEntry, SummarySettings, ProjectWorkpad } from '../renderer/lib/types'
 
 interface WindowBounds {
   x: number
@@ -19,6 +19,8 @@ interface StoreSchema {
   projects: Project[]
   tags: Tag[]
   summaries: SummaryEntry[]
+  summarySettings: SummarySettings
+  workpads: ProjectWorkpad[]
   dumpOrder: string[]  // Array of dump IDs in user-defined order
   windowBounds: WindowBounds | null
   windowMaximized: boolean
@@ -27,12 +29,19 @@ interface StoreSchema {
 }
 
 export const store = new Store<StoreSchema>({
-  name: 'dumpit-data',
+  name: 'dumpere-data',
   defaults: {
     dumps: [],
     projects: [],
     tags: [],
     summaries: [],
+    summarySettings: {
+      provider: 'ollama',
+      baseUrl: 'http://localhost:11434',
+      apiKey: '',
+      model: 'mistral'
+    },
+    workpads: [],
     dumpOrder: [],
     windowBounds: null,
     windowMaximized: false,

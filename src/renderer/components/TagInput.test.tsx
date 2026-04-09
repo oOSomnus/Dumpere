@@ -1,82 +1,101 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
+import { render, screen, fireEvent } from '@testing-library/react'
+import type { ComponentProps, HTMLAttributes, ReactNode } from 'react'
+import { TagInput } from './TagInput'
 import type { Tag } from '../lib/types'
 
-// TODO: Import TagInput component when implemented
-// import { TagInput } from './TagInput'
+vi.mock('@radix-ui/react-popover', async () => {
+  const React = await import('react')
+  const OpenContext = React.createContext(false)
+  type MockPopoverContentProps = HTMLAttributes<HTMLDivElement> & {
+    onOpenAutoFocus?: unknown
+    onCloseAutoFocus?: unknown
+  }
+
+  const Root = ({
+    open,
+    children
+  }: {
+    open: boolean
+    children: ReactNode
+  }) => (
+    <OpenContext.Provider value={open}>{children}</OpenContext.Provider>
+  )
+
+  const Anchor = ({ children }: { children: ReactNode }) => <>{children}</>
+  const Portal = ({ children }: { children: ReactNode }) => <>{children}</>
+  const Content = React.forwardRef<HTMLDivElement, MockPopoverContentProps>(
+    ({ children, onOpenAutoFocus: _onOpenAutoFocus, onCloseAutoFocus: _onCloseAutoFocus, ...props }, ref) => {
+      const open = React.useContext(OpenContext)
+      if (!open) return null
+
+      return (
+        <div ref={ref} role="dialog" {...props}>
+          {children}
+        </div>
+      )
+    }
+  )
+
+  Content.displayName = 'MockPopoverContent'
+
+  return {
+    Root,
+    Anchor,
+    Portal,
+    Content
+  }
+})
+
+const tags: Tag[] = [
+  { id: 'tag-1', name: 'alpha', createdAt: 1 },
+  { id: 'tag-2', name: 'beta', createdAt: 2 }
+]
+
+function renderTagInput(overrides: Partial<ComponentProps<typeof TagInput>> = {}) {
+  return render(
+    <TagInput
+      open={true}
+      onOpenChange={vi.fn()}
+      onSubmit={vi.fn()}
+      onReturnFocus={vi.fn()}
+      selectedTagIds={[]}
+      onTagsChange={vi.fn()}
+      allTags={tags}
+      getAISuggestions={vi.fn(() => [])}
+      onCreateTag={vi.fn(async (name: string) => ({ id: 'tag-new', name, createdAt: Date.now() }))}
+      dumpText="Fix keyboard nav"
+      {...overrides}
+    />
+  )
+}
 
 describe('TagInput', () => {
-  describe('popup behavior', () => {
-    it('should open on Enter keypress', () => {
-      // TODO: Implement actual test when component is created
-      expect(true).toBe(true)
-    })
+  it('shows a visible highlighted tag while navigating with arrow keys', () => {
+    renderTagInput()
 
-    it('should close on Escape keypress', () => {
-      // TODO: Implement actual test when component is created
-      expect(true).toBe(true)
-    })
+    const input = screen.getByPlaceholderText('Search or create tag...')
+    const alphaOption = screen.getByText('alpha').closest('[role="option"]')
+    const betaOption = screen.getByText('beta').closest('[role="option"]')
 
-    it('should close when clicking outside', () => {
-      // TODO: Implement actual test when component is created
-      expect(true).toBe(true)
-    })
+    expect(alphaOption?.getAttribute('data-highlighted')).toBe('true')
+    expect(input.getAttribute('aria-activedescendant')).toBe('tag-option-tag-1')
+
+    fireEvent.keyDown(input, { key: 'ArrowDown' })
+
+    expect(alphaOption?.getAttribute('data-highlighted')).toBe('false')
+    expect(betaOption?.getAttribute('data-highlighted')).toBe('true')
+    expect(input.getAttribute('aria-activedescendant')).toBe('tag-option-tag-2')
   })
 
-  describe('keyboard navigation', () => {
-    it('should navigate with arrow keys', () => {
-      // TODO: Implement actual test when component is created
-      expect(true).toBe(true)
-    })
+  it('toggles the highlighted tag with Shift+Enter', () => {
+    const onTagsChange = vi.fn()
+    renderTagInput({ onTagsChange })
 
-    it('should select tag on Enter key', () => {
-      // TODO: Implement actual test when component is created
-      expect(true).toBe(true)
-    })
+    const input = screen.getByPlaceholderText('Search or create tag...')
+    fireEvent.keyDown(input, { key: 'ArrowDown' })
+    fireEvent.keyDown(input, { key: 'Enter', shiftKey: true })
 
-    it('should highlight currently focused tag', () => {
-      // TODO: Implement actual test when component is created
-      expect(true).toBe(true)
-    })
-  })
-
-  describe('multi-select behavior', () => {
-    it('should allow selecting multiple tags', () => {
-      // TODO: Implement actual test when component is created
-      expect(true).toBe(true)
-    })
-
-    it('should call onTagsChange with all selected tagIds', () => {
-      // TODO: Implement actual test when component is created
-      expect(true).toBe(true)
-    })
-
-    it('should deselect tag when clicked again', () => {
-      // TODO: Implement actual test when component is created
-      expect(true).toBe(true)
-    })
-  })
-
-  describe('AI suggestions section', () => {
-    it('should display AI suggested tags', () => {
-      // TODO: Implement actual test when component is created
-      expect(true).toBe(true)
-    })
-
-    it('should differentiate AI suggestions from existing tags', () => {
-      // TODO: Implement actual test when component is created
-      expect(true).toBe(true)
-    })
-  })
-
-  describe('new tag creation', () => {
-    it('should create new tag when typing and pressing Enter', () => {
-      // TODO: Implement actual test when component is created
-      expect(true).toBe(true)
-    })
-
-    it('should add new tag to existing tags list', () => {
-      // TODO: Implement actual test when component is created
-      expect(true).toBe(true)
-    })
+    expect(onTagsChange).toHaveBeenCalledWith(['tag-2'])
   })
 })

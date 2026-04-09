@@ -111,9 +111,14 @@ contextBridge.exposeInMainWorld('electronAPI', {
     return ipcRenderer.invoke('clipboard:write', text)
   },
 
+  // Attachment helpers
+  createTempAttachment: (input: { name: string; mimeType: string; data: ArrayBuffer }) => {
+    return ipcRenderer.invoke('attachment:create-temp', input)
+  },
+
   // AI Summary operations
-  checkOllamaHealth: () => {
-    return ipcRenderer.invoke('ai:check-health')
+  checkSummaryHealth: () => {
+    return ipcRenderer.invoke('summary:check-health')
   },
   generateSummary: (options: { type: 'daily' | 'weekly'; projectId: string | null }) => {
     return ipcRenderer.invoke('ai:generate-summary', options)
@@ -123,6 +128,18 @@ contextBridge.exposeInMainWorld('electronAPI', {
   },
   exportSummary: (summaryId: string) => {
     return ipcRenderer.invoke('ai:export-summary', summaryId)
+  },
+  getSummarySettings: () => {
+    return ipcRenderer.invoke('summary:get-settings')
+  },
+  updateSummarySettings: (settings) => {
+    return ipcRenderer.invoke('summary:update-settings', settings)
+  },
+  getWorkpad: (projectId: string | null) => {
+    return ipcRenderer.invoke('workpad:get', projectId)
+  },
+  updateWorkpad: (projectId: string | null, content: string) => {
+    return ipcRenderer.invoke('workpad:update', projectId, content)
   },
 
   // Vault operations

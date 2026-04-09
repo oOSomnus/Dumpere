@@ -2,12 +2,13 @@ import { useState, useRef, useEffect, useCallback, KeyboardEvent } from 'react'
 import * as Popover from '@radix-ui/react-popover'
 import * as Checkbox from '@radix-ui/react-checkbox'
 import { Sparkles, Check, X, ArrowUp, ArrowDown } from 'lucide-react'
-import { cn } from '../../lib/utils'
-import type { Tag } from '../../lib/types'
+import type { Tag } from '../lib/types'
 
 export interface TagInputProps {
   open: boolean
   onOpenChange: (open: boolean) => void
+  onSubmit: () => Promise<void> | void
+  onReturnFocus: () => void
   selectedTagIds: string[]
   onTagsChange: (tagIds: string[]) => void
   allTags: Tag[]
@@ -21,6 +22,8 @@ const MAX_SELECTED_TAGS = 20
 export function TagInput({
   open,
   onOpenChange,
+  onSubmit,
+  onReturnFocus,
   selectedTagIds,
   onTagsChange,
   allTags,
@@ -31,22 +34,16 @@ export function TagInput({
   const [filterText, setFilterText] = useState('')
   const [highlightedIndex, setHighlightedIndex] = useState(0)
   const [aiSuggestions, setAiSuggestions] = useState<Tag[]>([])
-  const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
-  const listRef = useRef<HTMLDivElement>(null)
+  const optionRefs = useRef<Array<HTMLDivElement | null>>([])
 
   // Debounced AI suggestions
   useEffect(() => {
     if (!dumpText || !open) return
 
     const timer = setTimeout(() => {
-      setIsLoadingSuggestions(true)
-      try {
-        const suggestions = getAISuggestions(dumpText)
-        setAiSuggestions(suggestions)
-      } finally {
-        setIsLoadingSuggestions(false)
-      }
+      const suggestions = getAISuggestions(dumpText)
+      setAiSuggestions(suggestions)
     }, 300)
 
     return () => clearTimeout(timer)
@@ -63,9 +60,13 @@ export function TagInput({
 
   // Focus input when popup opens
   useEffect(() => {
-    if (open && inputRef.current) {
-      inputRef.current.focus()
-    }
+    if (!open) return
+
+    const frame = window.requestAnimationFrame(() => {
+      inputRef.current?.focus()
+    })
+
+    return () => window.cancelAnimationFrame(frame)
   }, [open])
 
   // Get filtered existing tags (exclude AI suggestions that are already in allTags)
@@ -77,6 +78,21 @@ export function TagInput({
 
   // Combined list for navigation: AI suggestions + filtered existing tags
   const allNavigableTags = [...aiSuggestions, ...existingTags]
+  const highlightedTag = allNavigableTags[highlightedIndex] || null
+
+  useEffect(() => {
+    if (allNavigableTags.length === 0) {
+      setHighlightedIndex(0)
+      return
+    }
+
+    setHighlightedIndex(prev => Math.min(prev, allNavigableTags.length - 1))
+  }, [allNavigableTags.length])
+
+  useEffect(() => {
+    if (!open || !highlightedTag) return
+    optionRefs.current[highlightedIndex]?.scrollIntoView?.({ block: 'nearest' })
+  }, [highlightedIndex, highlightedTag, open])
 
   const handleToggleTag = useCallback(
     (tagId: string) => {
@@ -141,20 +157,24 @@ export function TagInput({
       setHighlightedIndex(prev => (prev > 0 ? prev - 1 : prev))
     } else if (e.key === 'Enter') {
       e.preventDefault()
-      if (filterText.trim()) {
-        // If there's text input, create a new tag
-        handleCreateNewTag()
-      } else if (allNavigableTags.length > 0) {
-        // Toggle highlighted tag
+
+      if (e.shiftKey) {
         const tag = allNavigableTags[highlightedIndex]
         if (tag) {
           handleToggleTag(tag.id)
-          setHighlightedIndex(0)
         }
+        return
+      }
+
+      if (filterText.trim()) {
+        void handleCreateNewTag()
+      } else {
+        void onSubmit()
       }
     } else if (e.key === 'Escape') {
       e.preventDefault()
       onOpenChange(false)
+      onReturnFocus()
     }
   }
 
@@ -212,6 +232,8 @@ export function TagInput({
               }}
               onKeyDown={handleKeyDown}
               placeholder="Search or create tag..."
+              aria-controls="tag-input-options"
+              aria-activedescendant={highlightedTag ? `tag-option-${highlightedTag.id}` : undefined}
               style={{
                 width: '100%',
                 backgroundColor: 'transparent',
@@ -225,7 +247,9 @@ export function TagInput({
 
           {/* Scrollable content area */}
           <div
-            ref={listRef}
+            id="tag-input-options"
+            role="listbox"
+            aria-multiselectable="true"
             style={{
               flex: 1,
               overflowY: 'auto',
@@ -254,7 +278,15 @@ export function TagInput({
                   return (
                     <div
                       key={tag.id}
+                      id={`tag-option-${tag.id}`}
+                      ref={element => {
+                        optionRefs.current[index] = element
+                      }}
+                      role="option"
+                      aria-selected={isSelected}
+                      data-highlighted={isHighlighted ? 'true' : 'false'}
                       onClick={() => handleTagClick(tag.id)}
+                      className="w-full text-left transition-colors"
                       style={{
                         padding: '8px 12px',
                         cursor: 'pointer',
@@ -264,8 +296,9 @@ export function TagInput({
                         backgroundColor: isHighlighted
                           ? 'var(--accent)'
                           : 'transparent',
-                        color: 'var(--foreground)',
+                        color: isHighlighted ? 'var(--accent-foreground)' : 'var(--foreground)',
                         fontSize: '14px',
+                        boxShadow: isHighlighted ? 'inset 0 0 0 1px var(--border)' : 'none',
                       }}
                       onMouseEnter={() => setHighlightedIndex(index)}
                     >
@@ -301,7 +334,15 @@ export function TagInput({
                   return (
                     <div
                       key={tag.id}
+                      id={`tag-option-${tag.id}`}
+                      ref={element => {
+                        optionRefs.current[absoluteIndex] = element
+                      }}
+                      role="option"
+                      aria-selected={isSelected}
+                      data-highlighted={isHighlighted ? 'true' : 'false'}
                       onClick={() => handleTagClick(tag.id)}
+                      className="w-full text-left transition-colors"
                       style={{
                         padding: '8px 12px',
                         cursor: 'pointer',
@@ -311,8 +352,9 @@ export function TagInput({
                         backgroundColor: isHighlighted
                           ? 'var(--accent)'
                           : 'transparent',
-                        color: 'var(--foreground)',
+                        color: isHighlighted ? 'var(--accent-foreground)' : 'var(--foreground)',
                         fontSize: '14px',
+                        boxShadow: isHighlighted ? 'inset 0 0 0 1px var(--border)' : 'none',
                       }}
                       onMouseEnter={() => setHighlightedIndex(absoluteIndex)}
                     >
@@ -330,6 +372,7 @@ export function TagInput({
                           backgroundColor: isSelected
                             ? 'var(--accent)'
                             : 'transparent',
+                          color: isHighlighted ? 'var(--accent-foreground)' : 'var(--foreground)'
                         }}
                       >
                         <Checkbox.Indicator>
@@ -390,6 +433,7 @@ export function TagInput({
                   {tag.name}
                   <button
                     onClick={() => handleRemoveSelected(tag.id)}
+                    aria-label={`Remove selected tag ${tag.name}`}
                     style={{
                       background: 'none',
                       border: 'none',
@@ -434,7 +478,8 @@ export function TagInput({
               <ArrowDown size={10} className="inline mr-1" />
               Navigate
             </span>
-            <span>Enter Select</span>
+            <span>Shift+Enter Toggle</span>
+            <span>Enter Dump/Create</span>
             <span>Esc Close</span>
           </div>
         </Popover.Content>

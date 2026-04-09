@@ -8,7 +8,7 @@ export const mockDialog = {
 export const mockApp = {
   getPath: vi.fn(() => '/tmp/test-userData'),
   requestSingleInstanceLock: vi.fn(() => true),
-  getName: vi.fn(() => 'DumpIt'),
+  getName: vi.fn(() => 'Dumpere'),
 }
 
 export const mockIpcMain = {

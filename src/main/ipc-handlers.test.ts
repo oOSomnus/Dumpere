@@ -1,6 +1,23 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import type { SummaryEntry } from '../renderer/lib/types'
 
+const mocks = vi.hoisted(() => ({
+  mockStore: {
+    get: vi.fn((key: string, defaultValue: unknown) => defaultValue),
+    set: vi.fn()
+  },
+  mockCheckSummaryHealth: vi.fn(),
+  mockGenerateSummary: vi.fn(),
+  mockBuildSummaryPrompt: vi.fn(),
+  mockGetDefaultSummarySettings: vi.fn(() => ({
+    provider: 'ollama',
+    baseUrl: 'http://localhost:11434',
+    apiKey: '',
+    model: 'mistral'
+  })),
+  mockSanitizeSummarySettings: vi.fn((settings) => settings)
+}))
+
 // Mock electron modules
 vi.mock('electron', () => ({
   ipcMain: {
@@ -27,17 +44,18 @@ vi.mock('electron-log', () => ({
 }))
 
 // Mock fs/promises
-vi.mock('fs/promises', () => ({
-  writeFile: vi.fn()
-}))
+vi.mock('fs/promises', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('fs/promises')>()
 
-// Mock store
-const mockStore = {
-  get: vi.fn((key: string, defaultValue: unknown) => defaultValue),
-  set: vi.fn()
-}
+  return {
+    ...actual,
+    default: actual,
+    writeFile: vi.fn()
+  }
+})
+
 vi.mock('./store', () => ({
-  store: mockStore
+  store: mocks.mockStore
 }))
 
 // Mock file-service
@@ -48,14 +66,25 @@ vi.mock('./file-service', () => ({
   getDumpsDir: vi.fn(() => '/dumps')
 }))
 
+vi.mock('./vault-service', () => ({
+  createVault: vi.fn(),
+  openVault: vi.fn(),
+  getVaultState: vi.fn(() => ({ isOpen: false, vaultPath: null, vaultName: null })),
+  onVaultStateChange: vi.fn(),
+}))
+
+vi.mock('./metadata-service', () => ({
+  createDump: vi.fn(),
+  readMetadata: vi.fn(),
+}))
+
 // Mock ai-service
-const mockCheckOllamaHealth = vi.fn()
-const mockGenerateSummary = vi.fn()
-const mockBuildSummaryPrompt = vi.fn()
 vi.mock('./ai-service', () => ({
-  checkOllamaHealth: mockCheckOllamaHealth,
-  generateSummary: mockGenerateSummary,
-  buildSummaryPrompt: mockBuildSummaryPrompt
+  checkSummaryHealth: mocks.mockCheckSummaryHealth,
+  generateSummary: mocks.mockGenerateSummary,
+  buildSummaryPrompt: mocks.mockBuildSummaryPrompt,
+  getDefaultSummarySettings: mocks.mockGetDefaultSummarySettings,
+  sanitizeSummarySettings: mocks.mockSanitizeSummarySettings
 }))
 
 // Mock archiver
@@ -70,15 +99,20 @@ vi.mock('archiver', () => ({
 }))
 
 // Mock createWriteStream
-vi.mock('fs', () => ({
-  ...vi.importActual('fs'),
-  createWriteStream: vi.fn(() => ({
-    on: vi.fn((event, cb) => {
-      if (event === 'close') setTimeout(cb, 0)
-      return this
-    })
-  }))
-}))
+vi.mock('fs', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('fs')>()
+
+  return {
+    ...actual,
+    default: actual,
+    createWriteStream: vi.fn(() => ({
+      on: vi.fn((event, cb) => {
+        if (event === 'close') setTimeout(cb, 0)
+        return this
+      })
+    }))
+  }
+})
 
 // Mock adm-zip
 vi.mock('adm-zip', () => ({
@@ -89,6 +123,8 @@ vi.mock('adm-zip', () => ({
 }))
 
 // Import after mocking
+import { ipcMain, dialog } from 'electron'
+import { writeFile as mockedWriteFile } from 'fs/promises'
 import { setupIPCHandlers } from './ipc-handlers'
 
 describe('IPC Handlers - AI operations', () => {
@@ -106,19 +142,20 @@ describe('IPC Handlers - AI operations', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
+    setupIPCHandlers()
 
     // Extract all ipcMain.handle calls to track handlers
-    const { ipcMain } = require('electron')
     ipcHandlers = {}
     ;(ipcMain.handle as ReturnType<typeof vi.fn>).mock.calls.forEach(([channel, handler]: [string, Function]) => {
       ipcHandlers[channel] = handler
     })
 
     // Default store behavior
-    mockStore.get.mockImplementation((key: string, defaultValue: unknown) => {
+    mocks.mockStore.get.mockImplementation((key: string, defaultValue: unknown) => {
       if (key === 'summaries') return []
       if (key === 'dumps') return []
       if (key === 'projects') return []
+      if (key === 'summarySettings') return mocks.mockGetDefaultSummarySettings()
       return defaultValue
     })
   })
@@ -127,38 +164,131 @@ describe('IPC Handlers - AI operations', () => {
     vi.restoreAllMocks()
   })
 
-  describe('ai:check-health', () => {
-    it('returns true when Ollama is healthy', async () => {
-      mockCheckOllamaHealth.mockResolvedValueOnce(true)
+  describe('dump handlers', () => {
+    it('assigns a new id when saving a dump', async () => {
+      const handler = ipcHandlers['store:save-dump']
+      const result = await handler(null, {
+        text: 'Saved dump',
+        files: [],
+        createdAt: 1,
+        updatedAt: 1,
+        projectId: 'project-1',
+        tags: []
+      })
 
-      const handler = ipcHandlers['ai:check-health']
+      expect(result.id).toBeTruthy()
+      expect(mocks.mockStore.set).toHaveBeenCalledWith('dumps', [
+        expect.objectContaining({
+          id: result.id,
+          text: 'Saved dump'
+        })
+      ])
+    })
+
+    it('rejects saving a dump without a project assignment', async () => {
+      const handler = ipcHandlers['store:save-dump']
+
+      expect(() => handler(null, {
+        text: 'Saved dump',
+        files: [],
+        createdAt: 1,
+        updatedAt: 1,
+        projectId: null,
+        tags: []
+      })).toThrow('Project assignment is required before saving a dump')
+    })
+
+    it('normalizes missing dump ids when loading dumps', async () => {
+      mocks.mockStore.get.mockReturnValue([
+        {
+          text: 'legacy dump',
+          files: [],
+          createdAt: 1,
+          updatedAt: 1,
+          projectId: null,
+          tags: []
+        }
+      ])
+
+      const handler = ipcHandlers['store:get-dumps']
+      const result = await handler()
+
+      expect(result).toHaveLength(1)
+      expect(result[0].id).toBeTruthy()
+      expect(mocks.mockStore.set).toHaveBeenCalledWith('dumps', [
+        expect.objectContaining({
+          id: result[0].id,
+          text: 'legacy dump'
+        })
+      ])
+    })
+  })
+
+  describe('summary:check-health', () => {
+    it('returns true when the configured provider is healthy', async () => {
+      mocks.mockCheckSummaryHealth.mockResolvedValueOnce(true)
+
+      const handler = ipcHandlers['summary:check-health']
       const result = await handler()
 
       expect(result).toBe(true)
-      expect(mockCheckOllamaHealth).toHaveBeenCalled()
+      expect(mocks.mockCheckSummaryHealth).toHaveBeenCalled()
     })
 
-    it('returns false when Ollama is unhealthy', async () => {
-      mockCheckOllamaHealth.mockResolvedValueOnce(false)
+    it('returns false when the configured provider is unhealthy', async () => {
+      mocks.mockCheckSummaryHealth.mockResolvedValueOnce(false)
 
-      const handler = ipcHandlers['ai:check-health']
+      const handler = ipcHandlers['summary:check-health']
       const result = await handler()
 
       expect(result).toBe(false)
     })
   })
 
+  describe('summary settings handlers', () => {
+    it('returns stored summary settings', async () => {
+      const settings = {
+        provider: 'openai',
+        baseUrl: 'https://api.openai.com/v1',
+        apiKey: 'sk-test',
+        model: 'gpt-4.1-mini'
+      }
+      mocks.mockStore.get.mockReturnValue(settings)
+
+      const handler = ipcHandlers['summary:get-settings']
+      const result = await handler()
+
+      expect(result).toEqual(settings)
+      expect(mocks.mockSanitizeSummarySettings).toHaveBeenCalledWith(settings)
+    })
+
+    it('persists updated summary settings', async () => {
+      const settings = {
+        provider: 'openai',
+        baseUrl: 'https://api.openai.com/v1',
+        apiKey: 'sk-test',
+        model: 'gpt-4.1-mini'
+      }
+
+      const handler = ipcHandlers['summary:update-settings']
+      const result = await handler(null, settings)
+
+      expect(result).toEqual(settings)
+      expect(mocks.mockStore.set).toHaveBeenCalledWith('summarySettings', settings)
+    })
+  })
+
   describe('ai:generate-summary', () => {
-    it('throws when Ollama is not running', async () => {
-      mockCheckOllamaHealth.mockResolvedValueOnce(false)
+    it('throws when the provider is unavailable', async () => {
+      mocks.mockCheckSummaryHealth.mockResolvedValueOnce(false)
 
       const handler = ipcHandlers['ai:generate-summary']
-      await expect(handler(null, { type: 'daily', projectId: null })).rejects.toThrow('Ollama is not running')
+      await expect(handler(null, { type: 'daily', projectId: null })).rejects.toThrow('unavailable')
     })
 
     it('returns null when no dumps found for the period', async () => {
-      mockCheckOllamaHealth.mockResolvedValueOnce(true)
-      mockStore.get.mockReturnValue([]) // No dumps
+      mocks.mockCheckSummaryHealth.mockResolvedValueOnce(true)
+      mocks.mockStore.get.mockReturnValue([]) // No dumps
 
       const handler = ipcHandlers['ai:generate-summary']
       const result = await handler(null, { type: 'daily', projectId: null })
@@ -176,19 +306,22 @@ describe('IPC Handlers - AI operations', () => {
         projectId: null,
         tags: []
       }
-      mockCheckOllamaHealth.mockResolvedValueOnce(true)
-      mockStore.get
-        .mockReturnValueOnce([mockDump]) // dumps
-        .mockReturnValue([]) // summaries
-      mockBuildSummaryPrompt.mockReturnValueOnce('Test prompt')
-      mockGenerateSummary.mockResolvedValueOnce('Generated summary content')
+      mocks.mockCheckSummaryHealth.mockResolvedValueOnce(true)
+      mocks.mockStore.get.mockImplementation((key: string, defaultValue: unknown) => {
+        if (key === 'summarySettings') return mocks.mockGetDefaultSummarySettings()
+        if (key === 'dumps') return [mockDump]
+        if (key === 'summaries') return []
+        return defaultValue
+      })
+      mocks.mockBuildSummaryPrompt.mockReturnValueOnce('Test prompt')
+      mocks.mockGenerateSummary.mockResolvedValueOnce('Generated summary content')
 
       const handler = ipcHandlers['ai:generate-summary']
       const result = await handler(null, { type: 'daily', projectId: null })
 
       expect(result).toBeTruthy()
       expect(result.content).toBe('Generated summary content')
-      expect(mockStore.set).toHaveBeenCalledWith('summaries', expect.any(Array))
+      expect(mocks.mockStore.set).toHaveBeenCalledWith('summaries', expect.any(Array))
     })
 
     it('filters dumps by project when projectId is provided', async () => {
@@ -201,25 +334,28 @@ describe('IPC Handlers - AI operations', () => {
         projectId: 'project-1',
         tags: []
       }
-      mockCheckOllamaHealth.mockResolvedValueOnce(true)
-      mockStore.get
-        .mockReturnValueOnce([mockDump]) // dumps
-        .mockReturnValue([]) // summaries
-      mockBuildSummaryPrompt.mockReturnValueOnce('Test prompt')
-      mockGenerateSummary.mockResolvedValueOnce('Generated summary content')
+      mocks.mockCheckSummaryHealth.mockResolvedValueOnce(true)
+      mocks.mockStore.get.mockImplementation((key: string, defaultValue: unknown) => {
+        if (key === 'summarySettings') return mocks.mockGetDefaultSummarySettings()
+        if (key === 'dumps') return [mockDump]
+        if (key === 'summaries') return []
+        return defaultValue
+      })
+      mocks.mockBuildSummaryPrompt.mockReturnValueOnce('Test prompt')
+      mocks.mockGenerateSummary.mockResolvedValueOnce('Generated summary content')
 
       const handler = ipcHandlers['ai:generate-summary']
       await handler(null, { type: 'daily', projectId: 'project-1' })
 
       // The dumps should be filtered by projectId
-      expect(mockGenerateSummary).toHaveBeenCalled()
+      expect(mocks.mockGenerateSummary).toHaveBeenCalled()
     })
   })
 
   describe('ai:get-summaries', () => {
     it('returns all summaries when no filters provided', () => {
       const summaries = [createMockSummary({ id: '1' }), createMockSummary({ id: '2' })]
-      mockStore.get.mockReturnValue(summaries)
+      mocks.mockStore.get.mockReturnValue(summaries)
 
       const handler = ipcHandlers['ai:get-summaries']
       const result = handler(null)
@@ -232,7 +368,7 @@ describe('IPC Handlers - AI operations', () => {
         createMockSummary({ id: '1', type: 'daily' }),
         createMockSummary({ id: '2', type: 'weekly' })
       ]
-      mockStore.get.mockReturnValue(summaries)
+      mocks.mockStore.get.mockReturnValue(summaries)
 
       const handler = ipcHandlers['ai:get-summaries']
       const result = handler(null, { type: 'daily' })
@@ -246,7 +382,7 @@ describe('IPC Handlers - AI operations', () => {
         createMockSummary({ id: '1', projectId: 'project-1' }),
         createMockSummary({ id: '2', projectId: 'project-2' })
       ]
-      mockStore.get.mockReturnValue(summaries)
+      mocks.mockStore.get.mockReturnValue(summaries)
 
       const handler = ipcHandlers['ai:get-summaries']
       const result = handler(null, { projectId: 'project-1' })
@@ -258,9 +394,8 @@ describe('IPC Handlers - AI operations', () => {
 
   describe('ai:export-summary', () => {
     it('returns null when summary not found', async () => {
-      mockStore.get.mockReturnValue([])
+      mocks.mockStore.get.mockReturnValue([])
 
-      const { dialog } = require('electron')
       ;(dialog.showSaveDialog as ReturnType<typeof vi.fn>).mockResolvedValue({ canceled: true })
 
       const handler = ipcHandlers['ai:export-summary']
@@ -271,27 +406,24 @@ describe('IPC Handlers - AI operations', () => {
 
     it('saves summary content to file', async () => {
       const summary = createMockSummary({ content: '# Test Summary\n\nContent here' })
-      mockStore.get.mockReturnValue([summary])
+      mocks.mockStore.get.mockReturnValue([summary])
 
-      const { dialog } = require('electron')
       ;(dialog.showSaveDialog as ReturnType<typeof vi.fn>).mockResolvedValue({
         canceled: false,
         filePath: '/tmp/summary.md'
       })
-      const { writeFile } = require('fs/promises')
 
       const handler = ipcHandlers['ai:export-summary']
       const result = await handler(null, summary.id)
 
       expect(result).toBe('/tmp/summary.md')
-      expect(writeFile).toHaveBeenCalledWith('/tmp/summary.md', summary.content, 'utf8')
+      expect(mockedWriteFile).toHaveBeenCalledWith('/tmp/summary.md', summary.content, 'utf8')
     })
 
     it('returns null when dialog is canceled', async () => {
       const summary = createMockSummary()
-      mockStore.get.mockReturnValue([summary])
+      mocks.mockStore.get.mockReturnValue([summary])
 
-      const { dialog } = require('electron')
       ;(dialog.showSaveDialog as ReturnType<typeof vi.fn>).mockResolvedValue({ canceled: true })
 
       const handler = ipcHandlers['ai:export-summary']

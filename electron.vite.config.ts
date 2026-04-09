@@ -11,7 +11,7 @@ export default defineConfig({
       {
         entry: 'src/main/index.ts',
         onstart(args) { args.startup() },
-        vite: { build: { outDir: 'dist/main', rollupOptions: { external: ['electron', 'electron-store', 'electron-log'], output: { format: 'cjs' } } } }
+        vite: { build: { outDir: 'dist/main', rollupOptions: { external: ['electron'], output: { format: 'cjs' } } } }
       },
       {
         entry: 'src/preload/index.ts',
@@ -19,7 +19,11 @@ export default defineConfig({
         vite: { build: { outDir: 'dist/preload', rollupOptions: { output: { format: 'cjs' } } } }
       }
     ]),
-    renderer()
+    renderer({
+      build: {
+        modulePreload: { polyfill: false }
+      }
+    })
   ],
   resolve: { alias: { '@': resolve(__dirname, 'src') } },
   build: { outDir: 'dist/renderer' }

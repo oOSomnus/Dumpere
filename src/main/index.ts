@@ -14,6 +14,14 @@ log.transports.console.level = 'debug'
 
 let mainWindow: BrowserWindow | null = null
 
+function showWindowOnceReady() {
+  if (!mainWindow || mainWindow.isDestroyed()) return
+  if (!mainWindow.isVisible()) {
+    mainWindow.show()
+    log.info('Window shown')
+  }
+}
+
 function getSavedBounds(): { x: number; y: number; width: number; height: number } {
   const saved = store.get('windowBounds')
   if (saved) {
@@ -46,8 +54,8 @@ function createWindow() {
     ...bounds,
     minWidth: 800,
     minHeight: 600,
-    title: 'DumpIt',
-    show: false,
+    title: 'Dumpere',
+    show: !process.env.VITE_DEV_SERVER_URL,
     webPreferences: {
       preload: resolve(__dirname, '../preload/index.js'),
       contextIsolation: true,
@@ -69,14 +77,31 @@ function createWindow() {
 
   // Show when ready
   mainWindow.once('ready-to-show', () => {
-    mainWindow?.show()
-    log.info('Window shown')
+    log.info('ready-to-show received')
+    showWindowOnceReady()
   })
+
+  // Some Windows builds can miss ready-to-show when the renderer stalls.
+  // Fall back to showing the window so startup failures are at least visible.
+  setTimeout(() => {
+    log.info('Fallback show timer fired')
+    showWindowOnceReady()
+  }, 3000)
 
   // Send initial theme
   mainWindow.webContents.send('theme:changed', nativeTheme.shouldUseDarkColors)
   nativeTheme.on('updated', () => {
     mainWindow?.webContents.send('theme:changed', nativeTheme.shouldUseDarkColors)
+  })
+
+  mainWindow.webContents.on('did-fail-load', (_, errorCode, errorDescription, validatedURL) => {
+    log.error(`Renderer failed to load: ${errorCode} ${errorDescription} ${validatedURL}`)
+    showWindowOnceReady()
+  })
+
+  mainWindow.webContents.on('render-process-gone', (_, details) => {
+    log.error('Renderer process gone', details)
+    showWindowOnceReady()
   })
 
   // Open external links in browser
@@ -120,7 +145,7 @@ if (!gotTheLock) {
   })
 
   app.whenReady().then(() => {
-    log.info('App ready, starting DumpIt')
+    log.info('App ready, starting Dumpere')
     setupIPCHandlers()
     createWindow()
 

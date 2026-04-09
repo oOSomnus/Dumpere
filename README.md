@@ -15,8 +15,21 @@ A minimalist desktop app for quick work completion tracking. Press Enter to inst
 
 ```bash
 pnpm install          # Install dependencies
+pnpm clean            # Remove build and packaging output
 pnpm dev              # Start development server
-pnpm build            # Build for production
+pnpm build            # Compile source code
+pnpm pack             # Package into unpacked dir (for testing)
+pnpm dist             # Build distributable installers for current platform
+pnpm dist:linux       # Build Linux packages (AppImage, deb)
+pnpm dist:win         # Build Windows packages (nsis, portable)
+pnpm dist:mac         # Build macOS packages (dmg)
+pnpm test             # Run unit tests
 pnpm test:e2e         # Run Playwright E2E tests
 pnpm test:e2e:headed  # Run E2E tests with visible browser
+```
+
+Recommended Windows packaging flow:
+
+```bash
+pnpm clean && pnpm dist:win
 ```

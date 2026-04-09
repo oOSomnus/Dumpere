@@ -1,5 +1,5 @@
 function App() {
-  return <div>DumpIt</div>
+  return <div>Dumpere</div>
 }
 
 export default App

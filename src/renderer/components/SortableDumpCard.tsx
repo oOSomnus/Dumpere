@@ -1,14 +1,14 @@
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { GripVertical } from 'lucide-react'
-import { DumpEntry } from '../../lib/types'
+import { DumpEntry } from '../lib/types'
 import { DumpCard } from './DumpCard'
 import { cn } from '../../lib/utils'
 
 interface SortableDumpCardProps {
   dump: DumpEntry
-  onDelete: (id: string) => void
-  onClick: () => void
+  onDelete: (id: string) => Promise<void> | void
+  onClick: (event: React.MouseEvent<HTMLDivElement>) => void
   showCheckbox?: boolean
   isSelected?: boolean
   onSelectToggle?: (id: string) => void
@@ -52,7 +52,7 @@ export function SortableDumpCard({
       {/* Drag handle - 6-dot grip icon in top-right, appears on hover */}
       <div
         className={cn(
-          'absolute top-2 right-2 z-10 p-1 cursor-grab opacity-0 transition-opacity duration-150',
+          'absolute top-2 right-10 z-10 p-1 cursor-grab opacity-0 transition-opacity duration-150',
           'hover:opacity-100',
           isDragging && 'opacity-100 cursor-grabbing'
         )}

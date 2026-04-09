@@ -7,24 +7,35 @@ interface ProjectSelectorProps {
   projects: Project[]
   activeProjectId: string | null
   onSelect: (projectId: string | null) => void
+  allowAllProjects?: boolean
+  emptyLabel?: string
+  hasError?: boolean
 }
 
-export function ProjectSelector({ projects, activeProjectId, onSelect }: ProjectSelectorProps) {
+export function ProjectSelector({
+  projects,
+  activeProjectId,
+  onSelect,
+  allowAllProjects = true,
+  emptyLabel = 'All Projects',
+  hasError = false
+}: ProjectSelectorProps) {
   const activeProject = projects.find(p => p.id === activeProjectId)
-  const displayName = activeProject?.name || 'All Projects'
+  const displayName = activeProject?.name || emptyLabel
 
   return (
     <Popover.Root>
       <Popover.Trigger asChild>
         <button
           className={cn(
-            'flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm',
+            'flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm border',
             'transition-colors duration-150',
             'hover:bg-accent'
           )}
           style={{
             backgroundColor: 'transparent',
             color: 'var(--foreground)',
+            borderColor: hasError ? 'var(--destructive)' : 'transparent'
           }}
         >
           <FolderOpen className="w-4 h-4" style={{ color: 'var(--muted-foreground)' }} />
@@ -46,22 +57,23 @@ export function ProjectSelector({ projects, activeProjectId, onSelect }: Project
           sideOffset={4}
         >
           <div className="flex flex-col gap-0.5">
-            {/* All Projects option */}
-            <button
-              onClick={() => onSelect(null)}
-              className={cn(
-                'flex items-center justify-between w-full text-left px-3 py-2 rounded-sm text-sm',
-                'transition-colors duration-150',
-                'hover:bg-accent'
-              )}
-              style={{
-                backgroundColor: activeProjectId === null ? 'var(--accent)' : 'transparent',
-                color: 'var(--foreground)',
-              }}
-            >
-              <span>All Projects</span>
-              {activeProjectId === null && <Check className="w-4 h-4" style={{ color: 'var(--muted-foreground)' }} />}
-            </button>
+            {allowAllProjects && (
+              <button
+                onClick={() => onSelect(null)}
+                className={cn(
+                  'flex items-center justify-between w-full text-left px-3 py-2 rounded-sm text-sm',
+                  'transition-colors duration-150',
+                  'hover:bg-accent'
+                )}
+                style={{
+                  backgroundColor: activeProjectId === null ? 'var(--accent)' : 'transparent',
+                  color: 'var(--foreground)',
+                }}
+              >
+                <span>All Projects</span>
+                {activeProjectId === null && <Check className="w-4 h-4" style={{ color: 'var(--muted-foreground)' }} />}
+              </button>
+            )}
 
             {/* Individual projects */}
             {projects.map(project => (

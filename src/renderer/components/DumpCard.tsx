@@ -1,20 +1,16 @@
 import React, { useState } from 'react'
-import { DumpEntry, mockElectronAPI } from '../lib/types'
+import { DumpEntry } from '../lib/types'
 import { formatRelativeTime } from '../lib/utils-time'
 import { cn } from '../../lib/utils'
 import { FileText, Image, Video, Music, File, X, Check } from 'lucide-react'
 import * as Checkbox from '@radix-ui/react-checkbox'
 import { ConfirmDialog } from './ConfirmDialog'
-
-const getFileUrl = (path: string) =>
-  typeof window !== 'undefined' && window.electronAPI
-    ? window.electronAPI.getFileUrl(path)
-    : mockElectronAPI.getFileUrl(path)
+import { useFileUrl } from '../hooks/useFileUrl'
 
 interface DumpCardProps {
   dump: DumpEntry
-  onDelete: (id: string) => void
-  onClick: () => void
+  onDelete: (id: string) => Promise<void> | void
+  onClick: (event: React.MouseEvent<HTMLDivElement>) => void
   // Phase 2: project badge
   projectName?: string  // passed from parent to avoid hook dependency
   // Phase 2: tag chips
@@ -52,6 +48,7 @@ export function DumpCard({
 
   // Get first image file for thumbnail
   const thumbnail = dump.files.find(f => f.mimeType.startsWith('image/'))
+  const thumbnailUrl = useFileUrl(thumbnail?.storedPath)
 
   // Phase 2: Visible tag chips (max 3, +N overflow)
   const MAX_VISIBLE_TAGS = 3
@@ -74,10 +71,12 @@ export function DumpCard({
       {/* Delete button — top right, only on hover */}
       <button
         className={cn(
-          'absolute top-2 right-2 p-1 rounded opacity-0 transition-opacity duration-150',
+          'absolute top-2 right-2 z-20 p-1 rounded opacity-0 transition-opacity duration-150',
           isHovered ? 'opacity-100' : 'opacity-0'
         )}
         style={{ color: 'var(--destructive)' }}
+        aria-label="Delete dump"
+        title="Delete dump"
         onClick={(e) => {
           e.stopPropagation()
           setShowDeleteConfirm(true)
@@ -91,7 +90,7 @@ export function DumpCard({
         <div
           className={cn(
             'absolute top-2 left-2 transition-opacity duration-150',
-            isHovered ? 'opacity-100' : 'opacity-0'
+            isHovered || isSelected ? 'opacity-100' : 'opacity-0'
           )}
           onClick={(e) => {
             e.stopPropagation()
@@ -101,6 +100,7 @@ export function DumpCard({
           <Checkbox.Root
             checked={isSelected}
             className="w-4 h-4 rounded border"
+            aria-label={`Select dump ${dump.id}`}
             style={{
               backgroundColor: isSelected ? 'var(--accent)' : 'transparent',
               borderColor: isSelected ? 'var(--accent)' : 'var(--border)',
@@ -118,11 +118,17 @@ export function DumpCard({
         {/* Thumbnail or file icons */}
         {thumbnail ? (
           <div className="w-full h-24 rounded overflow-hidden" style={{ backgroundColor: 'var(--accent)' }}>
-            <img
-              src={getFileUrl(thumbnail.storedPath)}
-              alt={thumbnail.originalName}
-              className="w-full h-full object-cover"
-            />
+            {thumbnailUrl ? (
+              <img
+                src={thumbnailUrl}
+                alt={thumbnail.originalName}
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center">
+                <Image className="w-6 h-6" style={{ color: 'var(--muted-foreground)' }} />
+              </div>
+            )}
           </div>
         ) : dump.files.length > 0 ? (
           <div className="flex gap-1 flex-wrap">

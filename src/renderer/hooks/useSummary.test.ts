@@ -22,7 +22,6 @@ describe('useSummary', () => {
     vi.resetAllMocks()
     // Default mock implementations
     vi.spyOn(mockElectronAPI, 'getSummaries').mockResolvedValue([])
-    vi.spyOn(mockElectronAPI, 'checkOllamaHealth').mockResolvedValue(true)
     vi.spyOn(mockElectronAPI, 'generateSummary').mockResolvedValue(null)
   })
 
@@ -70,7 +69,6 @@ describe('useSummary', () => {
   describe('generateSummary', () => {
     it('calls api.generateSummary and sets currentSummary on success', async () => {
       const newSummary = createMockSummary({ content: 'New summary' })
-      ;(mockElectronAPI.checkOllamaHealth as ReturnType<typeof vi.fn>).mockResolvedValueOnce(true)
       ;(mockElectronAPI.generateSummary as ReturnType<typeof vi.fn>).mockResolvedValueOnce(newSummary)
       ;(mockElectronAPI.getSummaries as ReturnType<typeof vi.fn>).mockResolvedValue([newSummary])
 
@@ -85,7 +83,6 @@ describe('useSummary', () => {
         await result.current.generateSummary('daily', null)
       })
 
-      expect(mockElectronAPI.checkOllamaHealth).toHaveBeenCalled()
       expect(mockElectronAPI.generateSummary).toHaveBeenCalledWith({ type: 'daily', projectId: null })
       await waitFor(() => {
         expect(result.current.currentSummary).toEqual(newSummary)
@@ -93,7 +90,6 @@ describe('useSummary', () => {
     })
 
     it('sets error on generateSummary failure', async () => {
-      ;(mockElectronAPI.checkOllamaHealth as ReturnType<typeof vi.fn>).mockResolvedValueOnce(true)
       ;(mockElectronAPI.generateSummary as ReturnType<typeof vi.fn>).mockRejectedValueOnce(new Error('Generation failed'))
 
       const { result } = renderHook(() => useSummary())
@@ -111,23 +107,7 @@ describe('useSummary', () => {
       })
     })
 
-    it('throws error when Ollama is not healthy', async () => {
-      ;(mockElectronAPI.checkOllamaHealth as ReturnType<typeof vi.fn>).mockResolvedValueOnce(false)
-
-      const { result } = renderHook(() => useSummary())
-
-      await waitFor(() => {
-        expect(mockElectronAPI.getSummaries).toHaveBeenCalled()
-      })
-
-      await act(async () => {
-        await expect(result.current.generateSummary('daily', null)).rejects.toThrow('AI summaries require Ollama')
-      })
-      expect(mockElectronAPI.generateSummary).not.toHaveBeenCalled()
-    })
-
     it('throws error when generateSummary returns null (no dumps)', async () => {
-      ;(mockElectronAPI.checkOllamaHealth as ReturnType<typeof vi.fn>).mockResolvedValueOnce(true)
       ;(mockElectronAPI.generateSummary as ReturnType<typeof vi.fn>).mockResolvedValueOnce(null)
 
       const { result } = renderHook(() => useSummary())
@@ -146,7 +126,6 @@ describe('useSummary', () => {
     it('refreshes summaries list after generation', async () => {
       const initialSummaries = [createMockSummary({ id: 'initial' })]
       const newSummary = createMockSummary({ id: 'new' })
-      ;(mockElectronAPI.checkOllamaHealth as ReturnType<typeof vi.fn>).mockResolvedValue(true)
       ;(mockElectronAPI.generateSummary as ReturnType<typeof vi.fn>).mockResolvedValue(newSummary)
       ;(mockElectronAPI.getSummaries as ReturnType<typeof vi.fn>)
         .mockResolvedValueOnce(initialSummaries)
@@ -170,7 +149,7 @@ describe('useSummary', () => {
 
   describe('clearError', () => {
     it('clears the error state', async () => {
-      ;(mockElectronAPI.checkOllamaHealth as ReturnType<typeof vi.fn>).mockResolvedValueOnce(false)
+      ;(mockElectronAPI.generateSummary as ReturnType<typeof vi.fn>).mockRejectedValueOnce(new Error('Generation failed'))
 
       const { result } = renderHook(() => useSummary())
 

@@ -1,4 +1,47 @@
-import { vi } from 'vitest'
+import { expect, vi } from 'vitest'
+
+expect.extend({
+  toBeInTheDocument(received: unknown) {
+    const pass = received instanceof Node && document.contains(received)
+
+    return {
+      pass,
+      message: () =>
+        pass
+          ? 'expected element not to be present in the document'
+          : 'expected element to be present in the document'
+    }
+  },
+
+  toBeDisabled(received: unknown) {
+    const isHtmlElement = received instanceof HTMLElement
+    const pass = isHtmlElement && (
+      'disabled' in received
+        ? Boolean((received as HTMLButtonElement | HTMLInputElement).disabled)
+        : received.getAttribute('aria-disabled') === 'true'
+    )
+
+    return {
+      pass,
+      message: () =>
+        pass
+          ? 'expected element not to be disabled'
+          : 'expected element to be disabled'
+    }
+  },
+
+  toHaveClass(received: unknown, ...classNames: string[]) {
+    const pass = received instanceof Element && classNames.every(className => received.classList.contains(className))
+
+    return {
+      pass,
+      message: () =>
+        pass
+          ? `expected element not to include classes: ${classNames.join(', ')}`
+          : `expected element to include classes: ${classNames.join(', ')}`
+    }
+  }
+})
 
 // Mock electron-log globally - all main process modules use this
 vi.mock('electron-log', () => ({

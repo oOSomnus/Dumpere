@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { DumpEntry, StoredFile, mockElectronAPI } from '../lib/types'
 
 const api = typeof window !== 'undefined' && window.electronAPI
@@ -11,12 +11,15 @@ interface UseDumpReturn {
   error: string | null
   submitDump: (text: string, filePaths: string[], projectId: string | null, tagIds: string[]) => Promise<void>
   deleteDump: (id: string) => Promise<void>
+  updateDump: (id: string, updates: { projectId?: string | null; tags?: string[] }) => Promise<void>
+  stripTagFromDumps: (tagId: string) => void
 }
 
 export function useDump(): UseDumpReturn {
   const [dumps, setDumps] = useState<DumpEntry[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const dumpsRef = useRef<DumpEntry[]>([])
 
   // Load dumps on mount
   useEffect(() => {
@@ -26,6 +29,7 @@ export function useDump(): UseDumpReturn {
         // Sort newest first (VIEW-06)
         const sorted = storedDumps.sort((a, b) => b.createdAt - a.createdAt)
         setDumps(sorted)
+        dumpsRef.current = sorted
       } catch (err) {
         console.error('Failed to load dumps:', err)
         setError('Could not load dumps')
@@ -51,7 +55,11 @@ export function useDump(): UseDumpReturn {
       tags: tagIds  // Phase 2
     }
 
-    setDumps(prev => [optimisticDump, ...prev])
+    setDumps(prev => {
+      const next = [optimisticDump, ...prev]
+      dumpsRef.current = next
+      return next
+    })
     setError(null)
 
     try {
@@ -75,15 +83,21 @@ export function useDump(): UseDumpReturn {
       const savedDump = await api.saveDump(dumpToSave)
 
       // Replace optimistic entry with confirmed one
-      setDumps(prev => prev.map(d => d.id === tempId ? savedDump : d))
-
-      // VIEW-06: Ensure sorted order maintained
-      setDumps(prev => [...prev].sort((a, b) => b.createdAt - a.createdAt))
+      setDumps(prev => {
+        const next = prev.map(d => d.id === tempId ? savedDump : d)
+        const sorted = [...next].sort((a, b) => b.createdAt - a.createdAt)
+        dumpsRef.current = sorted
+        return sorted
+      })
 
     } catch (err) {
       console.error('Failed to save dump:', err)
       // Rollback optimistic update
-      setDumps(prev => prev.filter(d => d.id !== tempId))
+      setDumps(prev => {
+        const next = prev.filter(d => d.id !== tempId)
+        dumpsRef.current = next
+        return next
+      })
       setError('Could not save dump. Check your storage space and try again.')
       throw err
     }
@@ -91,8 +105,12 @@ export function useDump(): UseDumpReturn {
 
   const deleteDump = useCallback(async (id: string) => {
     // Optimistic delete — remove immediately
-    const previousDumps = dumps
-    setDumps(prev => prev.filter(d => d.id !== id))
+    const previousDumps = dumpsRef.current
+    setDumps(prev => {
+      const next = prev.filter(d => d.id !== id)
+      dumpsRef.current = next
+      return next
+    })
     setError(null)
 
     try {
@@ -101,16 +119,55 @@ export function useDump(): UseDumpReturn {
       console.error('Failed to delete dump:', err)
       // Rollback
       setDumps(previousDumps)
+      dumpsRef.current = previousDumps
       setError('Could not delete dump')
       throw err
     }
-  }, [dumps])
+  }, [])
+
+  const updateDump = useCallback(async (id: string, updates: { projectId?: string | null; tags?: string[] }) => {
+    const previousDumps = dumpsRef.current
+    setError(null)
+
+    setDumps(prev => {
+      const next = prev.map(dump => dump.id === id
+        ? { ...dump, ...updates, updatedAt: Date.now() }
+        : dump
+      )
+      dumpsRef.current = next
+      return next
+    })
+
+    try {
+      await api.updateDump(id, updates)
+    } catch (err) {
+      console.error('Failed to update dump:', err)
+      setDumps(previousDumps)
+      dumpsRef.current = previousDumps
+      setError('Could not update dump')
+      throw err
+    }
+  }, [])
+
+  const stripTagFromDumps = useCallback((tagId: string) => {
+    setDumps(prev => {
+      const next = prev.map(dump => (
+        dump.tags.includes(tagId)
+          ? { ...dump, tags: dump.tags.filter(existingTagId => existingTagId !== tagId) }
+          : dump
+      ))
+      dumpsRef.current = next
+      return next
+    })
+  }, [])
 
   return {
     dumps,
     isLoading,
     error,
     submitDump,
-    deleteDump
+    deleteDump,
+    updateDump,
+    stripTagFromDumps
   }
 }

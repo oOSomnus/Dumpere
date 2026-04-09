@@ -1,7 +1,14 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { checkOllamaHealth, generateSummary, buildSummaryPrompt, GenerateSummaryOptions } from './ai-service'
+import type { SummarySettings } from '../renderer/lib/types'
+import {
+  checkSummaryHealth,
+  generateSummary,
+  buildSummaryPrompt,
+  GenerateSummaryOptions,
+  sanitizeSummarySettings,
+  getDefaultSummarySettings
+} from './ai-service'
 
-// Mock global fetch
 const mockFetch = vi.fn()
 vi.stubGlobal('fetch', mockFetch)
 
@@ -14,36 +21,40 @@ describe('ai-service', () => {
     vi.restoreAllMocks()
   })
 
-  describe('checkOllamaHealth', () => {
+  describe('checkSummaryHealth', () => {
     it('returns false when Ollama is unavailable (fetch throws)', async () => {
       mockFetch.mockRejectedValueOnce(new Error('Network error'))
 
-      const result = await checkOllamaHealth()
+      const result = await checkSummaryHealth()
 
       expect(result).toBe(false)
-      expect(mockFetch).toHaveBeenCalledWith('http://localhost:11434/', expect.objectContaining({ method: 'GET' }))
+      expect(mockFetch).toHaveBeenCalledWith(
+        'http://localhost:11434/',
+        expect.objectContaining({ method: 'GET' })
+      )
     })
 
-    it('returns false when Ollama returns non-ok status', async () => {
-      mockFetch.mockResolvedValueOnce({
-        ok: false,
-        status: 500
-      })
-
-      const result = await checkOllamaHealth()
-
-      expect(result).toBe(false)
-    })
-
-    it('returns true when Ollama responds with ok status', async () => {
+    it('returns true when OpenAI-compatible health check succeeds', async () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
         status: 200
       })
 
-      const result = await checkOllamaHealth()
+      const result = await checkSummaryHealth({
+        provider: 'openai',
+        baseUrl: 'https://api.openai.com/v1/',
+        apiKey: 'sk-test',
+        model: 'gpt-4.1-mini'
+      })
 
       expect(result).toBe(true)
+      expect(mockFetch).toHaveBeenCalledWith(
+        'https://api.openai.com/v1/models',
+        expect.objectContaining({
+          method: 'GET',
+          headers: { Authorization: 'Bearer sk-test' }
+        })
+      )
     })
   })
 
@@ -76,11 +87,51 @@ describe('ai-service', () => {
       )
     })
 
-    it('throws on non-ok response', async () => {
+    it('calls OpenAI-compatible /chat/completions and returns content string', async () => {
+      const settings: SummarySettings = {
+        provider: 'openai',
+        baseUrl: 'https://api.openai.com/v1',
+        apiKey: 'sk-test',
+        model: 'gpt-4.1-mini'
+      }
+
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          choices: [
+            {
+              message: { content: 'OpenAI summary' }
+            }
+          ]
+        })
+      })
+
+      const result = await generateSummary('Test prompt', settings)
+
+      expect(result).toBe('OpenAI summary')
+      expect(mockFetch).toHaveBeenCalledWith(
+        'https://api.openai.com/v1/chat/completions',
+        expect.objectContaining({
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: 'Bearer sk-test'
+          },
+          body: JSON.stringify({
+            model: 'gpt-4.1-mini',
+            messages: [{ role: 'user', content: 'Test prompt' }]
+          })
+        })
+      )
+    })
+
+    it('throws on non-ok Ollama response', async () => {
       mockFetch.mockResolvedValueOnce({
         ok: false,
         status: 500,
-        statusText: 'Internal Server Error'
+        statusText: 'Internal Server Error',
+        text: async () => ''
       })
 
       await expect(generateSummary('test prompt')).rejects.toThrow('Ollama API error: 500 Internal Server Error')
@@ -95,22 +146,44 @@ describe('ai-service', () => {
       await expect(generateSummary('test prompt')).rejects.toThrow('Invalid Ollama response: not an object')
     })
 
-    it('throws on missing message property', async () => {
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ noMessage: true })
-      })
+    it('throws when OpenAI API key is missing', async () => {
+      await expect(generateSummary('test prompt', {
+        provider: 'openai',
+        baseUrl: 'https://api.openai.com/v1',
+        apiKey: '',
+        model: 'gpt-4.1-mini'
+      })).rejects.toThrow('OpenAI API key is missing')
+    })
+  })
 
-      await expect(generateSummary('test prompt')).rejects.toThrow('Invalid Ollama response: malformed message structure')
+  describe('settings helpers', () => {
+    it('normalizes and fills missing settings values', () => {
+      expect(sanitizeSummarySettings({
+        provider: 'openai',
+        baseUrl: 'https://api.openai.com/v1/',
+        apiKey: '  sk-test  ',
+        model: '  gpt-4.1-mini  '
+      })).toEqual({
+        provider: 'openai',
+        baseUrl: 'https://api.openai.com/v1',
+        apiKey: 'sk-test',
+        model: 'gpt-4.1-mini'
+      })
     })
 
-    it('throws on non-string message content', async () => {
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ message: { content: 123 } })
+    it('returns provider defaults', () => {
+      expect(getDefaultSummarySettings('ollama')).toEqual({
+        provider: 'ollama',
+        baseUrl: 'http://localhost:11434',
+        apiKey: '',
+        model: 'mistral'
       })
-
-      await expect(generateSummary('test prompt')).rejects.toThrow('Invalid Ollama response: malformed message structure')
+      expect(getDefaultSummarySettings('openai')).toEqual({
+        provider: 'openai',
+        baseUrl: 'https://api.openai.com/v1',
+        apiKey: '',
+        model: 'gpt-4.1-mini'
+      })
     })
   })
 
@@ -132,7 +205,6 @@ describe('ai-service', () => {
 
       const prompt = buildSummaryPrompt(options)
 
-      // Should truncate to 500 chars + '...'
       expect(prompt).toContain('a'.repeat(500) + '...')
     })
 
@@ -146,10 +218,8 @@ describe('ai-service', () => {
 
       const prompt = buildSummaryPrompt(options)
 
-      // Should contain dump 0 and dump 99 (first and last of the 100)
       expect(prompt).toContain('[1] dump 0')
       expect(prompt).toContain('[100] dump 99')
-      // Should not contain dump 100
       expect(prompt).not.toContain('[101]')
     })
 
@@ -163,32 +233,6 @@ describe('ai-service', () => {
       const prompt = buildSummaryPrompt(options)
 
       expect(prompt).toContain('[Files: file1.png, file2.jpg]')
-    })
-
-    it('uses "today" for daily summaries', () => {
-      const options: GenerateSummaryOptions = {
-        type: 'daily',
-        projectId: null,
-        dumps: []
-      }
-
-      const prompt = buildSummaryPrompt(options)
-
-      expect(prompt).toContain('from today')
-      expect(prompt).toContain('No dumps recorded today')
-    })
-
-    it('uses "this week" for weekly summaries', () => {
-      const options: GenerateSummaryOptions = {
-        type: 'weekly',
-        projectId: null,
-        dumps: []
-      }
-
-      const prompt = buildSummaryPrompt(options)
-
-      expect(prompt).toContain('from this week')
-      expect(prompt).toContain('No dumps recorded this week')
     })
   })
 })

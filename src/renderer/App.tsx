@@ -1,9 +1,10 @@
-import { useState, useEffect, useMemo, useCallback } from 'react'
+import { useState, useMemo, useCallback, useDeferredValue } from 'react'
 import { AppShell } from './components/AppShell'
+import { Sidebar } from './components/Sidebar'
 import { DumpInput } from './components/DumpInput'
 import { CardGrid } from './components/CardGrid'
-import { Sidebar } from './components/Sidebar'
 import { SummaryPanel } from './components/SummaryPanel'
+import { SettingsPanel } from './components/SettingsPanel'
 import { useDump } from './hooks/useDump'
 import { useProjects } from './hooks/useProjects'
 import { useTags } from './hooks/useTags'
@@ -11,94 +12,82 @@ import { useFilter } from './hooks/useFilter'
 import { useSearch } from './hooks/useSearch'
 import { useVault } from './hooks/useVault'
 import { WelcomeScreen } from './components/WelcomeScreen'
-import { VaultPlaceholder } from './components/VaultPlaceholder'
 import { DumpEntry } from './lib/types'
+import { appendMarkdownSection, formatDumpReferences } from './lib/workpad-utils'
 
 const api = typeof window !== 'undefined' && window.electronAPI
   ? window.electronAPI
   : {
-      getDumpOrder: async () => [],
-      setDumpOrder: async () => {},
       updateDump: async (id: string, updates: { projectId?: string | null; tags?: string[] }) => ({ id, text: '', files: [], createdAt: Date.now(), updatedAt: Date.now(), projectId: null, tags: [], ...updates }),
       exportSaveDialog: async () => null,
       exportDumps: async () => null,
       importDialog: async () => null,
       importDumps: async () => 0,
       clipboardWrite: async () => {},
+      getWorkpad: async (projectId: string | null) => ({ projectId, content: '', updatedAt: 0 }),
+      updateWorkpad: async (projectId: string | null, content: string) => ({ projectId, content, updatedAt: Date.now() }),
     }
 
-export function App() {
-  const { vaultState, recentVaults, isLoading: vaultLoading, error: vaultError, createVault, openVault } = useVault()
+interface VaultAppContentProps {
+  vaultName: string | null
+}
 
-  // If no vault is open, show WelcomeScreen (VAULT-01, FILE-02)
-  if (!vaultState.isOpen) {
-    return (
-      <WelcomeScreen
-        vaultState={vaultState}
-        recentVaults={recentVaults}
-        isLoading={vaultLoading}
-        error={vaultError}
-        onCreateVault={createVault}
-        onOpenVault={openVault}
-      />
-    )
-  }
+type AppView = 'grid' | 'summaries' | 'settings'
 
-  // Vault is open - render main app with VaultPlaceholder
-  // Note: DumpInput hidden per D-10 - it will be shown in Phase 2
-  const { dumps, submitDump, deleteDump, isLoading, error } = useDump()
+function VaultAppContent({ vaultName }: VaultAppContentProps) {
+  // Mount all vault-only hooks in a dedicated subtree so the parent
+  // component keeps a stable Hooks order while switching screens.
+  const { dumps, submitDump, deleteDump, updateDump, stripTagFromDumps, isLoading, error } = useDump()
   const { projects, activeProjectId, setActiveProject, createProject, updateProject, deleteProject } = useProjects()
   const { tags, createTag, deleteTag, getAISuggestions } = useTags()
-  const { filters, setProjectFilter, toggleTagFilter, setTimeRangeFilter, setSortBy, applyFilters } = useFilter()
+  const { filters, setProjectFilter, toggleTagFilter, setDatePreset, toggleDate, setDateKeys, clearDateFilter, applyFilters } = useFilter()
   const { searchQuery, setSearchQuery, search } = useSearch()
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([])
-  const [dumpOrder, setDumpOrder] = useState<string[]>([])
-  const [currentDumpText, setCurrentDumpText] = useState('')
+  const deferredSearchQuery = useDeferredValue(searchQuery)
 
-  // Phase 4: View state (either 'grid' or 'summaries')
-  const [currentView, setCurrentView] = useState<'grid' | 'summaries'>('grid')
+  const [currentView, setCurrentView] = useState<AppView>('grid')
 
-  // Phase 4: Switch to summaries view
-  const handleSummariesClick = useCallback(() => {
-    setCurrentView('summaries')
+  const handleViewChange = useCallback((view: AppView) => {
+    setCurrentView(view)
   }, [])
 
   // Compute search results when searchQuery or dumps change
   const searchResults = useMemo(() => {
-    return search(searchQuery, dumps)
-  }, [searchQuery, dumps, search])
-
-  // Load dumpOrder on mount from api.getDumpOrder()
-  useEffect(() => {
-    const loadDumpOrder = async () => {
-      try {
-        const order = await api.getDumpOrder()
-        setDumpOrder(order)
-      } catch (err) {
-        console.error('Failed to load dump order:', err)
-      }
-    }
-    loadDumpOrder()
-  }, [])
+    return search(deferredSearchQuery, dumps)
+  }, [deferredSearchQuery, dumps, search])
 
   // Handlers
-  const handleProjectSelect = (projectId: string | null) => {
-    setActiveProject(projectId)
+  const handleSidebarProjectSelect = (projectId: string | null) => {
+    const nextProjectId = filters.projectId === projectId ? null : projectId
+    setCurrentView('grid')
+    setActiveProject(nextProjectId)
     setProjectFilter(projectId)
   }
 
-  const handleTagToggle = (tagId: string) => {
-    toggleTagFilter(tagId)
-    // Also update selectedTagIds for TagInput
-    setSelectedTagIds(prev =>
-      prev.includes(tagId) ? prev.filter(id => id !== tagId) : [...prev, tagId]
-    )
+  const handleComposerProjectSelect = (projectId: string | null) => {
+    if (!projectId) return
+
+    setCurrentView('grid')
+    setActiveProject(projectId)
+    if (filters.projectId !== projectId) {
+      setProjectFilter(projectId)
+    }
   }
 
-  const handleReorder = (newDumps: DumpEntry[]) => {
-    const newOrder = newDumps.map(d => d.id)
-    setDumpOrder(newOrder)
-    api.setDumpOrder(newOrder)
+  const handleTagToggle = (tagId: string) => {
+    setCurrentView('grid')
+    toggleTagFilter(tagId)
+  }
+
+  const handleDeleteTag = async (tagId: string) => {
+    await deleteTag(tagId)
+
+    if (filters.tagIds.includes(tagId)) {
+      toggleTagFilter(tagId)
+    }
+
+    setSelectedTagIds(prev => prev.filter(existingTagId => existingTagId !== tagId))
+    stripTagFromDumps(tagId)
   }
 
   const handleSubmit = async (text: string, filePaths: string[], projectId: string | null, tagIds: string[]) => {
@@ -108,13 +97,11 @@ export function App() {
 
   // For updating dump project/tags:
   const handleDumpProjectChange = (dumpId: string, projectId: string | null) => {
-    // Call IPC directly to update dump
-    api.updateDump(dumpId, { projectId })
+    void updateDump(dumpId, { projectId })
   }
 
   const handleDumpTagsChange = (dumpId: string, tagIds: string[]) => {
-    // Call IPC directly to update dump
-    api.updateDump(dumpId, { tags: tagIds })
+    void updateDump(dumpId, { tags: tagIds })
   }
 
   const handleExportProject = async (projectId: string) => {
@@ -170,26 +157,55 @@ export function App() {
     }
   }
 
+  const handleQuoteToWorkpad = async (selectedDumps: DumpEntry[]) => {
+    if (selectedDumps.length === 0) return
+    const currentWorkpad = await api.getWorkpad(activeProjectId)
+    const quotedContent = formatDumpReferences(selectedDumps)
+    await api.updateWorkpad(
+      activeProjectId,
+      appendMarkdownSection(currentWorkpad.content, quotedContent)
+    )
+  }
+
   return (
     <AppShell sidebar={
       <Sidebar
         projects={projects}
         tags={tags}
-        activeProjectId={activeProjectId}
+        activeProjectId={filters.projectId}
         selectedTagIds={filters.tagIds}
-        timeRange={filters.timeRange}
-        onProjectSelect={handleProjectSelect}
+        dateFilter={filters.dateFilter}
+        onProjectSelect={handleSidebarProjectSelect}
         onTagToggle={handleTagToggle}
-        onTimeRangeChange={setTimeRangeFilter}
+        onDeleteTag={handleDeleteTag}
+        onDatePresetChange={(preset) => {
+          setCurrentView('grid')
+          setDatePreset(preset)
+        }}
+        onToggleDate={(dateKey) => {
+          setCurrentView('grid')
+          toggleDate(dateKey)
+        }}
+        onSetDateKeys={(dateKeys) => {
+          setCurrentView('grid')
+          setDateKeys(dateKeys)
+        }}
+        onClearDateFilter={() => {
+          setCurrentView('grid')
+          clearDateFilter()
+        }}
         onCreateProject={createProject}
         onUpdateProject={updateProject}
         onDeleteProject={deleteProject}
         onExportProject={handleExportProject}
         onImportProject={handleImportProject}
         searchQuery={searchQuery}
-        onSearchChange={setSearchQuery}
-        onSummariesClick={handleSummariesClick}
-        isSummariesActive={currentView === 'summaries'}
+        onSearchChange={(query) => {
+          setCurrentView('grid')
+          setSearchQuery(query)
+        }}
+        currentView={currentView}
+        onViewChange={handleViewChange}
       />
     }>
       {/* Error display */}
@@ -206,13 +222,78 @@ export function App() {
       )}
 
       {/* Main content */}
-      <div className="flex-1 overflow-y-auto">
-        <VaultPlaceholder vaultName={vaultState.vaultName} />
+      <div
+        className="flex-1 overflow-y-auto"
+        style={{ paddingBottom: '64px' }}
+      >
+        <div className="px-6 py-4 text-sm" style={{ color: 'var(--muted-foreground)' }}>
+          {vaultName ? `Vault opened: ${vaultName}` : 'Vault opened'}
+        </div>
+
+        <div className="px-6 pb-6">
+          {currentView === 'summaries' ? (
+            <SummaryPanel
+              projects={projects}
+              activeProjectId={activeProjectId}
+              onBackToDumps={() => setCurrentView('grid')}
+              onOpenSettings={() => setCurrentView('settings')}
+            />
+          ) : currentView === 'settings' ? (
+            <SettingsPanel onBackToDumps={() => setCurrentView('grid')} />
+          ) : (
+            <CardGrid
+              dumps={dumps}
+              onDelete={deleteDump}
+              isLoading={isLoading}
+              filters={filters}
+              applyFilters={applyFilters}
+              searchResults={searchResults}
+              searchQuery={deferredSearchQuery}
+              onExportSelected={handleExportSelected}
+              onQuoteSelected={handleQuoteToWorkpad}
+              projects={projects}
+              tags={tags}
+              onProjectChange={handleDumpProjectChange}
+              onTagsChange={handleDumpTagsChange}
+            />
+          )}
+        </div>
       </div>
 
-      {/* DumpInput hidden until Phase 2 */}
+      {currentView === 'grid' && (
+        <DumpInput
+          onSubmit={handleSubmit}
+          projects={projects}
+          activeProjectId={activeProjectId}
+          onProjectSelect={handleComposerProjectSelect}
+          allTags={tags}
+          selectedTagIds={selectedTagIds}
+          onTagsChange={setSelectedTagIds}
+          getAISuggestions={getAISuggestions}
+          onCreateTag={createTag}
+        />
+      )}
     </AppShell>
   )
+}
+
+export function App() {
+  const { vaultState, recentVaults, isLoading: vaultLoading, error: vaultError, createVault, openVault } = useVault()
+
+  if (!vaultState.isOpen) {
+    return (
+      <WelcomeScreen
+        vaultState={vaultState}
+        recentVaults={recentVaults}
+        isLoading={vaultLoading}
+        error={vaultError}
+        onCreateVault={createVault}
+        onOpenVault={openVault}
+      />
+    )
+  }
+
+  return <VaultAppContent vaultName={vaultState.vaultName} />
 }
 
 export default App

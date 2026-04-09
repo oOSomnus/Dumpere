@@ -4,11 +4,104 @@ import { store } from './store'
 import { copyFiles, deleteFile, getFileUrl, getDumpsDir } from './file-service'
 import { createVault, openVault, getVaultState, onVaultStateChange, VaultState, RecentVault } from './vault-service'
 import { createDump, readMetadata, VaultMetadata, DumpMetadata } from './metadata-service'
-import { DumpEntry, StoredFile, Project, Tag, SummaryEntry } from '../renderer/lib/types'
+import { DumpEntry, StoredFile, Project, Tag, SummaryEntry, SummarySettings, ProjectWorkpad } from '../renderer/lib/types'
 import archiver from 'archiver'
 import { createWriteStream } from 'fs'
+import { writeFile } from 'fs/promises'
 import { join } from 'path'
 import AdmZip from 'adm-zip'
+
+const MIME_EXTENSION_MAP: Record<string, string> = {
+  'image/png': 'png',
+  'image/jpeg': 'jpg',
+  'image/gif': 'gif',
+  'image/webp': 'webp',
+  'image/svg+xml': 'svg',
+  'application/pdf': 'pdf',
+  'text/plain': 'txt',
+}
+
+function sanitizeAttachmentName(name: string, mimeType: string): string {
+  const trimmed = name.trim()
+  if (trimmed) {
+    return trimmed
+      .split(/[\\/]/)
+      .pop()
+      ?.replace(/[^\w.-]+/g, '-') || 'attachment'
+  }
+
+  const ext = MIME_EXTENSION_MAP[mimeType] || 'bin'
+  const prefix = mimeType.startsWith('image/') ? 'pasted-image' : 'pasted-file'
+  return `${prefix}.${ext}`
+}
+
+function ensureDumpIds(dumps: DumpEntry[]): DumpEntry[] {
+  let didChange = false
+
+  const normalized = dumps.map((dump) => {
+    if (dump.id) {
+      return dump
+    }
+
+    didChange = true
+    return {
+      ...dump,
+      id: crypto.randomUUID()
+    }
+  })
+
+  if (didChange) {
+    store.set('dumps', normalized)
+    log.warn('Normalized dumps with missing ids in store')
+  }
+
+  return normalized
+}
+
+function getStoredWorkpad(projectId: string | null): ProjectWorkpad {
+  const workpads = store.get('workpads', [])
+  return workpads.find(workpad => workpad.projectId === projectId) || {
+    projectId,
+    content: '',
+    updatedAt: 0
+  }
+}
+
+function updateStoredWorkpad(projectId: string | null, content: string): ProjectWorkpad {
+  const workpads = store.get('workpads', [])
+  const nextWorkpad: ProjectWorkpad = {
+    projectId,
+    content,
+    updatedAt: Date.now()
+  }
+  const existingIndex = workpads.findIndex(workpad => workpad.projectId === projectId)
+
+  if (existingIndex === -1) {
+    workpads.push(nextWorkpad)
+  } else {
+    workpads.splice(existingIndex, 1, nextWorkpad)
+  }
+
+  store.set('workpads', workpads)
+  return nextWorkpad
+}
+
+function appendMarkdownSection(existingContent: string, section: string): string {
+  const trimmedExisting = existingContent.trimEnd()
+  const trimmedSection = section.trim()
+
+  if (!trimmedExisting) {
+    return `${trimmedSection}\n`
+  }
+
+  return `${trimmedExisting}\n\n${trimmedSection}\n`
+}
+
+function buildSummaryWorkpadSection(summary: SummaryEntry): string {
+  const stamp = new Date(summary.generatedAt).toLocaleString()
+  const label = summary.type === 'daily' ? 'AI Daily Summary' : 'AI Weekly Summary'
+  return `## ${label} (${stamp})\n\n${summary.content.trim()}`
+}
 
 export function setupIPCHandlers(): void {
   log.info('Setting up IPC handlers')
@@ -32,22 +125,31 @@ export function setupIPCHandlers(): void {
 
   // store:get-dumps — retrieve all dumps sorted by createdAt desc
   ipcMain.handle('store:get-dumps', (): DumpEntry[] => {
-    const dumps = store.get('dumps', [])
+    const dumps = ensureDumpIds(store.get('dumps', []))
     return dumps.sort((a, b) => b.createdAt - a.createdAt)
   })
 
   // store:save-dump — add new dump entry
-  ipcMain.handle('store:save-dump', (_, dump: DumpEntry): DumpEntry => {
-    const dumps = store.get('dumps', [])
-    dumps.unshift(dump)
+  ipcMain.handle('store:save-dump', (_, dump: Omit<DumpEntry, 'id'>): DumpEntry => {
+    if (!dump.projectId) {
+      throw new Error('Project assignment is required before saving a dump')
+    }
+
+    const dumps = ensureDumpIds(store.get('dumps', []))
+    const savedDump: DumpEntry = {
+      ...dump,
+      id: crypto.randomUUID()
+    }
+
+    dumps.unshift(savedDump)
     store.set('dumps', dumps)
-    log.info(`Saved dump: ${dump.id}`)
-    return dump
+    log.info(`Saved dump: ${savedDump.id}`)
+    return savedDump
   })
 
   // store:delete-dump — remove dump entry
   ipcMain.handle('store:delete-dump', async (_, id: string): Promise<void> => {
-    const dumps = store.get('dumps', [])
+    const dumps = ensureDumpIds(store.get('dumps', []))
     const dump = dumps.find(d => d.id === id)
     if (dump) {
       // Delete associated files
@@ -100,6 +202,8 @@ export function setupIPCHandlers(): void {
       if (d.projectId === id) d.projectId = null
     })
     store.set('dumps', dumps)
+    const workpads = store.get('workpads', [])
+    store.set('workpads', workpads.filter(workpad => workpad.projectId !== id))
     log.info(`Deleted project: ${id}`)
   })
 
@@ -143,7 +247,7 @@ export function setupIPCHandlers(): void {
 
   // store:update-dump — update dump projectId and/or tags
   ipcMain.handle('store:update-dump', (_, id: string, updates: { projectId?: string | null; tags?: string[] }): DumpEntry | null => {
-    const dumps = store.get('dumps', [])
+    const dumps = ensureDumpIds(store.get('dumps', []))
     const dump = dumps.find(d => d.id === id)
     if (dump) {
       if (updates.projectId !== undefined) {
@@ -446,10 +550,45 @@ export function setupIPCHandlers(): void {
     clipboard.writeText(text)
   })
 
-  // ai:check-health — check if Ollama is running
-  ipcMain.handle('ai:check-health', async (): Promise<boolean> => {
-    const { checkOllamaHealth } = await import('./ai-service')
-    return checkOllamaHealth()
+  // attachment:create-temp — persist pasted binary data so it can reuse the normal file pipeline
+  ipcMain.handle('attachment:create-temp', async (_, input: { name: string; mimeType: string; data: ArrayBuffer }): Promise<string> => {
+    const fileName = sanitizeAttachmentName(input.name, input.mimeType)
+    const tempPath = join(app.getPath('temp'), `dumpere-${crypto.randomUUID()}-${fileName}`)
+    await writeFile(tempPath, Buffer.from(new Uint8Array(input.data)))
+    return tempPath
+  })
+
+  // summary:get-settings — retrieve persisted summary provider settings
+  ipcMain.handle('summary:get-settings', async (): Promise<SummarySettings> => {
+    const { getDefaultSummarySettings, sanitizeSummarySettings } = await import('./ai-service')
+    const settings = store.get('summarySettings', getDefaultSummarySettings())
+    return sanitizeSummarySettings(settings)
+  })
+
+  // summary:update-settings — store summary provider settings
+  ipcMain.handle('summary:update-settings', async (_, settings: SummarySettings): Promise<SummarySettings> => {
+    const { sanitizeSummarySettings } = await import('./ai-service')
+    const sanitized = sanitizeSummarySettings(settings)
+    store.set('summarySettings', sanitized)
+    log.info(`Updated summary settings for provider: ${sanitized.provider}`)
+    return sanitized
+  })
+
+  // workpad:get — retrieve the persisted markdown workpad for a project
+  ipcMain.handle('workpad:get', async (_, projectId: string | null): Promise<ProjectWorkpad> => {
+    return getStoredWorkpad(projectId)
+  })
+
+  // workpad:update — persist markdown workpad content
+  ipcMain.handle('workpad:update', async (_, projectId: string | null, content: string): Promise<ProjectWorkpad> => {
+    return updateStoredWorkpad(projectId, content)
+  })
+
+  // summary:check-health — check whether the configured summary provider is reachable
+  ipcMain.handle('summary:check-health', async (): Promise<boolean> => {
+    const { getDefaultSummarySettings, sanitizeSummarySettings, checkSummaryHealth } = await import('./ai-service')
+    const settings = sanitizeSummarySettings(store.get('summarySettings', getDefaultSummarySettings()))
+    return checkSummaryHealth(settings)
   })
 
   // ai:generate-summary — generate a daily or weekly summary
@@ -457,12 +596,20 @@ export function setupIPCHandlers(): void {
     const { type, projectId } = options
     log.info(`Generating ${type} summary for project: ${projectId ?? 'all'}`)
 
-    // Check Ollama health first
-    const { checkOllamaHealth, generateSummary, buildSummaryPrompt } = await import('./ai-service')
-    const isHealthy = await checkOllamaHealth()
+    const {
+      getDefaultSummarySettings,
+      sanitizeSummarySettings,
+      checkSummaryHealth,
+      generateSummary,
+      buildSummaryPrompt
+    } = await import('./ai-service')
+
+    const settings = sanitizeSummarySettings(store.get('summarySettings', getDefaultSummarySettings()))
+    const isHealthy = await checkSummaryHealth(settings)
     if (!isHealthy) {
-      log.warn('Ollama is not running')
-      throw new Error('Ollama is not running. Please start Ollama to use AI features.')
+      const providerLabel = settings.provider === 'openai' ? 'OpenAI' : 'Ollama'
+      log.warn(`${providerLabel} is unavailable`)
+      throw new Error(`${providerLabel} is unavailable. Check your summary settings and connection.`)
     }
 
     // Get dumps from store
@@ -487,8 +634,9 @@ export function setupIPCHandlers(): void {
     }
 
     // Build prompt and generate summary
-    const prompt = buildSummaryPrompt({ type, projectId, dumps })
-    const content = await generateSummary(prompt)
+    const workpad = getStoredWorkpad(projectId)
+    const prompt = buildSummaryPrompt({ type, projectId, dumps, workpadContent: workpad.content })
+    const content = await generateSummary(prompt, settings)
 
     // Create summary entry
     const entry: SummaryEntry = {
@@ -504,6 +652,8 @@ export function setupIPCHandlers(): void {
     const summaries = store.get('summaries', [])
     summaries.unshift(entry)
     store.set('summaries', summaries)
+    const latestWorkpad = getStoredWorkpad(projectId)
+    updateStoredWorkpad(projectId, appendMarkdownSection(latestWorkpad.content, buildSummaryWorkpadSection(entry)))
 
     log.info(`Summary generated: ${entry.id}, ${dumps.length} dumps summarized`)
     return entry
@@ -624,7 +774,6 @@ export function setupIPCHandlers(): void {
 
   // Forward vault state changes to all windows
   onVaultStateChange((state: VaultState) => {
-    const { BrowserWindow } = require('electron')
     BrowserWindow.getAllWindows().forEach(win => {
       win.webContents.send('vault:state-changed', state)
     })

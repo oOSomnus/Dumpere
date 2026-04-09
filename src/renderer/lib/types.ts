@@ -28,6 +28,14 @@ export interface DumpEntry {
   tags: string[]             // TAG-01 - array of Tag IDs
 }
 
+export type DatePreset = 'today' | 'week' | 'month'
+
+export interface DateFilterState {
+  mode: 'all' | 'preset' | 'dates'
+  preset: DatePreset | null
+  dates: string[]
+}
+
 export interface DumpInput {
   text: string
   filePaths: string[]  // Temp paths from drag-drop before copy
@@ -40,6 +48,21 @@ export interface SummaryEntry {
   generatedAt: number        // Unix timestamp
   content: string            // Markdown content
   dumpCount: number         // How many dumps were summarized
+}
+
+export type SummaryProvider = 'ollama' | 'openai'
+
+export interface SummarySettings {
+  provider: SummaryProvider
+  baseUrl: string
+  apiKey: string
+  model: string
+}
+
+export interface ProjectWorkpad {
+  projectId: string | null
+  content: string
+  updatedAt: number
 }
 
 export interface WindowBounds {
@@ -101,11 +124,18 @@ export interface ElectronAPI {
   // Clipboard operations
   clipboardWrite: (text: string) => Promise<void>
 
+  // Attachment helpers
+  createTempAttachment: (input: { name: string; mimeType: string; data: ArrayBuffer }) => Promise<string>
+
   // AI Summary operations
-  checkOllamaHealth: () => Promise<boolean>
+  checkSummaryHealth: () => Promise<boolean>
   generateSummary: (options: { type: 'daily' | 'weekly'; projectId: string | null }) => Promise<SummaryEntry | null>
   getSummaries: (filters?: { type?: 'daily' | 'weekly'; projectId?: string | null }) => Promise<SummaryEntry[]>
   exportSummary: (summaryId: string) => Promise<string | null>
+  getSummarySettings: () => Promise<SummarySettings>
+  updateSummarySettings: (settings: SummarySettings) => Promise<SummarySettings>
+  getWorkpad: (projectId: string | null) => Promise<ProjectWorkpad>
+  updateWorkpad: (projectId: string | null, content: string) => Promise<ProjectWorkpad>
 }
 
 // Extend Window interface
@@ -167,11 +197,29 @@ export const mockElectronAPI: ElectronAPI = {
   importDialog: async () => null,
   importDumps: async () => 0,
   clipboardWrite: async () => {},
+  createTempAttachment: async () => '',
   // AI Summary operations
-  checkOllamaHealth: async () => true,
+  checkSummaryHealth: async () => true,
   generateSummary: async () => null,
   getSummaries: async () => [],
   exportSummary: async () => null,
+  getSummarySettings: async () => ({
+    provider: 'ollama',
+    baseUrl: 'http://localhost:11434',
+    apiKey: '',
+    model: 'mistral',
+  }),
+  updateSummarySettings: async (settings) => settings,
+  getWorkpad: async (projectId) => ({
+    projectId,
+    content: '',
+    updatedAt: 0
+  }),
+  updateWorkpad: async (projectId, content) => ({
+    projectId,
+    content,
+    updatedAt: Date.now()
+  }),
   // Vault dump operations (per FILE-01, META-01, META-02)
   createDump: async (input: { text: string; filePaths: string[] }) => {
     return {

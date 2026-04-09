@@ -7,16 +7,6 @@ import { VaultState, RecentVault } from '../hooks/useVault'
 const mockCreateVault = vi.fn()
 const mockOpenVault = vi.fn()
 
-vi.stubGlobal('window', {
-  electronAPI: {
-    createVault: mockCreateVault,
-    openVault: mockOpenVault,
-    getVaultState: vi.fn(() => Promise.resolve({ isOpen: false, vaultPath: null, vaultName: null })),
-    getRecentVaults: vi.fn(() => Promise.resolve([])),
-    onVaultStateChange: vi.fn(),
-  }
-})
-
 describe('WelcomeScreen', () => {
   const defaultVaultState: VaultState = {
     isOpen: false,
@@ -35,6 +25,14 @@ describe('WelcomeScreen', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
+    window.electronAPI = {
+      ...(window.electronAPI ?? {}),
+      createVault: mockCreateVault,
+      openVault: mockOpenVault,
+      getVaultState: vi.fn(() => Promise.resolve({ isOpen: false, vaultPath: null, vaultName: null })),
+      getRecentVaults: vi.fn(() => Promise.resolve([])),
+      onVaultStateChange: vi.fn(),
+    } as typeof window.electronAPI
   })
 
   it('renders Dumpere heading', () => {
@@ -86,13 +84,21 @@ describe('WelcomeScreen', () => {
   })
 
   it('shows loading text when creating vault', () => {
-    render(<WelcomeScreen {...defaultProps} isLoading={true} />)
-    expect(screen.getByText(/Creating/i)).toBeInTheDocument()
+    const onCreateVault = vi.fn(() => new Promise<void>(() => {}))
+    render(<WelcomeScreen {...defaultProps} onCreateVault={onCreateVault} />)
+
+    fireEvent.click(screen.getByRole('button', { name: /Create Vault/i }))
+
+    expect(screen.getByText('Creating...')).toBeInTheDocument()
   })
 
   it('shows loading text when opening vault', () => {
-    render(<WelcomeScreen {...defaultProps} isLoading={true} />)
-    expect(screen.getByText(/Opening/i)).toBeInTheDocument()
+    const onOpenVault = vi.fn(() => new Promise<void>(() => {}))
+    render(<WelcomeScreen {...defaultProps} onOpenVault={onOpenVault} />)
+
+    fireEvent.click(screen.getByRole('button', { name: /Open Vault/i }))
+
+    expect(screen.getByText('Opening...')).toBeInTheDocument()
   })
 
   it('disables buttons when loading', () => {

@@ -1,43 +1,25 @@
-import { useState, ReactNode } from 'react'
+import { useEffect, useMemo, useState, type MouseEvent, type ReactNode } from 'react'
 import { DumpEntry, Project, Tag } from '../lib/types'
 import { DumpCard } from './DumpCard'
 import { ExpandedCard } from './ExpandedCard'
 import { EmptyState } from './EmptyState'
+import { ConfirmDialog } from './ConfirmDialog'
 import { FilterState } from '../hooks/useFilter'
 import { useMultiSelect } from '../hooks/useMultiSelect'
 import { FloatingActionBar } from './FloatingActionBar'
 import { SearchResult } from '../hooks/useSearch'
-import {
-  DndContext,
-  closestCenter,
-  DragEndEvent,
-  useSensor,
-  useSensors,
-  PointerSensor,
-  KeyboardSensor
-} from '@dnd-kit/core'
-import {
-  SortableContext,
-  rectSortingStrategy,
-  arrayMove,
-  sortableKeyboardCoordinates
-} from '@dnd-kit/sortable'
-import { SortableDumpCard } from './SortableDumpCard'
+import { formatTimelineDate, formatTimelineTime } from '../lib/date-utils'
 
 interface CardGridProps {
   dumps: DumpEntry[]
-  onDelete: (id: string) => void
+  onDelete: (id: string) => Promise<void> | void
   isLoading?: boolean
   filters?: FilterState
-  onReorder?: (dumps: DumpEntry[]) => void
-  dumpOrder?: string[]
   applyFilters?: (dumps: DumpEntry[], dumpOrder?: string[]) => DumpEntry[]
-  // Phase 3: search highlighting
-  searchResults?: SearchResult[]  // from useSearch hook
-  searchQuery?: string            // current search term
-  // Phase 3: multi-select export
-  onExportSelected?: (dumpIds: string[]) => void
-  // Phase 6: project/tag editing in ExpandedCard
+  searchResults?: SearchResult[]
+  searchQuery?: string
+  onExportSelected?: (dumpIds: string[]) => Promise<void> | void
+  onQuoteSelected?: (dumps: DumpEntry[]) => Promise<void> | void
   projects: Project[]
   tags: Tag[]
   onProjectChange: (dumpId: string, projectId: string | null) => void
@@ -49,88 +31,125 @@ export function CardGrid({
   onDelete,
   isLoading,
   filters,
-  onReorder,
-  dumpOrder = [],
   applyFilters,
   searchResults,
   searchQuery,
   onExportSelected,
+  onQuoteSelected,
   projects,
   tags,
   onProjectChange,
   onTagsChange
 }: CardGridProps) {
   const [selectedDump, setSelectedDump] = useState<DumpEntry | null>(null)
-
-  // Multi-select hook (EXPT-01)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const multiSelect = useMultiSelect()
 
-  // Sensors for drag and drop (ORGA-04)
-  const sensors = useSensors(
-    useSensor(PointerSensor),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  const searchActive = Boolean(searchQuery && searchQuery.trim())
+  const showTimelineView = !searchActive && (
+    !filters ||
+    (
+      filters.tagIds.length === 0 &&
+      filters.dateFilter.mode === 'all'
+    )
   )
 
-  // Apply filters if filter functions provided
-  // When searchQuery is active, use searchResults; otherwise use filter logic
-  const filteredDumps = (() => {
-    if (searchQuery && searchResults && searchResults.length > 0) {
-      // Search active: show only matching dumps from searchResults
-      return searchResults.map(r => r.dump)
+  const filteredDumps = useMemo(() => {
+    if (searchActive && searchResults) {
+      return searchResults.map(result => result.dump)
     }
+
     if (applyFilters && filters) {
-      return applyFilters(dumps, dumpOrder)
+      return applyFilters(dumps)
     }
-    // Default: sort by createdAt descending
-    return [...dumps].sort((a, b) => b.createdAt - a.createdAt)
-  })()
 
-  // Build a map of dump id -> SearchResult for quick lookup
-  const searchResultMap = new Map<string, SearchResult>(
-    (searchResults || []).map(r => [r.dump.id, r])
+    return [...dumps].sort((a, b) => b.createdAt - a.createdAt)
+  }, [applyFilters, dumps, filters, searchActive, searchResults])
+
+  const allVisibleIds = useMemo(
+    () => filteredDumps.map(dump => dump.id),
+    [filteredDumps]
   )
 
-  // Escape regex special characters
-  const escapeRegex = (str: string) => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  const searchResultMap = useMemo(
+    () => new Map<string, SearchResult>((searchResults || []).map(result => [result.dump.id, result])),
+    [searchResults]
+  )
 
-  // Render highlighted text with <mark> tags around matched terms
-  const renderHighlightedText = (dumpId: string, matchedText: string, query: string): ReactNode => {
+  const projectNameById = useMemo(
+    () => new Map(projects.map(project => [project.id, project.name])),
+    [projects]
+  )
+
+  const tagById = useMemo(
+    () => new Map(tags.map(tag => [tag.id, tag])),
+    [tags]
+  )
+
+  useEffect(() => {
+    multiSelect.clearSelection()
+  }, [
+    multiSelect.clearSelection,
+    searchQuery,
+    filters?.projectId,
+    filters?.tagIds.join('|'),
+    filters?.dateFilter.mode,
+    filters?.dateFilter.preset,
+    filters?.dateFilter.dates.join('|')
+  ])
+
+  useEffect(() => {
+    if (selectedDump && !allVisibleIds.includes(selectedDump.id)) {
+      setSelectedDump(null)
+    }
+  }, [allVisibleIds, selectedDump])
+
+  const escapeRegex = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+
+  const renderHighlightedText = (matchedText: string, query: string): ReactNode => {
     if (!query) return matchedText
     const regex = new RegExp(`(${escapeRegex(query)})`, 'gi')
     const parts = matchedText.split(regex)
-    return parts.map((part, i) =>
-      regex.test(part) ? <mark key={i}>{part}</mark> : part
-    )
+    const normalizedQuery = query.toLowerCase()
+
+    return parts.map((part, index) => (
+      part.toLowerCase() === normalizedQuery ? <mark key={index}>{part}</mark> : part
+    ))
   }
 
-  // Handle drag end (ORGA-04)
-  const handleDragEnd = (event: DragEndEvent) => {
-    const { active, over } = event
-    if (over && active.id !== over.id && onReorder) {
-      const oldIndex = filteredDumps.findIndex(d => d.id === active.id)
-      const newIndex = filteredDumps.findIndex(d => d.id === over.id)
-      if (oldIndex !== -1 && newIndex !== -1) {
-        const newOrder = arrayMove(filteredDumps, oldIndex, newIndex)
-        onReorder(newOrder)
-      }
-    }
+  const getSelectedDumps = () => {
+    const selectedIdSet = multiSelect.selectedIds
+    return filteredDumps.filter(dump => selectedIdSet.has(dump.id))
   }
 
-  // Handle card click with shift+click range selection (EXPT-01)
-  const allVisibleIds = filteredDumps.map(d => d.id)
-  const handleCardClick = (dump: DumpEntry, e: React.MouseEvent) => {
-    if (e.shiftKey && multiSelect.lastSelectedId) {
+  const handleCardClick = (dump: DumpEntry, event: MouseEvent<HTMLDivElement>) => {
+    if (event.shiftKey && multiSelect.lastSelectedId) {
       multiSelect.selectRange(multiSelect.lastSelectedId, dump.id, allVisibleIds)
-    } else {
-      setSelectedDump(dump)
+      multiSelect.setLastSelectedId(dump.id)
+      return
     }
+
+    setSelectedDump(dump)
   }
 
-  // Handle export of selected dumps (EXPT-01)
-  const handleExportSelected = () => {
-    if (onExportSelected) {
-      onExportSelected(Array.from(multiSelect.selectedIds))
+  const handleExportSelected = async () => {
+    if (!onExportSelected) return
+    await onExportSelected(Array.from(multiSelect.selectedIds))
+    multiSelect.clearSelection()
+  }
+
+  const handleQuoteSelected = async () => {
+    if (!onQuoteSelected) return
+    await onQuoteSelected(getSelectedDumps())
+    multiSelect.clearSelection()
+  }
+
+  const handleDeleteSelected = async () => {
+    const selectedIds = Array.from(multiSelect.selectedIds)
+    for (const selectedId of selectedIds) {
+      await onDelete(selectedId)
     }
+    multiSelect.clearSelection()
   }
 
   if (isLoading && dumps.length === 0) {
@@ -145,56 +164,78 @@ export function CardGrid({
     return <EmptyState />
   }
 
-  // Determine if we should use sortable cards
-  const useSortable = Boolean(onReorder)
+  const renderCard = (dump: DumpEntry) => {
+    const searchResult = searchResultMap.get(dump.id)
+    const highlighted = searchResult
+      ? renderHighlightedText(searchResult.matchedText, searchQuery || '')
+      : undefined
 
-  const renderCards = () => (
-    <div
-      className="grid w-full"
-      style={{
-        // D-06: Responsive columns
-        // < 640px: 2 columns
-        // 640px - 1024px: 3 columns
-        // > 1024px: 4 columns
-        gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-        gap: '24px',
-        alignItems: 'start'
-      }}
-    >
-      {filteredDumps.map(dump => {
-        const searchResult = searchResultMap.get(dump.id)
-        const highlighted = searchResult
-          ? renderHighlightedText(dump.id, searchResult.matchedText, searchQuery || '')
-          : undefined
-        return (
-          <DumpCard
-            key={dump.id}
-            dump={dump}
-            onDelete={onDelete}
-            showCheckbox={true}
-            isSelected={multiSelect.isSelected(dump.id)}
-            onSelectToggle={(id) => {
-              multiSelect.toggle(id)
-              multiSelect.setLastSelectedId(id)
+    return (
+      <DumpCard
+        key={dump.id}
+        dump={dump}
+        onDelete={onDelete}
+        onClick={(event) => handleCardClick(dump, event)}
+        showCheckbox={true}
+        isSelected={multiSelect.isSelected(dump.id)}
+        onSelectToggle={(id) => {
+          multiSelect.toggle(id)
+          multiSelect.setLastSelectedId(id)
+        }}
+        projectName={dump.projectId ? projectNameById.get(dump.projectId) : undefined}
+        tags={dump.tags.map(tagId => tagById.get(tagId)).filter(Boolean) as Tag[]}
+        highlightedText={highlighted}
+      />
+    )
+  }
+
+  return (
+    <>
+      {showTimelineView ? (
+        <div className="relative">
+          <div
+            className="absolute top-0 bottom-0"
+            style={{
+              left: '95px',
+              width: '1px',
+              backgroundColor: 'var(--border)'
             }}
-            onClick={(e) => handleCardClick(dump, e as unknown as React.MouseEvent)}
-            highlightedText={highlighted}
           />
-        )
-      })}
-    </div>
-  )
 
-  const renderSortableCards = () => (
-    <DndContext
-      sensors={sensors}
-      collisionDetection={closestCenter}
-      onDragEnd={handleDragEnd}
-    >
-      <SortableContext
-        items={filteredDumps.map(d => d.id)}
-        strategy={rectSortingStrategy}
-      >
+          <div className="space-y-6">
+            {filteredDumps.map((dump) => (
+              <div
+                key={dump.id}
+                className="grid gap-4"
+                style={{ gridTemplateColumns: '80px minmax(0, 1fr)' }}
+              >
+                <div className="pt-3 text-right">
+                  <p className="text-sm font-medium" style={{ color: 'var(--foreground)' }}>
+                    {formatTimelineTime(dump.createdAt)}
+                  </p>
+                  <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
+                    {formatTimelineDate(dump.createdAt)}
+                  </p>
+                </div>
+
+                <div className="relative pl-6">
+                  <div
+                    className="absolute top-6 rounded-full border-2"
+                    style={{
+                      left: '-7px',
+                      width: '14px',
+                      height: '14px',
+                      backgroundColor: 'var(--background)',
+                      borderColor: 'var(--accent)'
+                    }}
+                  />
+                  {renderCard(dump)}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : (
         <div
           className="grid w-full"
           style={{
@@ -203,37 +244,10 @@ export function CardGrid({
             alignItems: 'start'
           }}
         >
-          {filteredDumps.map(dump => {
-            const searchResult = searchResultMap.get(dump.id)
-            const highlighted = searchResult
-              ? renderHighlightedText(dump.id, searchResult.matchedText, searchQuery || '')
-              : undefined
-            return (
-              <SortableDumpCard
-                key={dump.id}
-                dump={dump}
-                onDelete={onDelete}
-                showCheckbox={true}
-                isSelected={multiSelect.isSelected(dump.id)}
-                onSelectToggle={(id) => {
-                  multiSelect.toggle(id)
-                  multiSelect.setLastSelectedId(id)
-                }}
-                onClick={(e) => handleCardClick(dump, e as unknown as React.MouseEvent)}
-                highlightedText={highlighted}
-              />
-            )
-          })}
+          {filteredDumps.map(renderCard)}
         </div>
-      </SortableContext>
-    </DndContext>
-  )
+      )}
 
-  return (
-    <>
-      {useSortable ? renderSortableCards() : renderCards()}
-
-      {/* Expanded card view */}
       <ExpandedCard
         dump={selectedDump}
         onClose={() => setSelectedDump(null)}
@@ -241,13 +255,27 @@ export function CardGrid({
         tags={tags}
         onProjectChange={onProjectChange}
         onTagsChange={onTagsChange}
+        onQuoteToWorkpad={onQuoteSelected ? async (dump) => onQuoteSelected([dump]) : undefined}
       />
 
-      {/* Floating action bar for multi-select (EXPT-01) */}
       <FloatingActionBar
         selectionCount={multiSelect.selectionCount}
-        onExport={() => handleExportSelected(multiSelect.selectedIds)}
+        onExport={handleExportSelected}
+        onDelete={() => setShowDeleteConfirm(true)}
+        onQuote={onQuoteSelected ? handleQuoteSelected : undefined}
         onDismiss={multiSelect.clearSelection}
+      />
+
+      <ConfirmDialog
+        open={showDeleteConfirm}
+        onOpenChange={setShowDeleteConfirm}
+        title={`Delete ${multiSelect.selectionCount} dumps?`}
+        description="This will permanently remove all selected dumps and their attachments."
+        confirmLabel="Delete Selected"
+        onConfirm={() => {
+          void handleDeleteSelected()
+        }}
+        destructive
       />
     </>
   )
