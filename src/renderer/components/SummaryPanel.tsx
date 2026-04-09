@@ -4,7 +4,7 @@ import { useSummary } from '../hooks/useSummary'
 import { useWorkpad } from '../hooks/useWorkpad'
 import { formatRelativeTime } from '../lib/utils-time'
 import { cn } from '../../lib/utils'
-import { FileText, AlertCircle, ArrowLeft, Settings, Download, PencilLine, Eye } from 'lucide-react'
+import { FileText, AlertCircle, ArrowLeft, Settings, Download, PencilLine, Eye, Clipboard, Check } from 'lucide-react'
 import { MarkdownPreview } from './MarkdownPreview'
 
 const api = typeof window !== 'undefined' && window.electronAPI
@@ -22,6 +22,7 @@ export function SummaryPanel({ projects, activeProjectId, onBackToDumps, onOpenS
   const [summaryType, setSummaryType] = useState<'daily' | 'weekly'>('daily')
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(activeProjectId)
   const [workpadMode, setWorkpadMode] = useState<'edit' | 'preview'>('edit')
+  const [copied, setCopied] = useState(false)
   const { currentSummary, summaries, isLoading, error, generateSummary, clearError, setCurrentSummary } = useSummary()
   const {
     content: workpadContent,
@@ -69,6 +70,14 @@ export function SummaryPanel({ projects, activeProjectId, onBackToDumps, onOpenS
     }
   }
 
+  const handleCopySummary = async () => {
+    if (currentSummary?.content) {
+      await navigator.clipboard.writeText(currentSummary.content)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    }
+  }
+
   const projectName = selectedProjectId
     ? projects.find(project => project.id === selectedProjectId)?.name ?? 'Unknown Project'
     : 'All Projects'
@@ -103,9 +112,9 @@ export function SummaryPanel({ projects, activeProjectId, onBackToDumps, onOpenS
         )}
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-[minmax(320px,420px)_minmax(0,1fr)]">
+      <div className="flex flex-col gap-6 flex-1 min-h-0">
         <section
-          className="rounded-2xl border p-5 flex flex-col gap-4 min-h-[680px]"
+          className="rounded-2xl border p-5 flex flex-col gap-4 min-h-0 flex-1"
           style={{ borderColor: 'var(--border)', backgroundColor: 'var(--background)' }}
         >
           <div className="flex items-center justify-between gap-3">
@@ -195,7 +204,7 @@ export function SummaryPanel({ projects, activeProjectId, onBackToDumps, onOpenS
         </section>
 
         <section
-          className="rounded-2xl border p-5 flex flex-col gap-5 min-h-[680px]"
+          className="rounded-2xl border p-5 flex flex-col gap-5 min-h-0 flex-1"
           style={{ borderColor: 'var(--border)', backgroundColor: 'var(--background)' }}
         >
           <div className="flex flex-wrap items-center gap-3">
@@ -260,6 +269,29 @@ export function SummaryPanel({ projects, activeProjectId, onBackToDumps, onOpenS
               >
                 <Download className="w-4 h-4" />
                 Export
+              </button>
+            )}
+            {currentSummary && (
+              <button
+                onClick={handleCopySummary}
+                className="inline-flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors"
+                style={{
+                  backgroundColor: copied ? 'var(--accent)' : 'var(--secondary)',
+                  color: copied ? 'var(--accent-foreground)' : 'var(--foreground)',
+                  border: '1px solid var(--border)'
+                }}
+              >
+                {copied ? (
+                  <>
+                    <Check className="w-4 h-4" />
+                    Copied!
+                  </>
+                ) : (
+                  <>
+                    <Clipboard className="w-4 h-4" />
+                    Copy
+                  </>
+                )}
               </button>
             )}
           </div>
@@ -335,7 +367,7 @@ export function SummaryPanel({ projects, activeProjectId, onBackToDumps, onOpenS
             </div>
 
             <div
-              className="rounded-xl border p-4 overflow-y-auto min-h-[540px]"
+              className="rounded-xl border p-4 overflow-y-auto min-h-0"
               style={{ borderColor: 'var(--border)', backgroundColor: 'var(--secondary)' }}
             >
               {currentSummary ? (
