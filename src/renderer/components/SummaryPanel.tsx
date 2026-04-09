@@ -1,11 +1,25 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Project, mockElectronAPI } from '../lib/types'
+import { Project, DumpEntry, Tag, mockElectronAPI } from '../lib/types'
 import { useSummary } from '../hooks/useSummary'
-import { useWorkpad } from '../hooks/useWorkpad'
+import { useWorkspaceTree } from '../hooks/useWorkspaceTree'
+import { useWorkspaceNote } from '../hooks/useWorkspaceNote'
 import { formatRelativeTime } from '../lib/utils-time'
 import { cn } from '../../lib/utils'
-import { FileText, AlertCircle, ArrowLeft, Settings, Download, PencilLine, Eye, Clipboard, Check, Columns2 } from 'lucide-react'
+import {
+  FileText,
+  AlertCircle,
+  ArrowLeft,
+  Settings,
+  Download,
+  PencilLine,
+  Eye,
+  Clipboard,
+  Check,
+  Columns2
+} from 'lucide-react'
 import { MarkdownPreview } from './MarkdownPreview'
+import { WorkspaceTree } from './WorkspaceTree'
+import { ExpandedCard } from './ExpandedCard'
 
 const api = typeof window !== 'undefined' && window.electronAPI
   ? window.electronAPI
@@ -13,27 +27,95 @@ const api = typeof window !== 'undefined' && window.electronAPI
 
 interface SummaryPanelProps {
   projects: Project[]
+  dumps: DumpEntry[]
+  tags: Tag[]
   activeProjectId: string | null
+  activeNotePaths: Record<string, string>
+  onActiveNotePathChange: (projectId: string, notePath: string) => void
+  onProjectChange: (dumpId: string, projectId: string | null) => void
+  onTagsChange: (dumpId: string, tagIds: string[]) => void
   onBackToDumps?: () => void
   onOpenSettings?: () => void
 }
 
-export function SummaryPanel({ projects, activeProjectId, onBackToDumps, onOpenSettings }: SummaryPanelProps) {
+type WorkspaceMode = 'edit' | 'split' | 'preview'
+
+function buildAutoName(existingPaths: string[], parentPath: string, type: 'folder' | 'note'): string {
+  const baseName = type === 'folder' ? 'New Folder' : 'New Note'
+  const extension = type === 'note' ? '.md' : ''
+  const normalizedParent = parentPath ? `${parentPath}/` : ''
+
+  let index = 1
+  while (true) {
+    const suffix = index === 1 ? '' : ` ${index}`
+    const candidate = `${baseName}${suffix}${extension}`
+    if (!existingPaths.includes(`${normalizedParent}${candidate}`)) {
+      return candidate
+    }
+    index += 1
+  }
+}
+
+export function SummaryPanel({
+  projects,
+  dumps,
+  tags,
+  activeProjectId,
+  activeNotePaths,
+  onActiveNotePathChange,
+  onProjectChange,
+  onTagsChange,
+  onBackToDumps,
+  onOpenSettings
+}: SummaryPanelProps) {
   const [summaryType, setSummaryType] = useState<'daily' | 'weekly'>('daily')
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(activeProjectId)
-  const [workpadMode, setWorkpadMode] = useState<'edit' | 'split' | 'preview'>('edit')
+  const [workspaceMode, setWorkspaceMode] = useState<WorkspaceMode>('edit')
   const [copied, setCopied] = useState(false)
+  const [selectedDump, setSelectedDump] = useState<DumpEntry | null>(null)
   const { currentSummary, summaries, isLoading, error, generateSummary, clearError, setCurrentSummary } = useSummary()
   const {
-    content: workpadContent,
-    setContent: setWorkpadContent,
-    isLoading: isWorkpadLoading,
-    isSaving: isWorkpadSaving,
-    error: workpadError,
-    refresh: refreshWorkpad,
-    saveNow: saveWorkpadNow,
-    workpad
-  } = useWorkpad(selectedProjectId)
+    tree,
+    isLoading: isWorkspaceLoading,
+    error: workspaceError,
+    refresh: refreshWorkspace,
+    createFolder,
+    createNote,
+    renameEntry,
+    deleteEntry,
+    notePaths
+  } = useWorkspaceTree(selectedProjectId)
+
+  const activeNotePath = selectedProjectId ? activeNotePaths[selectedProjectId] ?? null : null
+  const effectiveNotePath = selectedProjectId && activeNotePath && notePaths.includes(activeNotePath)
+    ? activeNotePath
+    : null
+
+  const {
+    content: noteContent,
+    setContent: setNoteContent,
+    isLoading: isNoteLoading,
+    isSaving: isNoteSaving,
+    error: noteError,
+    refresh: refreshNote,
+    saveNow: saveNoteNow,
+    note
+  } = useWorkspaceNote(selectedProjectId, effectiveNotePath)
+
+  useEffect(() => {
+    setSelectedProjectId(activeProjectId)
+  }, [activeProjectId])
+
+  useEffect(() => {
+    if (!selectedProjectId) {
+      return
+    }
+
+    if (activeNotePath && !notePaths.includes(activeNotePath)) {
+      const nextPath = notePaths[0] ?? ''
+      onActiveNotePathChange(selectedProjectId, nextPath)
+    }
+  }, [activeNotePath, notePaths, onActiveNotePathChange, selectedProjectId])
 
   const filteredSummaries = useMemo(() => {
     return summaries.filter(summary => (
@@ -41,6 +123,8 @@ export function SummaryPanel({ projects, activeProjectId, onBackToDumps, onOpenS
       summary.projectId === selectedProjectId
     ))
   }, [selectedProjectId, summaries, summaryType])
+
+  const dumpMap = useMemo(() => new Map(dumps.map(dump => [dump.id, dump])), [dumps])
 
   useEffect(() => {
     if (filteredSummaries.length === 0) {
@@ -56,9 +140,10 @@ export function SummaryPanel({ projects, activeProjectId, onBackToDumps, onOpenS
 
   const handleGenerate = async () => {
     try {
-      await saveWorkpadNow()
+      await saveNoteNow()
       await generateSummary(summaryType, selectedProjectId)
-      await refreshWorkpad()
+      await refreshWorkspace()
+      await refreshNote()
     } catch {
       // Error is handled by the hooks.
     }
@@ -82,6 +167,39 @@ export function SummaryPanel({ projects, activeProjectId, onBackToDumps, onOpenS
     ? projects.find(project => project.id === selectedProjectId)?.name ?? 'Unknown Project'
     : 'All Projects'
 
+  const handleCreateFolder = async (parentPath: string) => {
+    const name = buildAutoName(notePaths.concat(tree.map(node => node.path)), parentPath, 'folder')
+    await createFolder(parentPath, name)
+  }
+
+  const handleCreateNote = async (parentPath: string) => {
+    const name = buildAutoName(notePaths, parentPath, 'note')
+    const nextNote = await createNote(parentPath, name)
+    if (selectedProjectId && nextNote) {
+      onActiveNotePathChange(selectedProjectId, nextNote.path)
+    }
+  }
+
+  const handleRenameEntryWithName = async (path: string, name: string) => {
+    const trimmedName = name.trim()
+    if (!trimmedName) return
+    const result = await renameEntry(path, trimmedName)
+    if (selectedProjectId && result && effectiveNotePath === path) {
+      onActiveNotePathChange(selectedProjectId, result.path)
+    }
+  }
+
+  const handleDeleteEntry = async (path: string) => {
+    if (!window.confirm(`Delete ${path}? This cannot be undone.`)) {
+      return
+    }
+
+    await deleteEntry(path)
+    if (selectedProjectId && effectiveNotePath === path) {
+      onActiveNotePathChange(selectedProjectId, '')
+    }
+  }
+
   return (
     <div className="flex flex-col h-full p-6 gap-6">
       <div className="flex items-center justify-between gap-3">
@@ -90,7 +208,7 @@ export function SummaryPanel({ projects, activeProjectId, onBackToDumps, onOpenS
             Summaries
           </h1>
           <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
-            Keep a project workpad beside your AI summaries.
+            Browse a project workspace beside your AI summaries.
           </p>
         </div>
 
@@ -120,122 +238,192 @@ export function SummaryPanel({ projects, activeProjectId, onBackToDumps, onOpenS
           <div className="flex items-center justify-between gap-3">
             <div>
               <h2 className="text-lg font-semibold" style={{ color: 'var(--foreground)' }}>
-                Project Workpad
+                Project Workspace
               </h2>
               <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
                 {projectName}
               </p>
             </div>
 
-            <div className="inline-flex rounded-lg border overflow-hidden" style={{ borderColor: 'var(--border)' }}>
-              <button
-                onClick={() => setWorkpadMode('edit')}
-                className="inline-flex items-center gap-2 px-3 py-2 text-sm"
-                style={{
-                  backgroundColor: workpadMode === 'edit' ? 'var(--accent)' : 'transparent',
-                  color: workpadMode === 'edit' ? 'var(--accent-foreground)' : 'var(--foreground)'
-                }}
-              >
-                <PencilLine className="w-4 h-4" />
-                Edit
-              </button>
-              <button
-                onClick={() => setWorkpadMode('split')}
-                className="inline-flex items-center gap-2 px-3 py-2 text-sm"
-                style={{
-                  backgroundColor: workpadMode === 'split' ? 'var(--accent)' : 'transparent',
-                  color: workpadMode === 'split' ? 'var(--accent-foreground)' : 'var(--foreground)'
-                }}
-              >
-                <Columns2 className="w-4 h-4" />
-                Split
-              </button>
-              <button
-                onClick={() => setWorkpadMode('preview')}
-                className="inline-flex items-center gap-2 px-3 py-2 text-sm"
-                style={{
-                  backgroundColor: workpadMode === 'preview' ? 'var(--accent)' : 'transparent',
-                  color: workpadMode === 'preview' ? 'var(--accent-foreground)' : 'var(--foreground)'
-                }}
-              >
-                <Eye className="w-4 h-4" />
-                Preview
-              </button>
-            </div>
+            {selectedProjectId && (
+              <div className="inline-flex rounded-lg border overflow-hidden" style={{ borderColor: 'var(--border)' }}>
+                <button
+                  onClick={() => setWorkspaceMode('edit')}
+                  className="inline-flex items-center gap-2 px-3 py-2 text-sm"
+                  style={{
+                    backgroundColor: workspaceMode === 'edit' ? 'var(--accent)' : 'transparent',
+                    color: workspaceMode === 'edit' ? 'var(--accent-foreground)' : 'var(--foreground)'
+                  }}
+                >
+                  <PencilLine className="w-4 h-4" />
+                  Edit
+                </button>
+                <button
+                  onClick={() => setWorkspaceMode('split')}
+                  className="inline-flex items-center gap-2 px-3 py-2 text-sm"
+                  style={{
+                    backgroundColor: workspaceMode === 'split' ? 'var(--accent)' : 'transparent',
+                    color: workspaceMode === 'split' ? 'var(--accent-foreground)' : 'var(--foreground)'
+                  }}
+                >
+                  <Columns2 className="w-4 h-4" />
+                  Split
+                </button>
+                <button
+                  onClick={() => setWorkspaceMode('preview')}
+                  className="inline-flex items-center gap-2 px-3 py-2 text-sm"
+                  style={{
+                    backgroundColor: workspaceMode === 'preview' ? 'var(--accent)' : 'transparent',
+                    color: workspaceMode === 'preview' ? 'var(--accent-foreground)' : 'var(--foreground)'
+                  }}
+                >
+                  <Eye className="w-4 h-4" />
+                  Preview
+                </button>
+              </div>
+            )}
           </div>
 
-          <div className="flex items-center gap-2 text-xs" style={{ color: 'var(--muted-foreground)' }}>
-            <span>{isWorkpadSaving ? 'Saving...' : 'Saved locally'}</span>
-            {workpad?.updatedAt ? <span>Updated {formatRelativeTime(workpad.updatedAt)} ago</span> : null}
-          </div>
+          {selectedProjectId ? (
+            <>
+              <div className="flex items-center gap-2 text-xs" style={{ color: 'var(--muted-foreground)' }}>
+                <span>{isNoteSaving ? 'Saving...' : 'Saved locally'}</span>
+                {note?.updatedAt ? <span>Updated {formatRelativeTime(note.updatedAt)} ago</span> : null}
+                {note?.path ? <span>{note.path}</span> : null}
+              </div>
 
-          {workpadError && (
-            <div
-              className="rounded-lg px-3 py-2 text-sm"
-              style={{
-                backgroundColor: 'var(--destructive)',
-                color: 'var(--destructive-foreground)'
-              }}
-            >
-              {workpadError}
-            </div>
-          )}
+              {(workspaceError || noteError) && (
+                <div
+                  className="rounded-lg px-3 py-2 text-sm"
+                  style={{
+                    backgroundColor: 'var(--destructive)',
+                    color: 'var(--destructive-foreground)'
+                  }}
+                >
+                  {workspaceError || noteError}
+                </div>
+              )}
 
-          {isWorkpadLoading ? (
-            <div className="flex-1 flex items-center justify-center text-sm" style={{ color: 'var(--muted-foreground)' }}>
-              Loading workpad...
-            </div>
-          ) : workpadMode === 'edit' ? (
-            <textarea
-              value={workpadContent}
-              onChange={(event) => setWorkpadContent(event.target.value)}
-              placeholder="Write your running project notes here. You can also quote dumps into this workpad."
-              className="flex-1 w-full resize-none rounded-xl border p-4 text-sm outline-none"
-              style={{
-                borderColor: 'var(--border)',
-                backgroundColor: 'var(--secondary)',
-                color: 'var(--foreground)',
-                minHeight: '520px'
-              }}
-            />
-          ) : workpadMode === 'split' ? (
-            <div className="flex flex-1 min-h-[520px] flex-col gap-4 lg:flex-row">
-              <textarea
-                value={workpadContent}
-                onChange={(event) => setWorkpadContent(event.target.value)}
-                placeholder="Write your running project notes here. You can also quote dumps into this workpad."
-                className="min-h-[260px] w-full flex-1 resize-none rounded-xl border p-4 text-sm outline-none"
-                style={{
-                  borderColor: 'var(--border)',
-                  backgroundColor: 'var(--secondary)',
-                  color: 'var(--foreground)'
-                }}
-              />
-              <div
-                className="min-h-[260px] flex-1 rounded-xl border p-4 overflow-y-auto"
-                style={{ borderColor: 'var(--border)', backgroundColor: 'var(--secondary)' }}
-              >
-                {workpadContent.trim() ? (
-                  <MarkdownPreview content={workpadContent} />
+              <div className="grid min-h-[520px] gap-4 lg:grid-cols-[260px_minmax(0,1fr)]">
+                <div
+                  className="rounded-xl border p-3 overflow-y-auto"
+                  style={{ borderColor: 'var(--border)', backgroundColor: 'var(--secondary)' }}
+                >
+                  {isWorkspaceLoading ? (
+                    <div className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
+                      Loading workspace...
+                    </div>
+                  ) : (
+                    <WorkspaceTree
+                      tree={tree}
+                      selectedPath={effectiveNotePath}
+                      onSelect={(path) => selectedProjectId && onActiveNotePathChange(selectedProjectId, path)}
+                      onCreateFolder={handleCreateFolder}
+                      onCreateNote={handleCreateNote}
+                      onRename={handleRenameEntryWithName}
+                      onDelete={handleDeleteEntry}
+                    />
+                  )}
+                </div>
+
+                {isNoteLoading ? (
+                  <div className="flex items-center justify-center rounded-xl border" style={{ borderColor: 'var(--border)' }}>
+                    <span className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
+                      Loading note...
+                    </span>
+                  </div>
+                ) : !effectiveNotePath ? (
+                  <div
+                    className="flex items-center justify-center rounded-xl border p-6 text-center"
+                    style={{ borderColor: 'var(--border)', backgroundColor: 'var(--secondary)' }}
+                  >
+                    <div>
+                      <FileText className="mx-auto mb-3 h-10 w-10" style={{ color: 'var(--muted-foreground)' }} />
+                      <p className="text-base font-medium" style={{ color: 'var(--foreground)' }}>
+                        No notes yet
+                      </p>
+                      <p className="mt-2 text-sm" style={{ color: 'var(--muted-foreground)' }}>
+                        Create a note from the workspace toolbar to start writing.
+                      </p>
+                    </div>
+                  </div>
+                ) : workspaceMode === 'edit' ? (
+                  <textarea
+                    value={noteContent}
+                    onChange={(event) => setNoteContent(event.target.value)}
+                    placeholder="Write project notes here. Insert dump references to keep source material linked."
+                    className="w-full resize-none rounded-xl border p-4 text-sm outline-none"
+                    style={{
+                      borderColor: 'var(--border)',
+                      backgroundColor: 'var(--secondary)',
+                      color: 'var(--foreground)',
+                      minHeight: '520px'
+                    }}
+                  />
+                ) : workspaceMode === 'split' ? (
+                  <div className="flex flex-col gap-4 lg:flex-row">
+                    <textarea
+                      value={noteContent}
+                      onChange={(event) => setNoteContent(event.target.value)}
+                      placeholder="Write project notes here. Insert dump references to keep source material linked."
+                      className="min-h-[260px] w-full flex-1 resize-none rounded-xl border p-4 text-sm outline-none"
+                      style={{
+                        borderColor: 'var(--border)',
+                        backgroundColor: 'var(--secondary)',
+                        color: 'var(--foreground)'
+                      }}
+                    />
+                    <div
+                      className="min-h-[260px] flex-1 rounded-xl border p-4 overflow-y-auto"
+                      style={{ borderColor: 'var(--border)', backgroundColor: 'var(--secondary)' }}
+                    >
+                      {noteContent.trim() ? (
+                        <MarkdownPreview
+                          content={noteContent}
+                          dumpLookup={(dumpId) => dumpMap.get(dumpId)}
+                          onDumpClick={setSelectedDump}
+                        />
+                      ) : (
+                        <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
+                          Nothing in this note yet.
+                        </p>
+                      )}
+                    </div>
+                  </div>
                 ) : (
-                  <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
-                    Nothing in this workpad yet.
-                  </p>
+                  <div
+                    className="rounded-xl border p-4 overflow-y-auto"
+                    style={{ borderColor: 'var(--border)', backgroundColor: 'var(--secondary)' }}
+                  >
+                    {noteContent.trim() ? (
+                      <MarkdownPreview
+                        content={noteContent}
+                        dumpLookup={(dumpId) => dumpMap.get(dumpId)}
+                        onDumpClick={setSelectedDump}
+                      />
+                    ) : (
+                      <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
+                        Nothing in this note yet.
+                      </p>
+                    )}
+                  </div>
                 )}
               </div>
-            </div>
+            </>
           ) : (
             <div
-              className="flex-1 rounded-xl border p-4 overflow-y-auto"
+              className="flex flex-1 items-center justify-center rounded-xl border p-6 text-center"
               style={{ borderColor: 'var(--border)', backgroundColor: 'var(--secondary)' }}
             >
-              {workpadContent.trim() ? (
-                <MarkdownPreview content={workpadContent} />
-              ) : (
-                <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
-                  Nothing in this workpad yet.
+              <div>
+                <FileText className="mx-auto mb-3 h-10 w-10" style={{ color: 'var(--muted-foreground)' }} />
+                <p className="text-base font-medium" style={{ color: 'var(--foreground)' }}>
+                  Select a project to open its workspace
                 </p>
-              )}
+                <p className="mt-2 text-sm" style={{ color: 'var(--muted-foreground)' }}>
+                  All Projects can still generate summaries, but workspace notes are project-specific.
+                </p>
+              </div>
             </div>
           )}
         </section>
@@ -264,7 +452,13 @@ export function SummaryPanel({ projects, activeProjectId, onBackToDumps, onOpenS
 
             <select
               value={selectedProjectId ?? 'all'}
-              onChange={(event) => setSelectedProjectId(event.target.value === 'all' ? null : event.target.value)}
+              onChange={(event) => {
+                const nextProjectId = event.target.value === 'all' ? null : event.target.value
+                setSelectedProjectId(nextProjectId)
+                if (nextProjectId) {
+                  onActiveNotePathChange(nextProjectId, '')
+                }
+              }}
               className="px-3 py-2 rounded-lg border text-sm"
               style={{
                 backgroundColor: 'var(--input)',
@@ -272,9 +466,13 @@ export function SummaryPanel({ projects, activeProjectId, onBackToDumps, onOpenS
                 color: 'var(--foreground)'
               }}
             >
-              <option value="all">All Projects</option>
+              <option value="all" style={{ color: 'var(--foreground)', backgroundColor: 'var(--popover)' }}>All Projects</option>
               {projects.map(project => (
-                <option key={project.id} value={project.id}>
+                <option
+                  key={project.id}
+                  value={project.id}
+                  style={{ color: 'var(--foreground)', backgroundColor: 'var(--popover)' }}
+                >
                   {project.name}
                 </option>
               ))}
@@ -282,7 +480,7 @@ export function SummaryPanel({ projects, activeProjectId, onBackToDumps, onOpenS
 
             <button
               onClick={handleGenerate}
-              disabled={isLoading || isWorkpadLoading}
+              disabled={isLoading || isNoteLoading}
               className={cn(
                 'px-4 py-2 rounded-lg text-sm font-medium transition-colors',
                 'disabled:opacity-50 disabled:cursor-not-allowed'
@@ -435,7 +633,7 @@ export function SummaryPanel({ projects, activeProjectId, onBackToDumps, onOpenS
                     {filteredSummaries.length > 0 ? 'Select a summary' : 'No summaries yet'}
                   </h3>
                   <p className="text-sm max-w-md" style={{ color: 'var(--muted-foreground)' }}>
-                    Generate a summary to capture the latest dump activity and append it to the current workpad.
+                    Generate a summary to capture the latest dump activity and append it to the project workspace.
                   </p>
                 </div>
               )}
@@ -443,6 +641,15 @@ export function SummaryPanel({ projects, activeProjectId, onBackToDumps, onOpenS
           </div>
         </section>
       </div>
+
+      <ExpandedCard
+        dump={selectedDump}
+        onClose={() => setSelectedDump(null)}
+        projects={projects}
+        tags={tags}
+        onProjectChange={onProjectChange}
+        onTagsChange={onTagsChange}
+      />
     </div>
   )
 }

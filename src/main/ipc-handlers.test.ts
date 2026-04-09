@@ -9,6 +9,9 @@ const mocks = vi.hoisted(() => ({
   mockCheckSummaryHealth: vi.fn(),
   mockGenerateSummary: vi.fn(),
   mockBuildSummaryPrompt: vi.fn(),
+  mockEnsureProjectWorkspace: vi.fn(),
+  mockReadWorkspaceNote: vi.fn(),
+  mockUpdateWorkspaceNote: vi.fn(),
   mockGetDefaultSummarySettings: vi.fn(() => ({
     provider: 'ollama',
     baseUrl: 'http://localhost:11434',
@@ -80,6 +83,19 @@ vi.mock('./vault-service', () => ({
 vi.mock('./metadata-service', () => ({
   createDump: vi.fn(),
   readMetadata: vi.fn(),
+}))
+
+vi.mock('./workspace-service', () => ({
+  createWorkspaceFolder: vi.fn(),
+  createWorkspaceNote: vi.fn(),
+  deleteProjectWorkspace: vi.fn(),
+  deleteWorkspaceEntry: vi.fn(),
+  ensureProjectWorkspace: mocks.mockEnsureProjectWorkspace,
+  getDefaultWorkspaceNotePath: vi.fn(() => 'index.md'),
+  getWorkspaceTree: vi.fn(() => []),
+  readWorkspaceNote: mocks.mockReadWorkspaceNote,
+  renameWorkspaceEntry: vi.fn(),
+  updateWorkspaceNote: mocks.mockUpdateWorkspaceNote
 }))
 
 // Mock ai-service
@@ -160,7 +176,21 @@ describe('IPC Handlers - AI operations', () => {
       if (key === 'dumps') return []
       if (key === 'projects') return []
       if (key === 'summarySettings') return mocks.mockGetDefaultSummarySettings()
+      if (key === 'workpads') return []
       return defaultValue
+    })
+    mocks.mockEnsureProjectWorkspace.mockResolvedValue(undefined)
+    mocks.mockReadWorkspaceNote.mockResolvedValue({
+      projectId: 'project-1',
+      path: 'index.md',
+      content: '## Notes',
+      updatedAt: Date.now()
+    })
+    mocks.mockUpdateWorkspaceNote.mockResolvedValue({
+      projectId: 'project-1',
+      path: 'index.md',
+      content: '## Notes',
+      updatedAt: Date.now()
     })
   })
 
@@ -369,6 +399,7 @@ describe('IPC Handlers - AI operations', () => {
 
       // The dumps should be filtered by projectId
       expect(mocks.mockGenerateSummary).toHaveBeenCalled()
+      expect(mocks.mockReadWorkspaceNote).toHaveBeenCalledWith('project-1', 'index.md', '')
     })
   })
 

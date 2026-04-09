@@ -25,8 +25,8 @@ const api = typeof window !== 'undefined' && window.electronAPI
       importDialog: async () => null,
       importDumps: async () => 0,
       clipboardWrite: async () => {},
-      getWorkpad: async (projectId: string | null) => ({ projectId, content: '', updatedAt: 0 }),
-      updateWorkpad: async (projectId: string | null, content: string) => ({ projectId, content, updatedAt: Date.now() }),
+      readWorkspaceNote: async (projectId: string, notePath: string) => ({ projectId, path: notePath, content: '', updatedAt: 0 }),
+      updateWorkspaceNote: async (projectId: string, notePath: string, content: string) => ({ projectId, path: notePath, content, updatedAt: Date.now() }),
     }
 
 interface VaultAppContentProps {
@@ -48,6 +48,7 @@ function VaultAppContent({ vaultName }: VaultAppContentProps) {
   const deferredSearchQuery = useDeferredValue(searchQuery)
 
   const [currentView, setCurrentView] = useState<AppView>('grid')
+  const [activeWorkspaceNotes, setActiveWorkspaceNotes] = useState<Record<string, string>>({})
 
   const handleViewChange = useCallback((view: AppView) => {
     setCurrentView(view)
@@ -159,13 +160,21 @@ function VaultAppContent({ vaultName }: VaultAppContentProps) {
     }
   }
 
-  const handleQuoteToWorkpad = async (selectedDumps: DumpEntry[]) => {
+  const handleInsertDumpReferences = async (selectedDumps: DumpEntry[]) => {
     if (selectedDumps.length === 0) return
-    const currentWorkpad = await api.getWorkpad(activeProjectId)
-    const quotedContent = formatDumpReferences(selectedDumps)
-    await api.updateWorkpad(
+
+    if (!activeProjectId) {
+      alert('Select a project before inserting dump references into a note.')
+      return
+    }
+
+    const activeNotePath = activeWorkspaceNotes[activeProjectId] ?? 'index.md'
+    const currentNote = await api.readWorkspaceNote(activeProjectId, activeNotePath)
+    const referenceContent = formatDumpReferences(selectedDumps)
+    await api.updateWorkspaceNote(
       activeProjectId,
-      appendMarkdownSection(currentWorkpad.content, quotedContent)
+      activeNotePath,
+      appendMarkdownSection(currentNote.content, referenceContent)
     )
   }
 
@@ -237,7 +246,15 @@ function VaultAppContent({ vaultName }: VaultAppContentProps) {
           {currentView === 'summaries' ? (
             <SummaryPanel
               projects={projects}
+              dumps={dumps}
+              tags={tags}
               activeProjectId={activeProjectId}
+              activeNotePaths={activeWorkspaceNotes}
+              onActiveNotePathChange={(projectId, notePath) => {
+                setActiveWorkspaceNotes(prev => ({ ...prev, [projectId]: notePath }))
+              }}
+              onProjectChange={handleDumpProjectChange}
+              onTagsChange={handleDumpTagsChange}
               onBackToDumps={() => setCurrentView('grid')}
               onOpenSettings={() => setCurrentView('settings')}
             />
@@ -253,7 +270,7 @@ function VaultAppContent({ vaultName }: VaultAppContentProps) {
               searchResults={searchResults}
               searchQuery={deferredSearchQuery}
               onExportSelected={handleExportSelected}
-              onQuoteSelected={handleQuoteToWorkpad}
+              onQuoteSelected={handleInsertDumpReferences}
               projects={projects}
               tags={tags}
               onProjectChange={handleDumpProjectChange}

@@ -145,14 +145,29 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getSummarySettings: () => {
     return ipcRenderer.invoke('summary:get-settings')
   },
-  updateSummarySettings: (settings) => {
+  updateSummarySettings: (settings: { provider: 'ollama' | 'openai'; baseUrl: string; apiKey: string; model: string }) => {
     return ipcRenderer.invoke('summary:update-settings', settings)
   },
-  getWorkpad: (projectId: string | null) => {
-    return ipcRenderer.invoke('workpad:get', projectId)
+  getWorkspaceTree: (projectId: string) => {
+    return ipcRenderer.invoke('workspace:get-tree', projectId)
   },
-  updateWorkpad: (projectId: string | null, content: string) => {
-    return ipcRenderer.invoke('workpad:update', projectId, content)
+  createWorkspaceFolder: (projectId: string, parentPath: string, name: string) => {
+    return ipcRenderer.invoke('workspace:create-folder', projectId, parentPath, name)
+  },
+  createWorkspaceNote: (projectId: string, parentPath: string, name: string) => {
+    return ipcRenderer.invoke('workspace:create-note', projectId, parentPath, name)
+  },
+  readWorkspaceNote: (projectId: string, notePath: string) => {
+    return ipcRenderer.invoke('workspace:read-note', projectId, notePath)
+  },
+  updateWorkspaceNote: (projectId: string, notePath: string, content: string) => {
+    return ipcRenderer.invoke('workspace:update-note', projectId, notePath, content)
+  },
+  renameWorkspaceEntry: (projectId: string, path: string, name: string) => {
+    return ipcRenderer.invoke('workspace:rename-entry', projectId, path, name)
+  },
+  deleteWorkspaceEntry: (projectId: string, path: string) => {
+    return ipcRenderer.invoke('workspace:delete-entry', projectId, path)
   },
 
   // Vault operations

@@ -3,13 +3,25 @@ import log from 'electron-log'
 import { store } from './store'
 import { copyFiles, deleteFile, getFileUrl, getDumpsDir, resolveStoredPath } from './file-service'
 import { createVault, openVault, getVaultState, onVaultStateChange, VaultState, RecentVault } from './vault-service'
-import { createDump, readMetadata, VaultMetadata, DumpMetadata } from './metadata-service'
-import { DumpEntry, StoredFile, Project, Tag, SummaryEntry, SummarySettings, ProjectWorkpad } from '../renderer/lib/types'
+import { createDump, readMetadata, DumpMetadata } from './metadata-service'
+import { DumpEntry, StoredFile, Project, Tag, SummaryEntry, SummarySettings, ProjectWorkpad, WorkspaceNode, WorkspaceNote } from '../renderer/lib/types'
 import archiver from 'archiver'
 import { createWriteStream } from 'fs'
 import { writeFile } from 'fs/promises'
 import { join } from 'path'
 import AdmZip from 'adm-zip'
+import {
+  createWorkspaceFolder,
+  createWorkspaceNote,
+  deleteProjectWorkspace,
+  deleteWorkspaceEntry,
+  ensureProjectWorkspace,
+  getDefaultWorkspaceNotePath,
+  getWorkspaceTree,
+  readWorkspaceNote,
+  renameWorkspaceEntry,
+  updateWorkspaceNote
+} from './workspace-service'
 
 const MIME_EXTENSION_MAP: Record<string, string> = {
   'image/png': 'png',
@@ -67,23 +79,8 @@ function getStoredWorkpad(projectId: string | null): ProjectWorkpad {
   }
 }
 
-function updateStoredWorkpad(projectId: string | null, content: string): ProjectWorkpad {
-  const workpads = store.get('workpads', [])
-  const nextWorkpad: ProjectWorkpad = {
-    projectId,
-    content,
-    updatedAt: Date.now()
-  }
-  const existingIndex = workpads.findIndex(workpad => workpad.projectId === projectId)
-
-  if (existingIndex === -1) {
-    workpads.push(nextWorkpad)
-  } else {
-    workpads.splice(existingIndex, 1, nextWorkpad)
-  }
-
-  store.set('workpads', workpads)
-  return nextWorkpad
+function getLegacyWorkpadContent(projectId: string | null): string {
+  return getStoredWorkpad(projectId).content
 }
 
 function appendMarkdownSection(existingContent: string, section: string): string {
@@ -188,6 +185,9 @@ export function setupIPCHandlers(): void {
     const projects = store.get('projects', [])
     projects.push(project)
     store.set('projects', projects)
+    if (getVaultState().isOpen) {
+      void ensureProjectWorkspace(project.id, getLegacyWorkpadContent(project.id))
+    }
     log.info(`Saved project: ${project.id}`)
     return project
   })
@@ -205,7 +205,7 @@ export function setupIPCHandlers(): void {
   })
 
   // store:delete-project — remove project
-  ipcMain.handle('store:delete-project', (_, id: string): void => {
+  ipcMain.handle('store:delete-project', async (_, id: string): Promise<void> => {
     const projects = store.get('projects', [])
     store.set('projects', projects.filter(p => p.id !== id))
     // Move dumps with this projectId to null (unassigned)
@@ -216,6 +216,9 @@ export function setupIPCHandlers(): void {
     store.set('dumps', dumps)
     const workpads = store.get('workpads', [])
     store.set('workpads', workpads.filter(workpad => workpad.projectId !== id))
+    if (getVaultState().isOpen) {
+      await deleteProjectWorkspace(id)
+    }
     log.info(`Deleted project: ${id}`)
   })
 
@@ -439,7 +442,6 @@ export function setupIPCHandlers(): void {
       }
 
       const markdown = mdEntry.getData().toString('utf8')
-      const projectName = markdown.split('\n')[0]?.replace(/^#\s*/, '').trim() || 'Imported'
 
       // Parse markdown per D-07 format
       // Structure: # Project Name, ## YYYY-MM-DD, ### HH:mm, content...
@@ -466,8 +468,6 @@ export function setupIPCHandlers(): void {
           // Content is everything after the time header until the next ### or ## or end
           const contentLines: string[] = []
           const fileRefs: string[] = []
-          let inContent = false
-
           for (const line of timeLines.slice(1)) {
             if (line.startsWith('## ') || line.startsWith('### ')) break
             if (line.startsWith('![')) {
@@ -479,7 +479,6 @@ export function setupIPCHandlers(): void {
               }
             } else {
               contentLines.push(line)
-              inContent = true
             }
           }
 
@@ -510,7 +509,7 @@ export function setupIPCHandlers(): void {
 
                   // Copy file to dumps directory
                   const tempPath = join(app.getPath('temp'), `import-${Date.now()}-${fileRef}`)
-                  zip.extractEntryTo(assetEntry.entryName, app.getPath('temp'), true, true, tempPath)
+                  await writeFile(tempPath, assetEntry.getData())
 
                   try {
                     const storedFiles = await copyFiles([tempPath])
@@ -586,14 +585,32 @@ export function setupIPCHandlers(): void {
     return sanitized
   })
 
-  // workpad:get — retrieve the persisted markdown workpad for a project
-  ipcMain.handle('workpad:get', async (_, projectId: string | null): Promise<ProjectWorkpad> => {
-    return getStoredWorkpad(projectId)
+  ipcMain.handle('workspace:get-tree', async (_, projectId: string): Promise<WorkspaceNode[]> => {
+    return getWorkspaceTree(projectId, getLegacyWorkpadContent(projectId))
   })
 
-  // workpad:update — persist markdown workpad content
-  ipcMain.handle('workpad:update', async (_, projectId: string | null, content: string): Promise<ProjectWorkpad> => {
-    return updateStoredWorkpad(projectId, content)
+  ipcMain.handle('workspace:create-folder', async (_, projectId: string, parentPath: string, name: string): Promise<WorkspaceNode> => {
+    return createWorkspaceFolder(projectId, parentPath, name)
+  })
+
+  ipcMain.handle('workspace:create-note', async (_, projectId: string, parentPath: string, name: string): Promise<WorkspaceNote> => {
+    return createWorkspaceNote(projectId, parentPath, name)
+  })
+
+  ipcMain.handle('workspace:read-note', async (_, projectId: string, notePath: string): Promise<WorkspaceNote> => {
+    return readWorkspaceNote(projectId, notePath, getLegacyWorkpadContent(projectId))
+  })
+
+  ipcMain.handle('workspace:update-note', async (_, projectId: string, notePath: string, content: string): Promise<WorkspaceNote> => {
+    return updateWorkspaceNote(projectId, notePath, content)
+  })
+
+  ipcMain.handle('workspace:rename-entry', async (_, projectId: string, path: string, name: string): Promise<{ path: string }> => {
+    return renameWorkspaceEntry(projectId, path, name)
+  })
+
+  ipcMain.handle('workspace:delete-entry', async (_, projectId: string, path: string): Promise<void> => {
+    return deleteWorkspaceEntry(projectId, path)
   })
 
   // summary:check-health — check whether the configured summary provider is reachable
@@ -645,9 +662,17 @@ export function setupIPCHandlers(): void {
       return null
     }
 
-    // Build prompt and generate summary
-    const workpad = getStoredWorkpad(projectId)
-    const prompt = buildSummaryPrompt({ type, projectId, dumps, workpadContent: workpad.content })
+    let workpadContent = ''
+    if (projectId) {
+      const contextNote = await readWorkspaceNote(
+        projectId,
+        getDefaultWorkspaceNotePath(),
+        getLegacyWorkpadContent(projectId)
+      )
+      workpadContent = contextNote.content
+    }
+
+    const prompt = buildSummaryPrompt({ type, projectId, dumps, workpadContent })
     const content = await generateSummary(prompt, settings)
 
     // Create summary entry
@@ -664,8 +689,18 @@ export function setupIPCHandlers(): void {
     const summaries = store.get('summaries', [])
     summaries.unshift(entry)
     store.set('summaries', summaries)
-    const latestWorkpad = getStoredWorkpad(projectId)
-    updateStoredWorkpad(projectId, appendMarkdownSection(latestWorkpad.content, buildSummaryWorkpadSection(entry)))
+    if (projectId) {
+      const latestNote = await readWorkspaceNote(
+        projectId,
+        getDefaultWorkspaceNotePath(),
+        getLegacyWorkpadContent(projectId)
+      )
+      await updateWorkspaceNote(
+        projectId,
+        latestNote.path,
+        appendMarkdownSection(latestNote.content, buildSummaryWorkpadSection(entry))
+      )
+    }
 
     log.info(`Summary generated: ${entry.id}, ${dumps.length} dumps summarized`)
     return entry
@@ -734,13 +769,19 @@ export function setupIPCHandlers(): void {
   // vault:create — create a new vault
   ipcMain.handle('vault:create', async (): Promise<VaultState> => {
     log.info('IPC: vault:create')
-    return await createVault()
+    const state = await createVault()
+    const projects = store.get('projects', [])
+    await Promise.all(projects.map(project => ensureProjectWorkspace(project.id, getLegacyWorkpadContent(project.id))))
+    return state
   })
 
   // vault:open — open an existing vault
   ipcMain.handle('vault:open', async (_, vaultPath?: string): Promise<VaultState> => {
     log.info('IPC: vault:open')
-    return await openVault(vaultPath)
+    const state = await openVault(vaultPath)
+    const projects = store.get('projects', [])
+    await Promise.all(projects.map(project => ensureProjectWorkspace(project.id, getLegacyWorkpadContent(project.id))))
+    return state
   })
 
   // vault:close — close current vault (permitted operation per D-01)

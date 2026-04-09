@@ -293,8 +293,8 @@ export function ExpandedCard({ dump, onClose, projects, tags, onProjectChange, o
                     }}
                     className="p-1 rounded hover:bg-accent transition-colors"
                     style={{ color: 'var(--foreground)' }}
-                    aria-label="Quote to workpad"
-                    title="Quote to workpad"
+                    aria-label="Insert dump reference"
+                    title="Insert dump reference"
                   >
                     <NotebookPen className="w-5 h-5" />
                   </button>

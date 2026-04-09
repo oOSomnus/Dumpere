@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { ProjectWorkpad, mockElectronAPI } from '../lib/types'
+import { getDefaultWorkspaceNotePath } from '../lib/workpad-utils'
 
 const api = typeof window !== 'undefined' && window.electronAPI
   ? window.electronAPI
@@ -29,10 +30,16 @@ export function useWorkpad(projectId: string | null): UseWorkpadReturn {
     setError(null)
 
     try {
-      const nextWorkpad = await api.getWorkpad(projectId)
-      setWorkpad(nextWorkpad)
-      setContent(nextWorkpad.content)
-      loadedContentRef.current = nextWorkpad.content
+      const nextNote = projectId
+        ? await api.readWorkspaceNote(projectId, getDefaultWorkspaceNotePath())
+        : { projectId: null, content: '', updatedAt: 0 }
+      setWorkpad({
+        projectId,
+        content: nextNote.content,
+        updatedAt: nextNote.updatedAt
+      })
+      setContent(nextNote.content)
+      loadedContentRef.current = nextNote.content
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Could not load workpad'
       setError(message)
@@ -54,10 +61,20 @@ export function useWorkpad(projectId: string | null): UseWorkpadReturn {
     setError(null)
 
     try {
-      const saved = await api.updateWorkpad(projectId, content)
-      setWorkpad(saved)
+      const saved = projectId
+        ? await api.updateWorkspaceNote(projectId, getDefaultWorkspaceNotePath(), content)
+        : { projectId: null, path: getDefaultWorkspaceNotePath(), content, updatedAt: Date.now() }
+      setWorkpad({
+        projectId,
+        content: saved.content,
+        updatedAt: saved.updatedAt
+      })
       loadedContentRef.current = saved.content
-      return saved
+      return {
+        projectId,
+        content: saved.content,
+        updatedAt: saved.updatedAt
+      }
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Could not save workpad'
       setError(message)

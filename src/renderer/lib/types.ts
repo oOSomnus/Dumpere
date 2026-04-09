@@ -65,6 +65,20 @@ export interface ProjectWorkpad {
   updatedAt: number
 }
 
+export interface WorkspaceNode {
+  type: 'folder' | 'note'
+  name: string
+  path: string
+  children?: WorkspaceNode[]
+}
+
+export interface WorkspaceNote {
+  projectId: string
+  path: string
+  content: string
+  updatedAt: number
+}
+
 export interface WindowBounds {
   x: number
   y: number
@@ -113,6 +127,8 @@ export interface ElectronAPI {
 
   // Theme
   onThemeChange: (callback: (isDark: boolean) => void) => void
+  getTheme: () => Promise<'light' | 'dark' | 'system'>
+  setTheme: (theme: 'light' | 'dark' | 'system') => Promise<void>
 
   // Export operations
   exportDumps: (dumpIds: string[], projectName: string, outputPath?: string) => Promise<string | null>
@@ -135,8 +151,21 @@ export interface ElectronAPI {
   exportSummary: (summaryId: string) => Promise<string | null>
   getSummarySettings: () => Promise<SummarySettings>
   updateSummarySettings: (settings: SummarySettings) => Promise<SummarySettings>
-  getWorkpad: (projectId: string | null) => Promise<ProjectWorkpad>
-  updateWorkpad: (projectId: string | null, content: string) => Promise<ProjectWorkpad>
+  getWorkspaceTree: (projectId: string) => Promise<WorkspaceNode[]>
+  createWorkspaceFolder: (projectId: string, parentPath: string, name: string) => Promise<WorkspaceNode>
+  createWorkspaceNote: (projectId: string, parentPath: string, name: string) => Promise<WorkspaceNote>
+  readWorkspaceNote: (projectId: string, notePath: string) => Promise<WorkspaceNote>
+  updateWorkspaceNote: (projectId: string, notePath: string, content: string) => Promise<WorkspaceNote>
+  renameWorkspaceEntry: (projectId: string, path: string, name: string) => Promise<{ path: string }>
+  deleteWorkspaceEntry: (projectId: string, path: string) => Promise<void>
+
+  // Vault operations
+  getVaultState: () => Promise<{ isOpen: boolean; vaultPath: string | null; vaultName: string | null }>
+  createVault: () => Promise<{ isOpen: boolean; vaultPath: string | null; vaultName: string | null }>
+  openVault: (vaultPath?: string) => Promise<{ isOpen: boolean; vaultPath: string | null; vaultName: string | null }>
+  closeVault: () => Promise<{ isOpen: boolean; vaultPath: string | null; vaultName: string | null }>
+  onVaultStateChange: (callback: (state: { isOpen: boolean; vaultPath: string | null; vaultName: string | null }) => void) => void
+  getRecentVaults: () => Promise<Array<{ path: string; name: string; lastOpened: number }>>
 }
 
 // Extend Window interface
@@ -194,6 +223,8 @@ export const mockElectronAPI: ElectronAPI = {
   setWindowBounds: async () => {},
   isMaximized: async () => false,
   onThemeChange: () => {},
+  getTheme: async () => 'system',
+  setTheme: async () => {},
   exportDumps: async () => null,
   exportSaveDialog: async () => null,
   importDialog: async () => null,
@@ -212,16 +243,39 @@ export const mockElectronAPI: ElectronAPI = {
     model: 'mistral',
   }),
   updateSummarySettings: async (settings) => settings,
-  getWorkpad: async (projectId) => ({
+  getWorkspaceTree: async () => [],
+  createWorkspaceFolder: async (_projectId, _parentPath, name) => ({
+    type: 'folder',
+    name,
+    path: name,
+    children: []
+  }),
+  createWorkspaceNote: async (projectId, _parentPath, name) => ({
     projectId,
+    path: name,
+    content: '',
+    updatedAt: Date.now()
+  }),
+  readWorkspaceNote: async (projectId, notePath) => ({
+    projectId,
+    path: notePath,
     content: '',
     updatedAt: 0
   }),
-  updateWorkpad: async (projectId, content) => ({
+  updateWorkspaceNote: async (projectId, notePath, content) => ({
     projectId,
+    path: notePath,
     content,
     updatedAt: Date.now()
   }),
+  renameWorkspaceEntry: async (_projectId, path) => ({ path }),
+  deleteWorkspaceEntry: async () => {},
+  getVaultState: async () => ({ isOpen: false, vaultPath: null, vaultName: null }),
+  createVault: async () => ({ isOpen: false, vaultPath: null, vaultName: null }),
+  openVault: async () => ({ isOpen: false, vaultPath: null, vaultName: null }),
+  closeVault: async () => ({ isOpen: false, vaultPath: null, vaultName: null }),
+  onVaultStateChange: () => {},
+  getRecentVaults: async () => [],
   // Vault dump operations (per FILE-01, META-01, META-02)
   createDump: async (input: { text: string; filePaths: string[] }) => {
     return {

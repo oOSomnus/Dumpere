@@ -94,4 +94,33 @@ describe('MarkdownPreview', () => {
     // Either checkboxes exist or task list syntax appears as text
     expect(checkboxes.length > 0 || text?.includes('[ ]')).toBeTruthy()
   })
+
+  it('renders dump references as cards', () => {
+    render(
+      <MarkdownPreview
+        content="[[dump:dump-1]]"
+        dumpLookup={(dumpId) => dumpId === 'dump-1'
+          ? {
+              id: 'dump-1',
+              text: 'Reference body',
+              files: [],
+              createdAt: Date.now(),
+              updatedAt: Date.now(),
+              projectId: 'project-1',
+              tags: []
+            }
+          : undefined}
+      />
+    )
+
+    expect(screen.getByText('Dump reference')).toBeInTheDocument()
+    expect(screen.getByText('Reference body')).toBeInTheDocument()
+  })
+
+  it('renders missing dump references as broken cards', () => {
+    render(<MarkdownPreview content="[[dump:missing-1]]" dumpLookup={() => undefined} />)
+
+    expect(screen.getByText('Missing dump reference')).toBeInTheDocument()
+    expect(screen.getByText(/\[\[dump:missing-1\]\]/)).toBeInTheDocument()
+  })
 })

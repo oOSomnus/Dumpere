@@ -39,6 +39,15 @@ describe('App', () => {
       getProjects: vi.fn(async () => []),
       getTags: vi.fn(async () => []),
       getDumpOrder: vi.fn(async () => []),
+      getSummaries: vi.fn(async () => []),
+      generateSummary: vi.fn(async () => null),
+      getWorkspaceTree: vi.fn(async () => [{ type: 'note' as const, name: 'index.md', path: 'index.md' }]),
+      createWorkspaceFolder: vi.fn(async () => ({ type: 'folder' as const, name: 'docs', path: 'docs', children: [] })),
+      createWorkspaceNote: vi.fn(async () => ({ projectId: 'project-1', path: 'index.md', content: '', updatedAt: Date.now() })),
+      readWorkspaceNote: vi.fn(async () => ({ projectId: 'project-1', path: 'index.md', content: '', updatedAt: Date.now() })),
+      updateWorkspaceNote: vi.fn(async (_projectId: string, notePath: string, content: string) => ({ projectId: 'project-1', path: notePath, content, updatedAt: Date.now() })),
+      renameWorkspaceEntry: vi.fn(async (_projectId: string, path: string) => ({ path })),
+      deleteWorkspaceEntry: vi.fn(async () => {}),
       onThemeChange: vi.fn(),
     }
 
