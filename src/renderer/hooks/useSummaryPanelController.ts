@@ -24,7 +24,7 @@ export function useSummaryPanelController({
   onActiveNotePathChange
 }: UseSummaryPanelControllerOptions) {
   const [summaryType, setSummaryType] = useState<'daily' | 'weekly'>('daily')
-  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(activeProjectId)
+  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null)
   const [workspaceMode, setWorkspaceMode] = useState<WorkspaceMode>('edit')
   const [copied, setCopied] = useState(false)
   const [selectedDump, setSelectedDump] = useState<DumpEntry | null>(null)
@@ -60,6 +60,27 @@ export function useSummaryPanelController({
   useEffect(() => {
     setSelectedProjectId(activeProjectId)
   }, [activeProjectId])
+
+  // Load persisted last selected project on mount
+  useEffect(() => {
+    const loadLastSelectedProject = async () => {
+      try {
+        const api = getElectronAPI()
+        const lastProjectId = await api.getLastSelectedProjectId()
+        // Only restore if we don't have an activeProjectId from parent
+        // or if the parent's activeProjectId matches the last saved one
+        if (lastProjectId !== null) {
+          setSelectedProjectId(lastProjectId)
+        } else {
+          setSelectedProjectId(activeProjectId)
+        }
+      } catch {
+        setSelectedProjectId(activeProjectId)
+      }
+    }
+
+    void loadLastSelectedProject()
+  }, [])
 
   // Load persisted summary panel state on mount and project change
   useEffect(() => {
@@ -183,10 +204,17 @@ export function useSummaryPanelController({
     }
   }, [deleteEntry, effectiveNotePath, onActiveNotePathChange, selectedProjectId])
 
-  const handleProjectSelectionChange = useCallback((projectId: string | null) => {
+  const handleProjectSelectionChange = useCallback(async (projectId: string | null) => {
     setSelectedProjectId(projectId)
     if (projectId) {
       onActiveNotePathChange(projectId, '')
+    }
+    // Persist the selected project
+    try {
+      const api = getElectronAPI()
+      await api.setLastSelectedProjectId(projectId)
+    } catch {
+      // Silently fail
     }
   }, [onActiveNotePathChange])
 
