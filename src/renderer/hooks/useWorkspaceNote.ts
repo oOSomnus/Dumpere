@@ -1,9 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { WorkspaceNote, mockElectronAPI } from '../lib/types'
-
-const api = typeof window !== 'undefined' && window.electronAPI
-  ? window.electronAPI
-  : mockElectronAPI
+import { WorkspaceNote } from '../lib/types'
+import { getElectronAPI } from '../lib/electron-api'
 
 interface UseWorkspaceNoteReturn {
   note: WorkspaceNote | null
@@ -17,6 +14,7 @@ interface UseWorkspaceNoteReturn {
 }
 
 export function useWorkspaceNote(projectId: string | null, notePath: string | null): UseWorkspaceNoteReturn {
+  const api = getElectronAPI()
   const [note, setNote] = useState<WorkspaceNote | null>(null)
   const [content, setContent] = useState('')
   const [isLoading, setIsLoading] = useState(false)

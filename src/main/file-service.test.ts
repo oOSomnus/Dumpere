@@ -1,5 +1,10 @@
+// @vitest-environment node
+
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { fs, path, os } from 'vitest/node'
+import * as fs from 'node:fs'
+import * as path from 'node:path'
+import * as os from 'node:os'
+import * as fsPromises from 'fs/promises'
 import {
   getMimeType,
   getFileCategory,
@@ -84,6 +89,9 @@ describe('file-service', () => {
       tempFile = path.join(tempDir, 'test.jpg')
       fs.writeFileSync(tempFile, 'fake image content')
       vi.clearAllMocks()
+      ;(fsPromises.copyFile as ReturnType<typeof vi.fn>).mockResolvedValue(undefined)
+      ;(fsPromises.mkdir as ReturnType<typeof vi.fn>).mockResolvedValue(undefined)
+      ;(fsPromises.stat as ReturnType<typeof vi.fn>).mockResolvedValue({ size: fs.statSync(tempFile).size })
     })
 
     afterEach(() => {
@@ -101,7 +109,7 @@ describe('file-service', () => {
       expect(result[0].type).toBe('image')
       expect(result[0].path).toMatch(/^images\/.*\.jpg$/)
       expect(result[0].name).toBe('test.jpg')
-      expect(fs.mkdir).toHaveBeenCalledWith(
+      expect(fsPromises.mkdir).toHaveBeenCalledWith(
         expect.stringContaining('images'),
         { recursive: true }
       )
@@ -128,8 +136,7 @@ describe('file-service', () => {
 
     it('gets file size after copy', async () => {
       const vaultPath = fs.mkdtempSync(path.join(os.tmpdir(), 'vault-'))
-      const { stat } = await import('fs/promises')
-      ;(stat as ReturnType<typeof vi.fn>).mockResolvedValueOnce({ size: 12345 })
+      ;(fsPromises.stat as ReturnType<typeof vi.fn>).mockResolvedValueOnce({ size: 12345 })
 
       const result = await copyFilesToVault(vaultPath, [tempFile])
 
@@ -143,6 +150,7 @@ describe('file-service', () => {
     beforeEach(() => {
       tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'vault-delete-test-'))
       vi.clearAllMocks()
+      ;(fsPromises.unlink as ReturnType<typeof vi.fn>).mockResolvedValue(undefined)
     })
 
     afterEach(() => {
@@ -159,7 +167,7 @@ describe('file-service', () => {
 
       await deleteVaultFile(tempDir, filePath)
 
-      expect(fs.unlink).toHaveBeenCalledWith(fullPath)
+      expect(fsPromises.unlink).toHaveBeenCalledWith(fullPath)
     })
 
     it('prevents path traversal', async () => {

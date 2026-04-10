@@ -1,9 +1,6 @@
 import { useState, useEffect } from 'react'
-import { Project, mockElectronAPI } from '../lib/types'
-
-const api = typeof window !== 'undefined' && window.electronAPI
-  ? window.electronAPI
-  : mockElectronAPI
+import { Project } from '../lib/types'
+import { getElectronAPI } from '../lib/electron-api'
 
 // Input validation constants
 const MAX_PROJECT_NAME_LENGTH = 50
@@ -21,6 +18,7 @@ interface UseProjectsReturn {
 }
 
 export function useProjects(): UseProjectsReturn {
+  const api = getElectronAPI()
   const [projects, setProjects] = useState<Project[]>([])
   const [activeProjectId, setActiveProjectId] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)

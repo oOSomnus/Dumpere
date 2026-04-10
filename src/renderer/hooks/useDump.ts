@@ -1,9 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { DumpEntry, StoredFile, mockElectronAPI } from '../lib/types'
-
-const api = typeof window !== 'undefined' && window.electronAPI
-  ? window.electronAPI
-  : mockElectronAPI
+import { DumpEntry, StoredFile } from '../lib/types'
+import { getElectronAPI } from '../lib/electron-api'
 
 interface UseDumpReturn {
   dumps: DumpEntry[]
@@ -16,6 +13,7 @@ interface UseDumpReturn {
 }
 
 export function useDump(): UseDumpReturn {
+  const api = getElectronAPI()
   const [dumps, setDumps] = useState<DumpEntry[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)

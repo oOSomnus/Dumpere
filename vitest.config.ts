@@ -5,16 +5,16 @@ import path from 'path'
 export default defineConfig({
   plugins: [react()],
   test: {
-    // NOTE: jsdom is for renderer/React tests. Main process tests (src/main/**)
-    // should NOT use jsdom - they need 'node' environment.
-    // We handle this via separate test files or vi.mock() isolation.
     environment: 'jsdom',
+    environmentMatchGlobs: [
+      ['src/main/**', 'node']
+    ],
     globals: true,
     setupFiles: ['tests/setup.ts'],
     include: [
-      'src/**/*.{test,spec}.{ts,tsx}',
-      'tests/**/*.ts'
+      'src/**/*.{test,spec}.{ts,tsx}'
     ],
+    exclude: ['e2e/**'],
     coverage: {
       provider: 'v8',
       include: ['src/main/**', 'src/preload/**', 'src/renderer/**'],

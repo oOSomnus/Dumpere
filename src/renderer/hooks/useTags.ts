@@ -1,9 +1,6 @@
 import { useState, useEffect } from 'react'
-import { Tag, mockElectronAPI } from '../lib/types'
-
-const api = typeof window !== 'undefined' && window.electronAPI
-  ? window.electronAPI
-  : mockElectronAPI
+import { Tag } from '../lib/types'
+import { getElectronAPI } from '../lib/electron-api'
 
 // Input validation constants
 const MAX_TAG_NAME_LENGTH = 30
@@ -24,6 +21,7 @@ interface UseTagsReturn {
 }
 
 export function useTags(): UseTagsReturn {
+  const api = getElectronAPI()
   const [tags, setTags] = useState<Tag[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)

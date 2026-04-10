@@ -1,9 +1,11 @@
-import { useState, useRef } from 'react'
 import * as Checkbox from '@radix-ui/react-checkbox'
+import { Plus, Check, Trash2, Edit2, Download, Upload } from 'lucide-react'
 import { DateFilterState, DatePreset, Project, Tag } from '../lib/types'
+import type { AppView } from '../hooks/useAppController'
+import { useSidebarProjects } from '../hooks/useSidebarProjects'
 import { cn } from '../../lib/utils'
-import { Plus, Check, Trash2, Edit2, Download, Upload, FileText, LayoutGrid, Settings } from 'lucide-react'
 import { DateFilterPopover } from './DateFilterPopover'
+import { SidebarViewNavigation } from './sidebar/SidebarViewNavigation'
 
 interface SidebarProps {
   projects: Project[]
@@ -26,14 +28,8 @@ interface SidebarProps {
   onSearchFocusChange?: (focused: boolean) => void
   onExportProject?: (projectId: string) => void
   onImportProject?: (projectId: string) => void
-  currentView?: 'grid' | 'summaries' | 'settings'
-  onViewChange?: (view: 'grid' | 'summaries' | 'settings') => void
-}
-
-interface ContextMenuState {
-  projectId: string
-  x: number
-  y: number
+  currentView?: AppView
+  onViewChange?: (view: AppView) => void
 }
 
 export function Sidebar({
@@ -60,13 +56,6 @@ export function Sidebar({
   currentView = 'grid',
   onViewChange,
 }: SidebarProps) {
-  const [isCreatingProject, setIsCreatingProject] = useState(false)
-  const [newProjectName, setNewProjectName] = useState('')
-  const [editingProjectId, setEditingProjectId] = useState<string | null>(null)
-  const [editingName, setEditingName] = useState('')
-  const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null)
-  const newProjectInputRef = useRef<HTMLInputElement>(null)
-  const editInputRef = useRef<HTMLInputElement>(null)
   const presetOptions: Array<{ value: DatePreset | null; label: string }> = [
     { value: null, label: 'All Time' },
     { value: 'today', label: 'Today' },
@@ -74,48 +63,12 @@ export function Sidebar({
     { value: 'month', label: 'This Month' }
   ]
 
-  // Handle creating a new project
-  const handleCreateProject = () => {
-    if (newProjectName.trim()) {
-      onCreateProject(newProjectName.trim())
-      setNewProjectName('')
-      setIsCreatingProject(false)
-    }
-  }
-
-  // Handle starting to edit a project
-  const handleStartEdit = (project: Project) => {
-    setEditingProjectId(project.id)
-    setEditingName(project.name)
-    setContextMenu(null)
-  }
-
-  // Handle saving edited project
-  const handleSaveEdit = () => {
-    if (editingProjectId && editingName.trim()) {
-      onUpdateProject(editingProjectId, editingName.trim())
-    }
-    setEditingProjectId(null)
-    setEditingName('')
-  }
-
-  // Handle delete project with confirmation
-  const handleDeleteProject = (projectId: string) => {
-    const project = projects.find(p => p.id === projectId)
-    if (project && window.confirm(`Delete project '${project.name}'? Dumps will be moved to Unassigned. This cannot be undone.`)) {
-      onDeleteProject(projectId)
-    }
-    setContextMenu(null)
-  }
-
-  // Close context menu on click outside
-  const handleContextMenu = (e: React.MouseEvent, projectId: string) => {
-    e.preventDefault()
-    setContextMenu({ projectId, x: e.clientX, y: e.clientY })
-  }
-
-  // Close context menu on click
-  const closeContextMenu = () => setContextMenu(null)
+  const projectControls = useSidebarProjects({
+    projects,
+    onCreateProject,
+    onUpdateProject,
+    onDeleteProject
+  })
 
   const handleDeleteTag = async (tag: Tag) => {
     const confirmed = window.confirm(
@@ -135,9 +88,8 @@ export function Sidebar({
         borderRight: '1px solid var(--sidebar-border)',
         overflowY: 'auto',
       }}
-      onClick={closeContextMenu}
+      onClick={projectControls.closeContextMenu}
     >
-      {/* Search Section */}
       {onSearchChange && (
         <div className="p-3 border-b" style={{ borderColor: 'var(--sidebar-border)' }}>
           <input
@@ -160,17 +112,13 @@ export function Sidebar({
         </div>
       )}
 
-      {/* Projects Section */}
       <div className="p-3 border-b" style={{ borderColor: 'var(--sidebar-border)' }}>
         <div className="flex items-center justify-between mb-2">
           <h2 className="text-sm font-semibold" style={{ color: 'var(--sidebar-foreground)' }}>
             Projects
           </h2>
           <button
-            onClick={() => {
-              setIsCreatingProject(true)
-              setTimeout(() => newProjectInputRef.current?.focus(), 0)
-            }}
+            onClick={projectControls.startCreatingProject}
             className="p-1 rounded hover:bg-sidebar-accent transition-colors"
             style={{ color: 'var(--sidebar-foreground)' }}
             aria-label="Create project"
@@ -179,9 +127,7 @@ export function Sidebar({
           </button>
         </div>
 
-        {/* Project List */}
         <div className="space-y-0.5">
-          {/* All Projects option */}
           <button
             onClick={() => onProjectSelect(null)}
             className={cn(
@@ -196,21 +142,19 @@ export function Sidebar({
             All Projects
           </button>
 
-          {/* Individual projects */}
           {projects.map(project => (
             <div key={project.id}>
-              {editingProjectId === project.id ? (
+              {projectControls.editingProjectId === project.id ? (
                 <input
-                  ref={editInputRef}
+                  ref={projectControls.editInputRef}
                   type="text"
-                  value={editingName}
-                  onChange={e => setEditingName(e.target.value)}
-                  onBlur={handleSaveEdit}
+                  value={projectControls.editingName}
+                  onChange={e => projectControls.setEditingName(e.target.value)}
+                  onBlur={projectControls.handleSaveEdit}
                   onKeyDown={e => {
-                    if (e.key === 'Enter') handleSaveEdit()
+                    if (e.key === 'Enter') projectControls.handleSaveEdit()
                     if (e.key === 'Escape') {
-                      setEditingProjectId(null)
-                      setEditingName('')
+                      projectControls.cancelProjectEdit()
                     }
                   }}
                   className="w-full px-3 py-1.5 text-sm rounded-md border"
@@ -224,7 +168,7 @@ export function Sidebar({
               ) : (
                 <button
                   onClick={() => onProjectSelect(project.id)}
-                  onContextMenu={(e) => handleContextMenu(e, project.id)}
+                  onContextMenu={(e) => projectControls.openContextMenu(e, project.id)}
                   className={cn(
                     'w-full text-left px-3 py-2 rounded-md text-sm transition-colors truncate',
                     'hover:bg-sidebar-accent'
@@ -241,25 +185,23 @@ export function Sidebar({
             </div>
           ))}
 
-          {/* New project input */}
-          {isCreatingProject && (
+          {projectControls.isCreatingProject && (
             <input
-              ref={newProjectInputRef}
+              ref={projectControls.newProjectInputRef}
               type="text"
-              value={newProjectName}
-              onChange={e => setNewProjectName(e.target.value)}
+              value={projectControls.newProjectName}
+              onChange={e => projectControls.setNewProjectName(e.target.value)}
               onBlur={() => {
-                if (!newProjectName.trim()) {
-                  setIsCreatingProject(false)
+                if (!projectControls.newProjectName.trim()) {
+                  projectControls.cancelProjectCreation()
                 } else {
-                  handleCreateProject()
+                  projectControls.handleCreateProject()
                 }
               }}
               onKeyDown={e => {
-                if (e.key === 'Enter') handleCreateProject()
+                if (e.key === 'Enter') projectControls.handleCreateProject()
                 if (e.key === 'Escape') {
-                  setIsCreatingProject(false)
-                  setNewProjectName('')
+                  projectControls.cancelProjectCreation()
                 }
               }}
               placeholder="Project name..."
@@ -273,8 +215,7 @@ export function Sidebar({
             />
           )}
 
-          {/* Empty state */}
-          {projects.length === 0 && !isCreatingProject && (
+          {projects.length === 0 && !projectControls.isCreatingProject && (
             <p className="px-3 py-2 text-sm" style={{ color: 'var(--muted-foreground)' }}>
               No projects yet
             </p>
@@ -282,7 +223,6 @@ export function Sidebar({
         </div>
       </div>
 
-      {/* Tags Section */}
       <div className="p-3 border-b" style={{ borderColor: 'var(--sidebar-border)' }}>
         <h2 className="text-sm font-semibold mb-2" style={{ color: 'var(--sidebar-foreground)' }}>
           Tags
@@ -335,7 +275,6 @@ export function Sidebar({
             </div>
           ))}
 
-          {/* Empty state */}
           {tags.length === 0 && (
             <p className="px-3 py-2 text-sm" style={{ color: 'var(--muted-foreground)' }}>
               Tags will appear here as you add them to dumps.
@@ -344,7 +283,6 @@ export function Sidebar({
         </div>
       </div>
 
-      {/* Date Filter Section */}
       <div className="p-3">
         <h2 className="text-sm font-semibold mb-2" style={{ color: 'var(--sidebar-foreground)' }}>
           Dates
@@ -380,13 +318,12 @@ export function Sidebar({
         </div>
       </div>
 
-      {/* Context Menu */}
-      {contextMenu && (
+      {projectControls.contextMenu && (
         <div
           className="fixed z-50 rounded-md shadow-lg py-1 min-w-[120px]"
           style={{
-            left: contextMenu.x,
-            top: contextMenu.y,
+            left: projectControls.contextMenu.x,
+            top: projectControls.contextMenu.y,
             backgroundColor: 'var(--popover)',
             border: '1px solid var(--border)',
           }}
@@ -394,8 +331,8 @@ export function Sidebar({
         >
           <button
             onClick={() => {
-              const project = projects.find(p => p.id === contextMenu.projectId)
-              if (project) handleStartEdit(project)
+              const project = projects.find(p => p.id === projectControls.contextMenu?.projectId)
+              if (project) projectControls.handleStartEdit(project)
             }}
             className="flex items-center gap-2 w-full px-3 py-2 text-sm text-left hover:bg-accent transition-colors"
             style={{ color: 'var(--foreground)' }}
@@ -406,10 +343,10 @@ export function Sidebar({
           {onExportProject && (
             <button
               onClick={() => {
-                if (contextMenu) {
-                  onExportProject(contextMenu.projectId)
+                if (projectControls.contextMenu) {
+                  onExportProject(projectControls.contextMenu.projectId)
                 }
-                closeContextMenu()
+                projectControls.closeContextMenu()
               }}
               className="flex items-center gap-2 w-full px-3 py-2 text-sm text-left hover:bg-accent transition-colors"
               style={{ color: 'var(--foreground)' }}
@@ -421,10 +358,10 @@ export function Sidebar({
           {onImportProject && (
             <button
               onClick={() => {
-                if (contextMenu) {
-                  onImportProject(contextMenu.projectId)
+                if (projectControls.contextMenu) {
+                  onImportProject(projectControls.contextMenu.projectId)
                 }
-                closeContextMenu()
+                projectControls.closeContextMenu()
               }}
               className="flex items-center gap-2 w-full px-3 py-2 text-sm text-left hover:bg-accent transition-colors"
               style={{ color: 'var(--foreground)' }}
@@ -434,7 +371,11 @@ export function Sidebar({
             </button>
           )}
           <button
-            onClick={() => handleDeleteProject(contextMenu.projectId)}
+            onClick={() => {
+              if (projectControls.contextMenu) {
+                projectControls.handleDeleteProject(projectControls.contextMenu.projectId)
+              }
+            }}
             className="flex items-center gap-2 w-full px-3 py-2 text-sm text-left hover:bg-accent transition-colors"
             style={{ color: 'var(--destructive)' }}
           >
@@ -444,54 +385,8 @@ export function Sidebar({
         </div>
       )}
 
-      {/* Phase 4: Summaries Button */}
       <div className="p-3 border-t" style={{ borderColor: 'var(--sidebar-border)' }}>
-        <div className="space-y-1">
-          <button
-            onClick={() => onViewChange?.('grid')}
-            className={cn(
-              'w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors',
-              'hover:bg-sidebar-accent'
-            )}
-            style={{
-              backgroundColor: currentView === 'grid' ? 'var(--sidebar-accent)' : 'transparent',
-              color: 'var(--sidebar-foreground)'
-            }}
-          >
-            <LayoutGrid className="w-4 h-4" />
-            <span>Dumps</span>
-          </button>
-
-          <button
-            onClick={() => onViewChange?.('summaries')}
-            className={cn(
-              'w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors',
-              'hover:bg-sidebar-accent'
-            )}
-            style={{
-              backgroundColor: currentView === 'summaries' ? 'var(--sidebar-accent)' : 'transparent',
-              color: 'var(--sidebar-foreground)'
-            }}
-          >
-            <FileText className="w-4 h-4" />
-            <span>Summaries</span>
-          </button>
-
-          <button
-            onClick={() => onViewChange?.('settings')}
-            className={cn(
-              'w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors',
-              'hover:bg-sidebar-accent'
-            )}
-            style={{
-              backgroundColor: currentView === 'settings' ? 'var(--sidebar-accent)' : 'transparent',
-              color: 'var(--sidebar-foreground)'
-            }}
-          >
-            <Settings className="w-4 h-4" />
-            <span>Settings</span>
-          </button>
-        </div>
+        <SidebarViewNavigation currentView={currentView} onViewChange={onViewChange} />
       </div>
     </aside>
   )

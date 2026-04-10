@@ -1,14 +1,11 @@
 import { useEffect, useState } from 'react'
 import * as Select from '@radix-ui/react-select'
 import { ArrowLeft, Check, ChevronDown, Save, SlidersHorizontal } from 'lucide-react'
-import { SummarySettings, mockElectronAPI } from '../lib/types'
+import { SummarySettings } from '../lib/types'
 import { cn } from '../../lib/utils'
 import { useTheme } from '../hooks/useTheme'
 import { Switch } from '../../components/ui/switch'
-
-const api = typeof window !== 'undefined' && window.electronAPI
-  ? window.electronAPI
-  : mockElectronAPI
+import { getElectronAPI } from '../lib/electron-api'
 
 const DEFAULT_SETTINGS: SummarySettings = {
   provider: 'openai',
@@ -22,6 +19,7 @@ interface SettingsPanelProps {
 }
 
 export function SettingsPanel({ onBackToDumps }: SettingsPanelProps) {
+  const api = getElectronAPI()
   const [settings, setSettings] = useState<SummarySettings>(DEFAULT_SETTINGS)
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)

@@ -67,12 +67,20 @@ vi.mock('fs/promises', () => ({
 }))
 
 // Mock fs (for createWriteStream)
-vi.mock('fs', () => ({
-  ...vi.importActual('fs'),
-  createWriteStream: vi.fn(() => ({
-    on: vi.fn((event, cb) => {
-      if (event === 'close') setTimeout(cb, 0)
-      return this
+vi.mock('fs', async () => {
+  const actual = await vi.importActual<typeof import('fs')>('fs')
+
+  return {
+    ...actual,
+    createWriteStream: vi.fn(() => {
+      const stream = {
+        on: vi.fn((event: string, cb: () => void) => {
+          if (event === 'close') setTimeout(cb, 0)
+          return stream
+        })
+      }
+
+      return stream
     })
-  }))
-}))
+  }
+})

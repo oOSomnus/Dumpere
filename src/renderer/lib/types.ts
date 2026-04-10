@@ -79,6 +79,18 @@ export interface WorkspaceNote {
   updatedAt: number
 }
 
+export interface VaultState {
+  isOpen: boolean
+  vaultPath: string | null
+  vaultName: string | null
+}
+
+export interface RecentVault {
+  path: string
+  name: string
+  lastOpened: number
+}
+
 export interface WindowBounds {
   x: number
   y: number
@@ -160,12 +172,12 @@ export interface ElectronAPI {
   deleteWorkspaceEntry: (projectId: string, path: string) => Promise<void>
 
   // Vault operations
-  getVaultState: () => Promise<{ isOpen: boolean; vaultPath: string | null; vaultName: string | null }>
-  createVault: () => Promise<{ isOpen: boolean; vaultPath: string | null; vaultName: string | null }>
-  openVault: (vaultPath?: string) => Promise<{ isOpen: boolean; vaultPath: string | null; vaultName: string | null }>
-  closeVault: () => Promise<{ isOpen: boolean; vaultPath: string | null; vaultName: string | null }>
-  onVaultStateChange: (callback: (state: { isOpen: boolean; vaultPath: string | null; vaultName: string | null }) => void) => void
-  getRecentVaults: () => Promise<Array<{ path: string; name: string; lastOpened: number }>>
+  getVaultState: () => Promise<VaultState>
+  createVault: () => Promise<VaultState>
+  openVault: (vaultPath?: string) => Promise<VaultState>
+  closeVault: () => Promise<VaultState>
+  onVaultStateChange: (callback: (state: VaultState) => void) => void
+  getRecentVaults: () => Promise<RecentVault[]>
 }
 
 // Extend Window interface

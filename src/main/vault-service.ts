@@ -1,4 +1,4 @@
-import { dialog, app } from 'electron'
+import { dialog } from 'electron'
 import { readdir, mkdir, writeFile, readFile, realpath } from 'fs/promises'
 import { join, basename } from 'path'
 import log from 'electron-log'
@@ -43,7 +43,7 @@ async function resolveVaultPath(userPath: string): Promise<string> {
   return await realpath(userPath)
 }
 
-function validateVaultRoot(vaultPath: string): boolean {
+export function validateVaultRoot(vaultPath: string): boolean {
   // Before any file operation, verify resolved path doesn't contain '..' after normalization
   const normalized = vaultPath.replace(/\\/g, '/')
   if (normalized.includes('..')) return false
@@ -54,8 +54,7 @@ export async function createVault(): Promise<VaultState> {
   log.info('createVault: showing directory picker')
 
   const result = await dialog.showOpenDialog({
-    properties: ['openDirectory'],
-    dontAddToRecent: true  // D-07
+    properties: ['openDirectory']
   })
 
   if (result.canceled || !result.filePaths[0]) {
@@ -118,8 +117,7 @@ export async function openVault(vaultPath?: string): Promise<VaultState> {
 
   if (!selectedPath) {
     const result = await dialog.showOpenDialog({
-      properties: ['openDirectory'],
-      dontAddToRecent: true  // D-07
+      properties: ['openDirectory']
     })
 
     if (result.canceled || !result.filePaths[0]) {

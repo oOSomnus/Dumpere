@@ -1,9 +1,6 @@
 import { useState, useCallback, useEffect } from 'react'
-import { SummaryEntry, mockElectronAPI } from '../lib/types'
-
-const api = typeof window !== 'undefined' && window.electronAPI
-  ? window.electronAPI
-  : mockElectronAPI
+import { SummaryEntry } from '../lib/types'
+import { getElectronAPI } from '../lib/electron-api'
 
 interface UseSummaryReturn {
   currentSummary: SummaryEntry | null
@@ -16,6 +13,7 @@ interface UseSummaryReturn {
 }
 
 export function useSummary(): UseSummaryReturn {
+  const api = getElectronAPI()
   const [currentSummary, setCurrentSummary] = useState<SummaryEntry | null>(null)
   const [summaries, setSummaries] = useState<SummaryEntry[]>([])  // Add: stored summaries list
   const [isLoading, setIsLoading] = useState(false)

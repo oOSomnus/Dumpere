@@ -1,11 +1,8 @@
 import { useEffect, useState } from 'react'
-import { mockElectronAPI } from '../lib/types'
-
-const api = typeof window !== 'undefined' && window.electronAPI
-  ? window.electronAPI
-  : mockElectronAPI
+import { getElectronAPI } from '../lib/electron-api'
 
 export function useFileUrl(storedPath: string | null | undefined): string | null {
+  const api = getElectronAPI()
   const [fileUrl, setFileUrl] = useState<string | null>(null)
 
   useEffect(() => {

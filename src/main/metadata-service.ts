@@ -3,7 +3,7 @@ import { join } from 'path'
 import { randomUUID } from 'crypto'
 import log from 'electron-log'
 import { getVaultState } from './vault-service'
-import { copyFilesToVault, deleteVaultFile, VaultStoredFile } from './file-service'
+import { copyFilesToVault, VaultStoredFile } from './file-service'
 
 export interface VaultMetadata {
   version: string

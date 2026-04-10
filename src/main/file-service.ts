@@ -1,6 +1,6 @@
 import { app } from 'electron'
 import { copyFile, mkdir, unlink, stat } from 'fs/promises'
-import { join, basename, resolve as pathResolve } from 'path'
+import { join, basename, resolve as resolvePath, sep } from 'path'
 import { randomUUID } from 'crypto'
 import log from 'electron-log'
 import { StoredFile } from '../renderer/lib/types'
@@ -119,11 +119,11 @@ export async function copyFilesToVault(
 
 export async function deleteVaultFile(vaultPath: string, relativePath: string): Promise<void> {
   // relativePath is like "images/uuid.ext"
-  const vaultDir = join(vaultPath, '.dumpere')
-  const fullPath = join(vaultDir, relativePath)
+  const vaultDir = resolvePath(vaultPath, '.dumpere')
+  const fullPath = resolvePath(vaultDir, relativePath)
 
   // Ensure path stays within vault directory
-  if (!fullPath.startsWith(vaultDir)) {
+  if (fullPath !== vaultDir && !fullPath.startsWith(`${vaultDir}${sep}`)) {
     throw new Error('Invalid file path: traversal detected')
   }
 

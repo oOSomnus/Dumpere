@@ -2,8 +2,9 @@ import { useState, useRef, useCallback, useEffect, KeyboardEvent, DragEvent, Cli
 import { FileChip } from './FileChip'
 import { ProjectSelector } from './ProjectSelector'
 import { TagInput } from './TagInput'
-import { Project, Tag, mockElectronAPI } from '../lib/types'
+import { Project, Tag } from '../lib/types'
 import { cn } from '../../lib/utils'
+import { getElectronAPI } from '../lib/electron-api'
 
 interface FileChipData {
   id: string
@@ -25,10 +26,6 @@ interface DumpInputProps {
   getAISuggestions: (text: string) => Tag[]
   onCreateTag: (name: string) => Promise<Tag>
 }
-
-const api = typeof window !== 'undefined' && window.electronAPI
-  ? window.electronAPI
-  : mockElectronAPI
 
 const MIME_EXTENSION_MAP: Record<string, string> = {
   'image/png': 'png',
@@ -61,6 +58,7 @@ export function DumpInput({
   getAISuggestions,
   onCreateTag,
 }: DumpInputProps) {
+  const api = getElectronAPI()
   const [text, setText] = useState('')
   const [attachedFiles, setAttachedFiles] = useState<FileChipData[]>([])
   const [isSubmitting, setIsSubmitting] = useState(false)

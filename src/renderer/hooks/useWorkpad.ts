@@ -1,10 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { ProjectWorkpad, mockElectronAPI } from '../lib/types'
+import { ProjectWorkpad } from '../lib/types'
+import { getElectronAPI } from '../lib/electron-api'
 import { getDefaultWorkspaceNotePath } from '../lib/workpad-utils'
-
-const api = typeof window !== 'undefined' && window.electronAPI
-  ? window.electronAPI
-  : mockElectronAPI
 
 interface UseWorkpadReturn {
   workpad: ProjectWorkpad | null
@@ -18,6 +15,7 @@ interface UseWorkpadReturn {
 }
 
 export function useWorkpad(projectId: string | null): UseWorkpadReturn {
+  const api = getElectronAPI()
   const [workpad, setWorkpad] = useState<ProjectWorkpad | null>(null)
   const [content, setContent] = useState('')
   const [isLoading, setIsLoading] = useState(true)

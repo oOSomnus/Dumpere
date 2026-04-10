@@ -3,11 +3,7 @@ import * as Dialog from '@radix-ui/react-dialog'
 import { Check, NotebookPen, X } from 'lucide-react'
 import { Project } from '../lib/types'
 import { cn } from '../../lib/utils'
-
-export interface ReferenceTargetOption {
-  path: string
-  label: string
-}
+import type { ReferenceTargetOption } from '../hooks/useDumpReferenceInsertion'
 
 interface InsertReferenceDialogProps {
   open: boolean

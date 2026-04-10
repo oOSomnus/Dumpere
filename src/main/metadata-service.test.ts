@@ -1,5 +1,10 @@
+// @vitest-environment node
+
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { fs, path, os } from 'vitest/node'
+import * as fs from 'node:fs'
+import * as path from 'node:path'
+import * as os from 'node:os'
+import * as fsPromises from 'fs/promises'
 import { readMetadata, writeMetadata, createDump } from './metadata-service'
 
 // Mock electron-log
@@ -83,13 +88,13 @@ describe('metadata-service', () => {
       await writeMetadata(tempDir, metadata)
 
       // Verify writeFile was called with temp path
-      expect(fs.writeFile).toHaveBeenCalledWith(
+      expect(fsPromises.writeFile).toHaveBeenCalledWith(
         expect.stringContaining('.dumpere/metadata.json.tmp'),
         expect.any(String),
         'utf-8'
       )
       // Verify rename was called
-      expect(fs.rename).toHaveBeenCalledWith(
+      expect(fsPromises.rename).toHaveBeenCalledWith(
         expect.stringContaining('.tmp'),
         expect.stringContaining('metadata.json')
       )
@@ -169,7 +174,7 @@ describe('metadata-service', () => {
       // Both should succeed and have different IDs
       expect(result1.id).not.toBe(result2.id)
       // writeFile should be called for each (serialized)
-      expect(fs.writeFile).toHaveBeenCalledTimes(2)
+      expect(fsPromises.writeFile).toHaveBeenCalledTimes(2)
     })
   })
 })

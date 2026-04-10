@@ -4,8 +4,9 @@ import * as Select from '@radix-ui/react-select'
 import { DumpEntry, Project, Tag } from '../lib/types'
 import { formatRelativeTime } from '../lib/utils-time'
 import { cn } from '../../lib/utils'
-import { X, Download, Image, Video, Music, File, Check, ChevronDown, Copy, NotebookPen } from 'lucide-react'
+import { X, Download, Image, File, Check, ChevronDown, Copy, NotebookPen } from 'lucide-react'
 import { useFileUrl } from '../hooks/useFileUrl'
+import { getElectronAPI } from '../lib/electron-api'
 
 function formatDumpAsMarkdown(dump: DumpEntry): string {
   let md = `${dump.text || ''}\n`
@@ -29,17 +30,10 @@ interface ExpandedCardProps {
   onQuoteToWorkpad?: (dump: DumpEntry) => Promise<void> | void
 }
 
-function getElectronAPI() {
-  return typeof window !== 'undefined' && window.electronAPI
-    ? window.electronAPI
-    : null
-}
-
 function MediaPreview({ file }: { file: { storedPath: string; mimeType: string; originalName: string } }) {
   const fileUrl = useFileUrl(file.storedPath)
   const handleOpenFile = async () => {
     const api = getElectronAPI()
-    if (!api) return
 
     try {
       await api.openFile(file.storedPath)
@@ -106,7 +100,6 @@ function FileAttachment({ file }: { file: { storedPath: string; mimeType: string
   const sizeStr = sizeKB > 1024 ? `${(sizeKB / 1024).toFixed(1)} MB` : `${sizeKB} KB`
   const handleOpenFile = async () => {
     const api = getElectronAPI()
-    if (!api) return
 
     try {
       await api.openFile(file.storedPath)
@@ -303,7 +296,8 @@ export function ExpandedCard({ dump, onClose, projects, tags, onProjectChange, o
                   onClick={async () => {
                     if (dump) {
                       const markdown = formatDumpAsMarkdown(dump)
-                      await window.electronAPI.clipboardWrite(markdown)
+                      const api = getElectronAPI()
+                      await api.clipboardWrite(markdown)
                       alert('Copied to clipboard')
                     }
                   }}

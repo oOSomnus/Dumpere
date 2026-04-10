@@ -1,8 +1,7 @@
 import React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { mockElectronAPI } from './lib/types'
-import type { VaultState } from './hooks/useVault'
+import { mockElectronAPI, type VaultState } from './lib/types'
 
 describe('App', () => {
   const closedState: VaultState = {

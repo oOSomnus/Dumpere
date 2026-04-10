@@ -1,9 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { WorkspaceNode, WorkspaceNote, mockElectronAPI } from '../lib/types'
-
-const api = typeof window !== 'undefined' && window.electronAPI
-  ? window.electronAPI
-  : mockElectronAPI
+import { WorkspaceNode, WorkspaceNote } from '../lib/types'
+import { getElectronAPI } from '../lib/electron-api'
 
 interface UseWorkspaceTreeReturn {
   tree: WorkspaceNode[]
@@ -28,6 +25,7 @@ function collectNotePaths(nodes: WorkspaceNode[]): string[] {
 }
 
 export function useWorkspaceTree(projectId: string | null): UseWorkspaceTreeReturn {
+  const api = getElectronAPI()
   const [tree, setTree] = useState<WorkspaceNode[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)

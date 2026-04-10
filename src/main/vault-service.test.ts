@@ -1,5 +1,10 @@
+// @vitest-environment node
+
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { fs, path, os } from 'vitest/node'
+import * as fs from 'node:fs'
+import * as path from 'node:path'
+import * as os from 'node:os'
+import * as fsPromises from 'fs/promises'
 import { createVault, openVault, getVaultState, validateVaultRoot } from './vault-service'
 
 // Mock Electron modules
@@ -45,6 +50,16 @@ describe('vault-service', () => {
   beforeEach(async () => {
     tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'vault-test-'))
     vi.clearAllMocks()
+    ;(fsPromises.readdir as ReturnType<typeof vi.fn>).mockImplementation(async (target: string) => fs.readdirSync(target))
+    ;(fsPromises.mkdir as ReturnType<typeof vi.fn>).mockImplementation(async (target: string) => {
+      fs.mkdirSync(target, { recursive: true })
+    })
+    ;(fsPromises.writeFile as ReturnType<typeof vi.fn>).mockImplementation(async (target: string, content: string) => {
+      fs.writeFileSync(target, content)
+    })
+    ;(fsPromises.readFile as ReturnType<typeof vi.fn>).mockImplementation(async (target: string) => {
+      return fs.readFileSync(target, 'utf-8')
+    })
   })
 
   afterEach(() => {
@@ -65,11 +80,11 @@ describe('vault-service', () => {
 
       expect(state.isOpen).toBe(true)
       expect(state.vaultPath).toBe(tempDir)
-      expect(fs.mkdir).toHaveBeenCalledWith(
+      expect(fsPromises.mkdir).toHaveBeenCalledWith(
         expect.stringContaining('.dumpere'),
         { recursive: true }
       )
-      expect(fs.writeFile).toHaveBeenCalledWith(
+      expect(fsPromises.writeFile).toHaveBeenCalledWith(
         expect.stringContaining('metadata.json'),
         expect.any(String)
       )
@@ -150,8 +165,10 @@ describe('vault-service', () => {
   })
 
   describe('getVaultState', () => {
-    it('returns initial closed state', () => {
-      const state = getVaultState()
+    it('returns initial closed state', async () => {
+      vi.resetModules()
+      const { getVaultState: getFreshVaultState } = await import('./vault-service')
+      const state = getFreshVaultState()
       expect(state.isOpen).toBe(false)
       expect(state.vaultPath).toBeNull()
       expect(state.vaultName).toBeNull()

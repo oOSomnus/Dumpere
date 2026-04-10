@@ -1,38 +1,9 @@
 import { useState, useEffect, useCallback } from 'react'
-
-export interface VaultState {
-  isOpen: boolean
-  vaultPath: string | null
-  vaultName: string | null
-}
-
-export interface RecentVault {
-  path: string
-  name: string
-  lastOpened: number
-}
-
-interface ElectronAPI {
-  getVaultState: () => Promise<VaultState>
-  getRecentVaults: () => Promise<RecentVault[]>
-  onVaultStateChange: (callback: (state: VaultState) => void) => void
-  createVault: () => Promise<VaultState>
-  openVault: (vaultPath?: string) => Promise<VaultState>
-  closeVault: () => Promise<VaultState>
-}
-
-const fallbackApi: ElectronAPI = {
-  getVaultState: async () => ({ isOpen: false, vaultPath: null, vaultName: null }),
-  getRecentVaults: async () => [],
-  onVaultStateChange: () => {},
-  createVault: async () => { throw new Error('Not available in browser') },
-  openVault: async () => { throw new Error('Not available in browser') },
-  closeVault: async () => { throw new Error('Not available in browser') },
-}
-
-const api = (typeof window !== 'undefined' && window.electronAPI) ? window.electronAPI as ElectronAPI : fallbackApi
+import type { RecentVault, VaultState } from '../lib/types'
+import { getElectronAPI } from '../lib/electron-api'
 
 export function useVault() {
+  const api = getElectronAPI()
   const [vaultState, setVaultState] = useState<VaultState>({
     isOpen: false,
     vaultPath: null,

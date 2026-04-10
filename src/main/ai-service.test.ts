@@ -1,3 +1,5 @@
+// @vitest-environment node
+
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import type { SummarySettings } from '../renderer/lib/types'
 import {

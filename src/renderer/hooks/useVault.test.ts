@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { renderHook, waitFor, act } from '@testing-library/react'
-import type { VaultState, RecentVault } from './useVault'
+import type { VaultState, RecentVault } from '../lib/types'
 
 const mockGetVaultState = vi.fn()
 const mockGetRecentVaults = vi.fn()

@@ -1,8 +1,5 @@
-import { useEffect, useMemo, useState } from 'react'
-import { Project, DumpEntry, Tag, mockElectronAPI } from '../lib/types'
-import { useSummary } from '../hooks/useSummary'
-import { useWorkspaceTree } from '../hooks/useWorkspaceTree'
-import { useWorkspaceNote } from '../hooks/useWorkspaceNote'
+import { Project, DumpEntry, Tag } from '../lib/types'
+import { useSummaryPanelController } from '../hooks/useSummaryPanelController'
 import { formatRelativeTime } from '../lib/utils-time'
 import { cn } from '../../lib/utils'
 import {
@@ -21,10 +18,6 @@ import { MarkdownPreview } from './MarkdownPreview'
 import { WorkspaceTree } from './WorkspaceTree'
 import { ExpandedCard } from './ExpandedCard'
 
-const api = typeof window !== 'undefined' && window.electronAPI
-  ? window.electronAPI
-  : mockElectronAPI
-
 interface SummaryPanelProps {
   projects: Project[]
   dumps: DumpEntry[]
@@ -36,24 +29,6 @@ interface SummaryPanelProps {
   onTagsChange: (dumpId: string, tagIds: string[]) => void
   onBackToDumps?: () => void
   onOpenSettings?: () => void
-}
-
-type WorkspaceMode = 'edit' | 'split' | 'preview'
-
-function buildAutoName(existingPaths: string[], parentPath: string, type: 'folder' | 'note'): string {
-  const baseName = type === 'folder' ? 'New Folder' : 'New Note'
-  const extension = type === 'note' ? '.md' : ''
-  const normalizedParent = parentPath ? `${parentPath}/` : ''
-
-  let index = 1
-  while (true) {
-    const suffix = index === 1 ? '' : ` ${index}`
-    const candidate = `${baseName}${suffix}${extension}`
-    if (!existingPaths.includes(`${normalizedParent}${candidate}`)) {
-      return candidate
-    }
-    index += 1
-  }
 }
 
 export function SummaryPanel({
@@ -68,137 +43,48 @@ export function SummaryPanel({
   onBackToDumps,
   onOpenSettings
 }: SummaryPanelProps) {
-  const [summaryType, setSummaryType] = useState<'daily' | 'weekly'>('daily')
-  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(activeProjectId)
-  const [workspaceMode, setWorkspaceMode] = useState<WorkspaceMode>('edit')
-  const [copied, setCopied] = useState(false)
-  const [selectedDump, setSelectedDump] = useState<DumpEntry | null>(null)
-  const { currentSummary, summaries, isLoading, error, generateSummary, clearError, setCurrentSummary } = useSummary()
   const {
+    summaryType,
+    setSummaryType,
+    selectedProjectId,
+    handleProjectSelectionChange,
+    workspaceMode,
+    setWorkspaceMode,
+    copied,
+    selectedDump,
+    setSelectedDump,
+    currentSummary,
+    setCurrentSummary,
+    filteredSummaries,
+    projectName,
+    dumpMap,
     tree,
-    isLoading: isWorkspaceLoading,
-    error: workspaceError,
-    refresh: refreshWorkspace,
-    createFolder,
-    createNote,
-    renameEntry,
-    deleteEntry,
-    notePaths
-  } = useWorkspaceTree(selectedProjectId)
-
-  const activeNotePath = selectedProjectId ? activeNotePaths[selectedProjectId] ?? null : null
-  const effectiveNotePath = selectedProjectId && activeNotePath && notePaths.includes(activeNotePath)
-    ? activeNotePath
-    : null
-
-  const {
-    content: noteContent,
-    setContent: setNoteContent,
-    isLoading: isNoteLoading,
-    isSaving: isNoteSaving,
-    error: noteError,
-    refresh: refreshNote,
-    saveNow: saveNoteNow,
-    note
-  } = useWorkspaceNote(selectedProjectId, effectiveNotePath)
-
-  useEffect(() => {
-    setSelectedProjectId(activeProjectId)
-  }, [activeProjectId])
-
-  useEffect(() => {
-    if (!selectedProjectId) {
-      return
-    }
-
-    if (activeNotePath && !notePaths.includes(activeNotePath)) {
-      const nextPath = notePaths[0] ?? ''
-      onActiveNotePathChange(selectedProjectId, nextPath)
-    }
-  }, [activeNotePath, notePaths, onActiveNotePathChange, selectedProjectId])
-
-  const filteredSummaries = useMemo(() => {
-    return summaries.filter(summary => (
-      summary.type === summaryType &&
-      summary.projectId === selectedProjectId
-    ))
-  }, [selectedProjectId, summaries, summaryType])
-
-  const dumpMap = useMemo(() => new Map(dumps.map(dump => [dump.id, dump])), [dumps])
-
-  useEffect(() => {
-    if (filteredSummaries.length === 0) {
-      setCurrentSummary(null)
-      return
-    }
-
-    const stillVisible = currentSummary && filteredSummaries.some(summary => summary.id === currentSummary.id)
-    if (!stillVisible) {
-      setCurrentSummary(filteredSummaries[0] ?? null)
-    }
-  }, [currentSummary, filteredSummaries, setCurrentSummary])
-
-  const handleGenerate = async () => {
-    try {
-      await saveNoteNow()
-      await generateSummary(summaryType, selectedProjectId)
-      await refreshWorkspace()
-      await refreshNote()
-    } catch {
-      // Error is handled by the hooks.
-    }
-  }
-
-  const handleExport = async () => {
-    if (currentSummary) {
-      await api.exportSummary(currentSummary.id)
-    }
-  }
-
-  const handleCopySummary = async () => {
-    if (currentSummary?.content) {
-      await navigator.clipboard.writeText(currentSummary.content)
-      setCopied(true)
-      setTimeout(() => setCopied(false), 2000)
-    }
-  }
-
-  const projectName = selectedProjectId
-    ? projects.find(project => project.id === selectedProjectId)?.name ?? 'Unknown Project'
-    : 'All Projects'
-
-  const handleCreateFolder = async (parentPath: string) => {
-    const name = buildAutoName(notePaths.concat(tree.map(node => node.path)), parentPath, 'folder')
-    await createFolder(parentPath, name)
-  }
-
-  const handleCreateNote = async (parentPath: string) => {
-    const name = buildAutoName(notePaths, parentPath, 'note')
-    const nextNote = await createNote(parentPath, name)
-    if (selectedProjectId && nextNote) {
-      onActiveNotePathChange(selectedProjectId, nextNote.path)
-    }
-  }
-
-  const handleRenameEntryWithName = async (path: string, name: string) => {
-    const trimmedName = name.trim()
-    if (!trimmedName) return
-    const result = await renameEntry(path, trimmedName)
-    if (selectedProjectId && result && effectiveNotePath === path) {
-      onActiveNotePathChange(selectedProjectId, result.path)
-    }
-  }
-
-  const handleDeleteEntry = async (path: string) => {
-    if (!window.confirm(`Delete ${path}? This cannot be undone.`)) {
-      return
-    }
-
-    await deleteEntry(path)
-    if (selectedProjectId && effectiveNotePath === path) {
-      onActiveNotePathChange(selectedProjectId, '')
-    }
-  }
+    effectiveNotePath,
+    note,
+    noteContent,
+    setNoteContent,
+    isLoading,
+    error,
+    clearError,
+    isWorkspaceLoading,
+    workspaceError,
+    isNoteLoading,
+    isNoteSaving,
+    noteError,
+    handleGenerate,
+    handleExport,
+    handleCopySummary,
+    handleCreateFolder,
+    handleCreateNote,
+    handleRenameEntryWithName,
+    handleDeleteEntry
+  } = useSummaryPanelController({
+    projects,
+    dumps,
+    activeProjectId,
+    activeNotePaths,
+    onActiveNotePathChange
+  })
 
   return (
     <div className="flex flex-col h-full p-6 gap-6">
@@ -453,11 +339,7 @@ export function SummaryPanel({
             <select
               value={selectedProjectId ?? 'all'}
               onChange={(event) => {
-                const nextProjectId = event.target.value === 'all' ? null : event.target.value
-                setSelectedProjectId(nextProjectId)
-                if (nextProjectId) {
-                  onActiveNotePathChange(nextProjectId, '')
-                }
+                handleProjectSelectionChange(event.target.value === 'all' ? null : event.target.value)
               }}
               className="px-3 py-2 rounded-lg border text-sm"
               style={{

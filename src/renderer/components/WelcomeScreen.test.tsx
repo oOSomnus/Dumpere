@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import { WelcomeScreen } from './WelcomeScreen'
-import { VaultState, RecentVault } from '../hooks/useVault'
+import type { VaultState, RecentVault } from '../lib/types'
 
 // Mock window.electronAPI
 const mockCreateVault = vi.fn()
