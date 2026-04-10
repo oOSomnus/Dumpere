@@ -37,10 +37,10 @@ export const store = new Store<StoreSchema>({
     tags: [],
     summaries: [],
     summarySettings: {
-      provider: 'ollama',
-      baseUrl: 'http://localhost:11434',
+      provider: 'openai',
+      baseUrl: 'https://api.openai.com/v1',
       apiKey: '',
-      model: 'mistral'
+      model: 'gpt-4.1-mini'
     },
     workpads: [],
     dumpOrder: [],

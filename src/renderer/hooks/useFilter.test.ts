@@ -69,4 +69,21 @@ describe('useFilter', () => {
 
     expect(hasActiveFilters(result.current.filters)).toBe(true)
   })
+
+  it('sets the project filter explicitly instead of toggling it off', () => {
+    const { result } = renderHook(() => useFilter())
+
+    act(() => {
+      result.current.setProjectFilter('project-a')
+      result.current.setProjectFilter('project-a')
+    })
+
+    expect(result.current.filters.projectId).toBe('project-a')
+
+    act(() => {
+      result.current.setProjectFilter(null)
+    })
+
+    expect(result.current.filters.projectId).toBeNull()
+  })
 })

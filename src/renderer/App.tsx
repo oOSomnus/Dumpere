@@ -5,6 +5,7 @@ import { DumpInput } from './components/DumpInput'
 import { CardGrid } from './components/CardGrid'
 import { SummaryPanel } from './components/SummaryPanel'
 import { SettingsPanel } from './components/SettingsPanel'
+import { InsertReferenceDialog, type ReferenceTargetOption } from './components/InsertReferenceDialog'
 import { useDump } from './hooks/useDump'
 import { useProjects } from './hooks/useProjects'
 import { useTags } from './hooks/useTags'
@@ -13,7 +14,7 @@ import { useSearch } from './hooks/useSearch'
 import { useVault } from './hooks/useVault'
 import { useTheme } from './hooks/useTheme'
 import { WelcomeScreen } from './components/WelcomeScreen'
-import { DumpEntry } from './lib/types'
+import { DumpEntry, WorkspaceNode } from './lib/types'
 import { appendMarkdownSection, formatDumpReferences } from './lib/workpad-utils'
 
 const api = typeof window !== 'undefined' && window.electronAPI
@@ -25,17 +26,34 @@ const api = typeof window !== 'undefined' && window.electronAPI
       importDialog: async () => null,
       importDumps: async () => 0,
       clipboardWrite: async () => {},
+      getWorkspaceTree: async () => [],
       readWorkspaceNote: async (projectId: string, notePath: string) => ({ projectId, path: notePath, content: '', updatedAt: 0 }),
       updateWorkspaceNote: async (projectId: string, notePath: string, content: string) => ({ projectId, path: notePath, content, updatedAt: Date.now() }),
     }
 
 interface VaultAppContentProps {
   vaultName: string | null
+  onBackToVaults: () => Promise<void> | void
 }
 
 type AppView = 'grid' | 'summaries' | 'settings'
 
-function VaultAppContent({ vaultName }: VaultAppContentProps) {
+function collectWorkspaceNoteOptions(nodes: WorkspaceNode[], parentPath = ''): ReferenceTargetOption[] {
+  return nodes.flatMap((node) => {
+    const nextPath = parentPath ? `${parentPath}/${node.name}` : node.name
+
+    if (node.type === 'note') {
+      return [{
+        path: node.path,
+        label: nextPath
+      }]
+    }
+
+    return collectWorkspaceNoteOptions(node.children || [], nextPath)
+  })
+}
+
+function VaultAppContent({ vaultName, onBackToVaults }: VaultAppContentProps) {
   // Mount all vault-only hooks in a dedicated subtree so the parent
   // component keeps a stable Hooks order while switching screens.
   const { dumps, submitDump, deleteDump, updateDump, stripTagFromDumps, isLoading, error } = useDump()
@@ -49,10 +67,38 @@ function VaultAppContent({ vaultName }: VaultAppContentProps) {
 
   const [currentView, setCurrentView] = useState<AppView>('grid')
   const [activeWorkspaceNotes, setActiveWorkspaceNotes] = useState<Record<string, string>>({})
+  const [isInsertDialogOpen, setIsInsertDialogOpen] = useState(false)
+  const [quoteSelection, setQuoteSelection] = useState<DumpEntry[]>([])
+  const [quoteTargetProjectId, setQuoteTargetProjectId] = useState<string | null>(null)
+  const [quoteTargetNotePath, setQuoteTargetNotePath] = useState<string | null>(null)
+  const [quoteTargetNotes, setQuoteTargetNotes] = useState<ReferenceTargetOption[]>([])
+  const [isLoadingQuoteTargetNotes, setIsLoadingQuoteTargetNotes] = useState(false)
 
   const handleViewChange = useCallback((view: AppView) => {
     setCurrentView(view)
   }, [])
+
+  const loadQuoteTargetNotes = useCallback(async (projectId: string) => {
+    setIsLoadingQuoteTargetNotes(true)
+
+    try {
+      const tree = await api.getWorkspaceTree(projectId)
+      const noteOptions = collectWorkspaceNoteOptions(tree)
+      setQuoteTargetNotes(noteOptions)
+
+      const preferredPath = activeWorkspaceNotes[projectId]
+      const nextPath = (
+        noteOptions.find(note => note.path === preferredPath)?.path ??
+        noteOptions[0]?.path ??
+        null
+      )
+
+      setQuoteTargetNotePath(nextPath)
+      return noteOptions
+    } finally {
+      setIsLoadingQuoteTargetNotes(false)
+    }
+  }, [activeWorkspaceNotes])
 
   // Compute search results when searchQuery or dumps change
   const searchResults = useMemo(() => {
@@ -61,10 +107,14 @@ function VaultAppContent({ vaultName }: VaultAppContentProps) {
 
   // Handlers
   const handleSidebarProjectSelect = (projectId: string | null) => {
-    const nextProjectId = filters.projectId === projectId ? null : projectId
+    const nextProjectFilterId = filters.projectId === projectId ? null : projectId
     setCurrentView('grid')
-    setActiveProject(nextProjectId)
-    setProjectFilter(projectId)
+
+    if (projectId) {
+      setActiveProject(projectId)
+    }
+
+    setProjectFilter(nextProjectFilterId)
   }
 
   const handleComposerProjectSelect = (projectId: string | null) => {
@@ -163,20 +213,75 @@ function VaultAppContent({ vaultName }: VaultAppContentProps) {
   const handleInsertDumpReferences = async (selectedDumps: DumpEntry[]) => {
     if (selectedDumps.length === 0) return
 
-    if (!activeProjectId) {
-      alert('Select a project before inserting dump references into a note.')
+    if (projects.length === 0) {
+      alert('Create a project before inserting dump references into a note.')
       return
     }
 
-    const activeNotePath = activeWorkspaceNotes[activeProjectId] ?? 'index.md'
-    const currentNote = await api.readWorkspaceNote(activeProjectId, activeNotePath)
-    const referenceContent = formatDumpReferences(selectedDumps)
+    const projectIdsInSelection = Array.from(new Set(
+      selectedDumps
+        .map(dump => dump.projectId)
+        .filter((projectId): projectId is string => Boolean(projectId))
+    ))
+
+    const defaultProjectId = (
+      projectIdsInSelection.length === 1
+        ? projectIdsInSelection[0]
+        : activeProjectId && projects.some(project => project.id === activeProjectId)
+          ? activeProjectId
+          : projects[0]?.id ?? null
+    )
+
+    if (!defaultProjectId) {
+      alert('Create a project before inserting dump references into a note.')
+      return
+    }
+
+    setQuoteSelection(selectedDumps)
+    setQuoteTargetProjectId(defaultProjectId)
+    setIsInsertDialogOpen(true)
+    await loadQuoteTargetNotes(defaultProjectId)
+  }
+
+  const handleQuoteProjectChange = useCallback((projectId: string) => {
+    setQuoteTargetProjectId(projectId)
+    void loadQuoteTargetNotes(projectId)
+  }, [loadQuoteTargetNotes])
+
+  const handleInsertDialogOpenChange = useCallback((open: boolean) => {
+    setIsInsertDialogOpen(open)
+
+    if (!open) {
+      setQuoteSelection([])
+      setQuoteTargetNotes([])
+      setQuoteTargetProjectId(null)
+      setQuoteTargetNotePath(null)
+    }
+  }, [])
+
+  const handleConfirmInsertDumpReferences = useCallback(async () => {
+    if (!quoteTargetProjectId || !quoteTargetNotePath || quoteSelection.length === 0) {
+      return
+    }
+
+    const currentNote = await api.readWorkspaceNote(quoteTargetProjectId, quoteTargetNotePath)
+    const referenceContent = formatDumpReferences(quoteSelection)
     await api.updateWorkspaceNote(
-      activeProjectId,
-      activeNotePath,
+      quoteTargetProjectId,
+      quoteTargetNotePath,
       appendMarkdownSection(currentNote.content, referenceContent)
     )
-  }
+
+    setActiveWorkspaceNotes(prev => ({
+      ...prev,
+      [quoteTargetProjectId]: quoteTargetNotePath
+    }))
+    handleInsertDialogOpenChange(false)
+  }, [handleInsertDialogOpenChange, quoteSelection, quoteTargetNotePath, quoteTargetProjectId])
+
+  const handleActiveNotePathChange = useCallback((projectId: string, notePath: string) => {
+    setActiveWorkspaceNotes(prev => ({ ...prev, [projectId]: notePath }))
+  }, [])
 
   return (
     <AppShell sidebar={
@@ -238,8 +343,19 @@ function VaultAppContent({ vaultName }: VaultAppContentProps) {
         className="flex-1 overflow-y-auto"
         style={{ paddingBottom: '64px' }}
       >
-        <div className="px-6 py-4 text-sm" style={{ color: 'var(--muted-foreground)' }}>
-          {vaultName ? `Vault opened: ${vaultName}` : 'Vault opened'}
+        <div className="px-6 py-4 flex items-center justify-between gap-4 text-sm" style={{ color: 'var(--muted-foreground)' }}>
+          <span>{vaultName ? `Vault opened: ${vaultName}` : 'Vault opened'}</span>
+          <button
+            type="button"
+            onClick={() => void onBackToVaults()}
+            className="rounded-lg px-3 py-1.5 transition-colors hover:bg-accent"
+            style={{
+              color: 'var(--foreground)',
+              backgroundColor: 'var(--secondary)'
+            }}
+          >
+            Back to Vaults
+          </button>
         </div>
 
         <div className="px-6 pb-6">
@@ -250,9 +366,7 @@ function VaultAppContent({ vaultName }: VaultAppContentProps) {
               tags={tags}
               activeProjectId={activeProjectId}
               activeNotePaths={activeWorkspaceNotes}
-              onActiveNotePathChange={(projectId, notePath) => {
-                setActiveWorkspaceNotes(prev => ({ ...prev, [projectId]: notePath }))
-              }}
+              onActiveNotePathChange={handleActiveNotePathChange}
               onProjectChange={handleDumpProjectChange}
               onTagsChange={handleDumpTagsChange}
               onBackToDumps={() => setCurrentView('grid')}
@@ -294,13 +408,26 @@ function VaultAppContent({ vaultName }: VaultAppContentProps) {
           onCreateTag={createTag}
         />
       )}
+
+      <InsertReferenceDialog
+        open={isInsertDialogOpen}
+        projects={projects}
+        selectedProjectId={quoteTargetProjectId}
+        selectedNotePath={quoteTargetNotePath}
+        noteOptions={quoteTargetNotes}
+        isLoadingNotes={isLoadingQuoteTargetNotes}
+        onProjectChange={handleQuoteProjectChange}
+        onNoteChange={setQuoteTargetNotePath}
+        onConfirm={handleConfirmInsertDumpReferences}
+        onOpenChange={handleInsertDialogOpenChange}
+      />
     </AppShell>
   )
 }
 
 export function App() {
   useTheme()
-  const { vaultState, recentVaults, isLoading: vaultLoading, error: vaultError, createVault, openVault } = useVault()
+  const { vaultState, recentVaults, isLoading: vaultLoading, error: vaultError, createVault, openVault, closeVault } = useVault()
 
   if (!vaultState.isOpen) {
     return (
@@ -315,7 +442,7 @@ export function App() {
     )
   }
 
-  return <VaultAppContent vaultName={vaultState.vaultName} />
+  return <VaultAppContent vaultName={vaultState.vaultName} onBackToVaults={closeVault} />
 }
 
 export default App

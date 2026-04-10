@@ -1,18 +1,18 @@
 import log from 'electron-log'
 import { SummarySettings } from '../renderer/lib/types'
 
-const DEFAULT_OLLAMA_SETTINGS: SummarySettings = {
-  provider: 'ollama',
-  baseUrl: 'http://localhost:11434',
-  apiKey: '',
-  model: 'mistral'
-}
-
 const DEFAULT_OPENAI_SETTINGS: SummarySettings = {
   provider: 'openai',
   baseUrl: 'https://api.openai.com/v1',
   apiKey: '',
   model: 'gpt-4.1-mini'
+}
+
+const DEFAULT_CLAUDE_SETTINGS: SummarySettings = {
+  provider: 'claude',
+  baseUrl: 'https://api.anthropic.com/v1',
+  apiKey: '',
+  model: 'claude-3-5-sonnet-latest'
 }
 
 const MAX_DUMPS_PER_SUMMARY = 100
@@ -30,14 +30,14 @@ export interface GenerateSummaryOptions {
   }>
 }
 
-export function getDefaultSummarySettings(provider: SummarySettings['provider'] = 'ollama'): SummarySettings {
+export function getDefaultSummarySettings(provider: SummarySettings['provider'] = 'openai'): SummarySettings {
   return provider === 'openai'
     ? { ...DEFAULT_OPENAI_SETTINGS }
-    : { ...DEFAULT_OLLAMA_SETTINGS }
+    : { ...DEFAULT_CLAUDE_SETTINGS }
 }
 
 export function sanitizeSummarySettings(input?: Partial<SummarySettings> | null): SummarySettings {
-  const provider = input?.provider === 'openai' ? 'openai' : 'ollama'
+  const provider = input?.provider === 'claude' ? 'claude' : 'openai'
   const defaults = getDefaultSummarySettings(provider)
 
   return {
@@ -53,15 +53,13 @@ function normalizeBaseUrl(baseUrl: string): string {
 }
 
 function buildHealthUrl(settings: SummarySettings): string {
-  return settings.provider === 'openai'
-    ? `${settings.baseUrl}/models`
-    : `${settings.baseUrl}/`
+  return `${settings.baseUrl}/models`
 }
 
 function buildSummaryUrl(settings: SummarySettings): string {
   return settings.provider === 'openai'
     ? `${settings.baseUrl}/chat/completions`
-    : `${settings.baseUrl}/api/chat`
+    : `${settings.baseUrl}/messages`
 }
 
 function buildHeaders(settings: SummarySettings): Record<string, string> {
@@ -71,6 +69,9 @@ function buildHeaders(settings: SummarySettings): Record<string, string> {
 
   if (settings.provider === 'openai') {
     headers.Authorization = `Bearer ${settings.apiKey}`
+  } else {
+    headers['x-api-key'] = settings.apiKey
+    headers['anthropic-version'] = '2023-06-01'
   }
 
   return headers
@@ -85,8 +86,9 @@ function validateSummarySettings(settings: SummarySettings): void {
     throw new Error('Summary model is missing. Add it in Settings first.')
   }
 
-  if (settings.provider === 'openai' && !settings.apiKey) {
-    throw new Error('OpenAI API key is missing. Add it in Settings first.')
+  if (!settings.apiKey) {
+    const providerLabel = settings.provider === 'openai' ? 'OpenAI' : 'Claude'
+    throw new Error(`${providerLabel} API key is missing. Add it in Settings first.`)
   }
 }
 
@@ -102,7 +104,10 @@ export async function checkSummaryHealth(settingsInput?: Partial<SummarySettings
       method: 'GET',
       headers: settings.provider === 'openai'
         ? { Authorization: `Bearer ${settings.apiKey}` }
-        : undefined,
+        : {
+            'x-api-key': settings.apiKey,
+            'anthropic-version': '2023-06-01'
+          },
       signal: AbortSignal.timeout(3000)
     })
     return response.ok
@@ -193,6 +198,33 @@ async function buildErrorMessage(response: Response, providerLabel: string): Pro
   return `${providerLabel} API error: ${response.status} ${response.statusText}`
 }
 
+function extractClaudeContent(data: unknown): string {
+  const content = (data as { content?: unknown })?.content
+
+  if (!Array.isArray(content)) {
+    throw new Error('Invalid Claude response: malformed content structure')
+  }
+
+  const text = content
+    .filter((part): part is { type: string; text: string } => (
+      typeof part === 'object' &&
+      part !== null &&
+      'type' in part &&
+      'text' in part &&
+      typeof (part as { type?: unknown }).type === 'string' &&
+      typeof (part as { text?: unknown }).text === 'string'
+    ))
+    .filter(part => part.type === 'text')
+    .map(part => part.text)
+    .join('\n')
+
+  if (!text) {
+    throw new Error('Invalid Claude response: no text content returned')
+  }
+
+  return text
+}
+
 /**
  * Generate a summary via the configured AI provider.
  */
@@ -203,7 +235,7 @@ export async function generateSummary(
   const settings = sanitizeSummarySettings(settingsInput)
   validateSummarySettings(settings)
 
-  const providerLabel = settings.provider === 'openai' ? 'OpenAI' : 'Ollama'
+  const providerLabel = settings.provider === 'openai' ? 'OpenAI' : 'Claude'
   const requestBody = settings.provider === 'openai'
     ? {
         model: settings.model,
@@ -211,8 +243,8 @@ export async function generateSummary(
       }
     : {
         model: settings.model,
-        messages: [{ role: 'user', content: prompt }],
-        stream: false
+        max_tokens: 1024,
+        messages: [{ role: 'user', content: prompt }]
       }
 
   const response = await fetch(buildSummaryUrl(settings), {
@@ -241,10 +273,5 @@ export async function generateSummary(
     return extractOpenAIContent(content)
   }
 
-  const content = (data as { message?: { content?: unknown } }).message?.content
-  if (typeof content !== 'string') {
-    throw new Error('Invalid Ollama response: malformed message structure')
-  }
-
-  return content
+  return extractClaudeContent(data)
 }

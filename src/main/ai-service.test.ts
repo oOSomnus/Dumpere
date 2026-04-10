@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 import type { SummarySettings } from '../renderer/lib/types'
 import {
   checkSummaryHealth,
@@ -14,30 +14,35 @@ vi.stubGlobal('fetch', mockFetch)
 
 describe('ai-service', () => {
   beforeEach(() => {
-    vi.clearAllMocks()
-  })
-
-  afterEach(() => {
-    vi.restoreAllMocks()
+    mockFetch.mockReset()
   })
 
   describe('checkSummaryHealth', () => {
-    it('returns false when Ollama is unavailable (fetch throws)', async () => {
+    it('returns false when OpenAI is unavailable (fetch throws)', async () => {
       mockFetch.mockRejectedValueOnce(new Error('Network error'))
 
-      const result = await checkSummaryHealth()
+      const result = await checkSummaryHealth({
+        provider: 'openai',
+        baseUrl: 'https://api.openai.com/v1',
+        apiKey: 'sk-test',
+        model: 'gpt-4.1-mini'
+      })
 
       expect(result).toBe(false)
       expect(mockFetch).toHaveBeenCalledWith(
-        'http://localhost:11434/',
-        expect.objectContaining({ method: 'GET' })
+        'https://api.openai.com/v1/models',
+        expect.objectContaining({
+          method: 'GET',
+          headers: { Authorization: 'Bearer sk-test' }
+        })
       )
     })
 
     it('returns true when OpenAI-compatible health check succeeds', async () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        status: 200
+        status: 200,
+        json: async () => ({ data: [] })
       })
 
       const result = await checkSummaryHealth({
@@ -56,32 +61,67 @@ describe('ai-service', () => {
         })
       )
     })
+
+    it('returns true when Claude health check succeeds', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200
+      })
+
+      const result = await checkSummaryHealth({
+        provider: 'claude',
+        baseUrl: 'https://api.anthropic.com/v1/',
+        apiKey: 'sk-ant-test',
+        model: 'claude-3-5-sonnet-latest'
+      })
+
+      expect(result).toBe(true)
+      expect(mockFetch).toHaveBeenCalledWith(
+        'https://api.anthropic.com/v1/models',
+        expect.objectContaining({
+          method: 'GET',
+          headers: {
+            'x-api-key': 'sk-ant-test',
+            'anthropic-version': '2023-06-01'
+          }
+        })
+      )
+    })
   })
 
   describe('generateSummary', () => {
-    it('calls Ollama /api/chat and returns content string', async () => {
-      const mockContent = 'This is a test summary'
+    it('calls Claude /messages and returns content string', async () => {
+      const mockContent = 'This is a Claude summary'
       mockFetch.mockResolvedValueOnce({
         ok: true,
         status: 200,
         json: async () => ({
-          message: { content: mockContent }
+          content: [{ type: 'text', text: mockContent }]
         })
       })
 
       const prompt = 'Test prompt'
-      const result = await generateSummary(prompt)
+      const result = await generateSummary(prompt, {
+        provider: 'claude',
+        baseUrl: 'https://api.anthropic.com/v1',
+        apiKey: 'sk-ant-test',
+        model: 'claude-3-5-sonnet-latest'
+      })
 
       expect(result).toBe(mockContent)
       expect(mockFetch).toHaveBeenCalledWith(
-        'http://localhost:11434/api/chat',
+        'https://api.anthropic.com/v1/messages',
         expect.objectContaining({
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            'x-api-key': 'sk-ant-test',
+            'anthropic-version': '2023-06-01'
+          },
           body: JSON.stringify({
-            model: 'mistral',
-            messages: [{ role: 'user', content: prompt }],
-            stream: false
+            model: 'claude-3-5-sonnet-latest',
+            max_tokens: 1024,
+            messages: [{ role: 'user', content: prompt }]
           })
         })
       )
@@ -126,7 +166,7 @@ describe('ai-service', () => {
       )
     })
 
-    it('throws on non-ok Ollama response', async () => {
+    it('throws on non-ok Claude response', async () => {
       mockFetch.mockResolvedValueOnce({
         ok: false,
         status: 500,
@@ -134,16 +174,27 @@ describe('ai-service', () => {
         text: async () => ''
       })
 
-      await expect(generateSummary('test prompt')).rejects.toThrow('Ollama API error: 500 Internal Server Error')
+      await expect(generateSummary('test prompt', {
+        provider: 'claude',
+        baseUrl: 'https://api.anthropic.com/v1',
+        apiKey: 'sk-ant-test',
+        model: 'claude-3-5-sonnet-latest'
+      })).rejects.toThrow('Claude API error: 500 Internal Server Error')
     })
 
     it('throws on malformed response (not an object)', async () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
+        status: 200,
         json: async () => 'not an object'
       })
 
-      await expect(generateSummary('test prompt')).rejects.toThrow('Invalid Ollama response: not an object')
+      await expect(generateSummary('test prompt', {
+        provider: 'claude',
+        baseUrl: 'https://api.anthropic.com/v1',
+        apiKey: 'sk-ant-test',
+        model: 'claude-3-5-sonnet-latest'
+      })).rejects.toThrow('Invalid Claude response: not an object')
     })
 
     it('throws when OpenAI API key is missing', async () => {
@@ -153,6 +204,15 @@ describe('ai-service', () => {
         apiKey: '',
         model: 'gpt-4.1-mini'
       })).rejects.toThrow('OpenAI API key is missing')
+    })
+
+    it('throws when Claude API key is missing', async () => {
+      await expect(generateSummary('test prompt', {
+        provider: 'claude',
+        baseUrl: 'https://api.anthropic.com/v1',
+        apiKey: '',
+        model: 'claude-3-5-sonnet-latest'
+      })).rejects.toThrow('Claude API key is missing')
     })
   })
 
@@ -172,17 +232,17 @@ describe('ai-service', () => {
     })
 
     it('returns provider defaults', () => {
-      expect(getDefaultSummarySettings('ollama')).toEqual({
-        provider: 'ollama',
-        baseUrl: 'http://localhost:11434',
-        apiKey: '',
-        model: 'mistral'
-      })
       expect(getDefaultSummarySettings('openai')).toEqual({
         provider: 'openai',
         baseUrl: 'https://api.openai.com/v1',
         apiKey: '',
         model: 'gpt-4.1-mini'
+      })
+      expect(getDefaultSummarySettings('claude')).toEqual({
+        provider: 'claude',
+        baseUrl: 'https://api.anthropic.com/v1',
+        apiKey: '',
+        model: 'claude-3-5-sonnet-latest'
       })
     })
   })

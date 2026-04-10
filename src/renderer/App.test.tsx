@@ -93,4 +93,32 @@ describe('App', () => {
 
     expect(await screen.findByPlaceholderText('Dump something... (Enter to add tags)')).toBeInTheDocument()
   })
+
+  it('can return to the vault picker from the main app', async () => {
+    const { App } = await import('./App')
+
+    render(<App />)
+
+    fireEvent.click(await screen.findByRole('button', { name: /Create Vault/i }))
+    await screen.findByText('Vault opened: test-vault')
+
+    fireEvent.click(screen.getByRole('button', { name: /Back to Vaults/i }))
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /Create Vault/i })).toBeInTheDocument()
+    })
+  })
+
+  it('can open settings without crashing', async () => {
+    const { App } = await import('./App')
+
+    render(<App />)
+
+    fireEvent.click(await screen.findByRole('button', { name: /Create Vault/i }))
+    await screen.findByText('Vault opened: test-vault')
+
+    fireEvent.click(screen.getByText('Settings'))
+
+    expect(await screen.findByRole('heading', { name: 'Summary Settings' })).toBeInTheDocument()
+  })
 })

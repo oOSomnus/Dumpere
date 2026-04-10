@@ -145,7 +145,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getSummarySettings: () => {
     return ipcRenderer.invoke('summary:get-settings')
   },
-  updateSummarySettings: (settings: { provider: 'ollama' | 'openai'; baseUrl: string; apiKey: string; model: string }) => {
+  updateSummarySettings: (settings: { provider: 'openai' | 'claude'; baseUrl: string; apiKey: string; model: string }) => {
     return ipcRenderer.invoke('summary:update-settings', settings)
   },
   getWorkspaceTree: (projectId: string) => {

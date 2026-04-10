@@ -636,7 +636,7 @@ export function setupIPCHandlers(): void {
     const settings = sanitizeSummarySettings(store.get('summarySettings', getDefaultSummarySettings()))
     const isHealthy = await checkSummaryHealth(settings)
     if (!isHealthy) {
-      const providerLabel = settings.provider === 'openai' ? 'OpenAI' : 'Ollama'
+      const providerLabel = settings.provider === 'openai' ? 'OpenAI' : 'Claude'
       log.warn(`${providerLabel} is unavailable`)
       throw new Error(`${providerLabel} is unavailable. Check your summary settings and connection.`)
     }

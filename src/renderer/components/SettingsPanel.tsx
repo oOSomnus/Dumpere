@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
-import { ArrowLeft, Save, SlidersHorizontal } from 'lucide-react'
+import * as Select from '@radix-ui/react-select'
+import { ArrowLeft, Check, ChevronDown, Save, SlidersHorizontal } from 'lucide-react'
 import { SummarySettings, mockElectronAPI } from '../lib/types'
 import { cn } from '../../lib/utils'
 import { useTheme } from '../hooks/useTheme'
@@ -10,10 +11,10 @@ const api = typeof window !== 'undefined' && window.electronAPI
   : mockElectronAPI
 
 const DEFAULT_SETTINGS: SummarySettings = {
-  provider: 'ollama',
-  baseUrl: 'http://localhost:11434',
+  provider: 'openai',
+  baseUrl: 'https://api.openai.com/v1',
   apiKey: '',
-  model: 'mistral'
+  model: 'gpt-4.1-mini'
 }
 
 interface SettingsPanelProps {
@@ -54,8 +55,8 @@ export function SettingsPanel({ onBackToDumps }: SettingsPanelProps) {
     setSettings(prev => ({
       ...prev,
       provider,
-      baseUrl: provider === 'openai' ? 'https://api.openai.com/v1' : 'http://localhost:11434',
-      model: provider === 'openai' ? 'gpt-4.1-mini' : 'mistral',
+      baseUrl: provider === 'openai' ? 'https://api.openai.com/v1' : 'https://api.anthropic.com/v1',
+      model: provider === 'openai' ? 'gpt-4.1-mini' : 'claude-3-5-sonnet-latest',
       apiKey: prev.apiKey,
     }))
     setError(null)
@@ -159,19 +160,60 @@ export function SettingsPanel({ onBackToDumps }: SettingsPanelProps) {
               <label className="block text-sm font-medium" style={{ color: 'var(--foreground)' }}>
                 Provider
               </label>
-              <select
+              <Select.Root
                 value={settings.provider}
-                onChange={(e) => handleProviderChange(e.target.value as SummarySettings['provider'])}
-                className="w-full rounded-lg px-3 py-2 border text-sm"
-                style={{
-                  backgroundColor: 'var(--input)',
-                  borderColor: 'var(--border)',
-                  color: 'var(--foreground)'
-                }}
+                onValueChange={(value) => handleProviderChange(value as SummarySettings['provider'])}
               >
-                <option value="ollama">Ollama</option>
-                <option value="openai">OpenAI Compatible</option>
-              </select>
+                <Select.Trigger
+                  className="flex w-full items-center justify-between rounded-lg border px-3 py-2 text-sm"
+                  style={{
+                    backgroundColor: 'var(--input)',
+                    borderColor: 'var(--border)',
+                    color: 'var(--foreground)'
+                  }}
+                  aria-label="Provider"
+                >
+                  <Select.Value />
+                  <Select.Icon>
+                    <ChevronDown className="h-4 w-4" style={{ color: 'var(--muted-foreground)' }} />
+                  </Select.Icon>
+                </Select.Trigger>
+                <Select.Portal>
+                  <Select.Content
+                    className="z-50 overflow-hidden rounded-lg border shadow-lg"
+                    style={{
+                      backgroundColor: 'var(--popover)',
+                      borderColor: 'var(--border)',
+                      color: 'var(--foreground)'
+                    }}
+                    position="popper"
+                    sideOffset={6}
+                  >
+                    <Select.Viewport className="p-1">
+                      <Select.Item
+                        value="openai"
+                        className="flex cursor-pointer items-center justify-between rounded-md px-3 py-2 text-sm outline-none"
+                        style={{ color: 'var(--foreground)' }}
+                      >
+                        <Select.ItemText>OpenAI</Select.ItemText>
+                        <Select.ItemIndicator>
+                          <Check className="h-4 w-4" />
+                        </Select.ItemIndicator>
+                      </Select.Item>
+                      <Select.Item
+                        value="claude"
+                        className="flex cursor-pointer items-center justify-between rounded-md px-3 py-2 text-sm outline-none"
+                        style={{ color: 'var(--foreground)' }}
+                      >
+                        <Select.ItemText>Claude</Select.ItemText>
+                        <Select.ItemIndicator>
+                          <Check className="h-4 w-4" />
+                        </Select.ItemIndicator>
+                      </Select.Item>
+                    </Select.Viewport>
+                  </Select.Content>
+                </Select.Portal>
+              </Select.Root>
             </div>
 
             <div className="space-y-2">
@@ -182,7 +224,7 @@ export function SettingsPanel({ onBackToDumps }: SettingsPanelProps) {
                 type="url"
                 value={settings.baseUrl}
                 onChange={(e) => updateField('baseUrl', e.target.value)}
-                placeholder={settings.provider === 'openai' ? 'https://api.openai.com/v1' : 'http://localhost:11434'}
+                placeholder={settings.provider === 'openai' ? 'https://api.openai.com/v1' : 'https://api.anthropic.com/v1'}
                 className="w-full rounded-lg px-3 py-2 border text-sm"
                 style={{
                   backgroundColor: 'var(--input)',
@@ -192,8 +234,8 @@ export function SettingsPanel({ onBackToDumps }: SettingsPanelProps) {
               />
               <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
                 {settings.provider === 'openai'
-                  ? 'Use a full API base URL, usually including /v1.'
-                  : 'Default Ollama endpoint is http://localhost:11434.'}
+                  ? 'Use a full OpenAI-compatible API base URL, usually including /v1.'
+                  : 'Anthropic Claude API base URL is usually https://api.anthropic.com/v1.'}
               </p>
             </div>
 
@@ -205,7 +247,7 @@ export function SettingsPanel({ onBackToDumps }: SettingsPanelProps) {
                 type="text"
                 value={settings.model}
                 onChange={(e) => updateField('model', e.target.value)}
-                placeholder={settings.provider === 'openai' ? 'gpt-4.1-mini' : 'mistral'}
+                placeholder={settings.provider === 'openai' ? 'gpt-4.1-mini' : 'claude-3-5-sonnet-latest'}
                 className="w-full rounded-lg px-3 py-2 border text-sm"
                 style={{
                   backgroundColor: 'var(--input)',
@@ -215,28 +257,26 @@ export function SettingsPanel({ onBackToDumps }: SettingsPanelProps) {
               />
             </div>
 
-            {settings.provider === 'openai' && (
-              <div className="space-y-2">
-                <label className="block text-sm font-medium" style={{ color: 'var(--foreground)' }}>
-                  API Key
-                </label>
-                <input
-                  type="password"
-                  value={settings.apiKey}
-                  onChange={(e) => updateField('apiKey', e.target.value)}
-                  placeholder="sk-..."
-                  className="w-full rounded-lg px-3 py-2 border text-sm"
-                  style={{
-                    backgroundColor: 'var(--input)',
-                    borderColor: 'var(--border)',
-                    color: 'var(--foreground)'
-                  }}
-                />
-                <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
-                  Saved locally on this machine and only used for summary generation requests.
-                </p>
-              </div>
-            )}
+            <div className="space-y-2">
+              <label className="block text-sm font-medium" style={{ color: 'var(--foreground)' }}>
+                API Key
+              </label>
+              <input
+                type="password"
+                value={settings.apiKey}
+                onChange={(e) => updateField('apiKey', e.target.value)}
+                placeholder={settings.provider === 'openai' ? 'sk-...' : 'sk-ant-...'}
+                className="w-full rounded-lg px-3 py-2 border text-sm"
+                style={{
+                  backgroundColor: 'var(--input)',
+                  borderColor: 'var(--border)',
+                  color: 'var(--foreground)'
+                }}
+              />
+              <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
+                Saved locally on this machine and only used for summary generation requests.
+              </p>
+            </div>
 
             <div className="flex items-center justify-between gap-3 pt-2">
               <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>

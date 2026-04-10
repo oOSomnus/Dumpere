@@ -50,7 +50,7 @@ export interface SummaryEntry {
   dumpCount: number         // How many dumps were summarized
 }
 
-export type SummaryProvider = 'ollama' | 'openai'
+export type SummaryProvider = 'openai' | 'claude'
 
 export interface SummarySettings {
   provider: SummaryProvider
@@ -237,10 +237,10 @@ export const mockElectronAPI: ElectronAPI = {
   getSummaries: async () => [],
   exportSummary: async () => null,
   getSummarySettings: async () => ({
-    provider: 'ollama',
-    baseUrl: 'http://localhost:11434',
+    provider: 'openai',
+    baseUrl: 'https://api.openai.com/v1',
     apiKey: '',
-    model: 'mistral',
+    model: 'gpt-4.1-mini',
   }),
   updateSummarySettings: async (settings) => settings,
   getWorkspaceTree: async () => [],

@@ -13,10 +13,10 @@ const mocks = vi.hoisted(() => ({
   mockReadWorkspaceNote: vi.fn(),
   mockUpdateWorkspaceNote: vi.fn(),
   mockGetDefaultSummarySettings: vi.fn(() => ({
-    provider: 'ollama',
-    baseUrl: 'http://localhost:11434',
+    provider: 'openai',
+    baseUrl: 'https://api.openai.com/v1',
     apiKey: '',
-    model: 'mistral'
+    model: 'gpt-4.1-mini'
   })),
   mockSanitizeSummarySettings: vi.fn((settings) => settings)
 }))

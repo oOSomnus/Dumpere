@@ -63,7 +63,7 @@ export function useFilter(): UseFilterReturn {
   const setProjectFilter = useCallback((projectId: string | null) => {
     setFilters(prev => ({
       ...prev,
-      projectId: prev.projectId === projectId ? null : projectId
+      projectId
     }))
   }, [])
 
