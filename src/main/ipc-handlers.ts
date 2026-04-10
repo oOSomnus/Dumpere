@@ -847,5 +847,16 @@ export function setupIPCHandlers(): void {
     log.info(`Theme set to: ${theme} (isDark: ${isDark})`)
   })
 
+  // summary:get-state — retrieve persisted summary panel state
+  ipcMain.handle('summary:get-state', (): Record<string, { workspaceMode: 'edit' | 'split' | 'preview'; notePath: string }> => {
+    return store.get('summaryPanelState', {})
+  })
+
+  // summary:set-state — persist summary panel state
+  ipcMain.handle('summary:set-state', (_, state: Record<string, { workspaceMode: 'edit' | 'split' | 'preview'; notePath: string }>): void => {
+    store.set('summaryPanelState', state)
+    log.info(`Saved summary panel state for ${Object.keys(state).length} projects`)
+  })
+
   log.info('IPC handlers registered')
 }
