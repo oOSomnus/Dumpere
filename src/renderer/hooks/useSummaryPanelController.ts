@@ -61,6 +61,33 @@ export function useSummaryPanelController({
     setSelectedProjectId(activeProjectId)
   }, [activeProjectId])
 
+  // Load persisted summary panel state on mount and project change
+  useEffect(() => {
+    if (!selectedProjectId) return
+
+    const loadPersistedState = async () => {
+      try {
+        const api = getElectronAPI()
+        const state = await api.getSummaryPanelState()
+        const projectState = state[selectedProjectId]
+        if (projectState) {
+          // Restore workspace mode if valid
+          if (['edit', 'split', 'preview'].includes(projectState.workspaceMode)) {
+            setWorkspaceMode(projectState.workspaceMode)
+          }
+          // Restore note path via callback (will be handled by parent)
+          if (projectState.notePath) {
+            onActiveNotePathChange(selectedProjectId, projectState.notePath)
+          }
+        }
+      } catch {
+        // Silently fail - use defaults
+      }
+    }
+
+    void loadPersistedState()
+  }, [selectedProjectId])
+
   useEffect(() => {
     if (!selectedProjectId) {
       return
@@ -162,6 +189,52 @@ export function useSummaryPanelController({
       onActiveNotePathChange(projectId, '')
     }
   }, [onActiveNotePathChange])
+
+  // Persist workspaceMode when it changes
+  useEffect(() => {
+    if (!selectedProjectId) return
+
+    const persistState = async () => {
+      try {
+        const api = getElectronAPI()
+        const currentState = await api.getSummaryPanelState()
+        await api.setSummaryPanelState({
+          ...currentState,
+          [selectedProjectId]: {
+            ...currentState[selectedProjectId],
+            workspaceMode
+          }
+        })
+      } catch {
+        // Silently fail
+      }
+    }
+
+    void persistState()
+  }, [selectedProjectId, workspaceMode])
+
+  // Persist effectiveNotePath when it changes
+  useEffect(() => {
+    if (!selectedProjectId || !effectiveNotePath) return
+
+    const persistState = async () => {
+      try {
+        const api = getElectronAPI()
+        const currentState = await api.getSummaryPanelState()
+        await api.setSummaryPanelState({
+          ...currentState,
+          [selectedProjectId]: {
+            ...currentState[selectedProjectId],
+            notePath: effectiveNotePath
+          }
+        })
+      } catch {
+        // Silently fail
+      }
+    }
+
+    void persistState()
+  }, [selectedProjectId, effectiveNotePath])
 
   return {
     summaryType,
