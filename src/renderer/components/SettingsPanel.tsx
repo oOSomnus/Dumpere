@@ -3,7 +3,6 @@ import * as Select from '@radix-ui/react-select'
 import { ArrowLeft, Check, ChevronDown, Save, SlidersHorizontal } from 'lucide-react'
 import { SummarySettings } from '../lib/types'
 import { cn } from '../../lib/utils'
-import { useTheme } from '../hooks/useTheme'
 import { Switch } from '../../components/ui/switch'
 import { getElectronAPI } from '../lib/electron-api'
 
@@ -15,17 +14,24 @@ const DEFAULT_SETTINGS: SummarySettings = {
 }
 
 interface SettingsPanelProps {
+  isDark: boolean
+  themeLoaded: boolean
+  onToggleTheme: (checked?: boolean) => Promise<void>
   onBackToDumps?: () => void
 }
 
-export function SettingsPanel({ onBackToDumps }: SettingsPanelProps) {
+export function SettingsPanel({
+  isDark,
+  themeLoaded,
+  onToggleTheme,
+  onBackToDumps
+}: SettingsPanelProps) {
   const api = getElectronAPI()
   const [settings, setSettings] = useState<SummarySettings>(DEFAULT_SETTINGS)
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
-  const { isDark, isLoaded: themeLoaded, toggleTheme } = useTheme()
 
   useEffect(() => {
     const loadSettings = async () => {
@@ -324,7 +330,7 @@ export function SettingsPanel({ onBackToDumps }: SettingsPanelProps) {
                 </span>
                 <Switch
                   checked={isDark}
-                  onCheckedChange={toggleTheme}
+                  onCheckedChange={onToggleTheme}
                   disabled={!themeLoaded}
                 />
                 <span className="text-xs font-medium" style={{ color: isDark ? 'var(--foreground)' : 'var(--muted-foreground)' }}>

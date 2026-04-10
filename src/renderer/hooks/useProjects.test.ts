@@ -1,60 +1,109 @@
-import { describe, it, expect } from 'vitest'
-import type { Project } from '../lib/types'
-
-// TODO: Import useProjects hook when implemented
-// import { useProjects } from './useProjects'
+import { act, renderHook, waitFor } from '@testing-library/react'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { mockElectronAPI, type Project } from '../lib/types'
+import { useProjects } from './useProjects'
 
 describe('useProjects', () => {
-  describe('createProject', () => {
-    it('should create a new project with given name', () => {
-      // TODO: Implement actual test when hook is created
-      expect(true).toBe(true)
-    })
+  const mockGetProjects = vi.fn()
+  const mockSaveProject = vi.fn()
+  const mockUpdateProject = vi.fn()
+  const mockDeleteProject = vi.fn()
 
-    it('should generate a unique id for the project', () => {
-      // TODO: Implement actual test when hook is created
-      expect(true).toBe(true)
-    })
+  beforeEach(() => {
+    vi.restoreAllMocks()
+    vi.clearAllMocks()
+    vi.spyOn(console, 'error').mockImplementation(() => {})
 
-    it('should set createdAt timestamp', () => {
-      // TODO: Implement actual test when hook is created
-      expect(true).toBe(true)
-    })
+    window.electronAPI = {
+      ...mockElectronAPI,
+      getProjects: mockGetProjects,
+      saveProject: mockSaveProject,
+      updateProject: mockUpdateProject,
+      deleteProject: mockDeleteProject
+    }
   })
 
-  describe('deleteProject', () => {
-    it('should delete project by id', () => {
-      // TODO: Implement actual test when hook is created
-      expect(true).toBe(true)
+  it('loads projects sorted by createdAt descending', async () => {
+    mockGetProjects.mockResolvedValue([
+      { id: 'project-1', name: 'Alpha', createdAt: 10 },
+      { id: 'project-2', name: 'Beta', createdAt: 30 },
+      { id: 'project-3', name: 'Gamma', createdAt: 20 }
+    ] satisfies Project[])
+
+    const { result } = renderHook(() => useProjects())
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false)
     })
 
-    it('should remove project from projects list', () => {
-      // TODO: Implement actual test when hook is created
-      expect(true).toBe(true)
-    })
+    expect(result.current.projects.map(project => project.id)).toEqual([
+      'project-2',
+      'project-3',
+      'project-1'
+    ])
   })
 
-  describe('updateProject', () => {
-    it('should update project name', () => {
-      // TODO: Implement actual test when hook is created
-      expect(true).toBe(true)
+  it('rejects invalid project names during creation', async () => {
+    mockGetProjects.mockResolvedValue([])
+    const { result } = renderHook(() => useProjects())
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false)
     })
 
-    it('should update updatedAt timestamp', () => {
-      // TODO: Implement actual test when hook is created
-      expect(true).toBe(true)
-    })
+    await expect(result.current.createProject('design/ui')).rejects.toThrow(
+      'Project name must contain only alphanumeric characters and spaces'
+    )
+    expect(mockSaveProject).not.toHaveBeenCalled()
   })
 
-  describe('getProjects', () => {
-    it('should return all projects sorted by createdAt', () => {
-      // TODO: Implement actual test when hook is created
-      expect(true).toBe(true)
+  it('rejects invalid project names during update', async () => {
+    mockGetProjects.mockResolvedValue([
+      { id: 'project-1', name: 'Alpha', createdAt: 10 }
+    ] satisfies Project[])
+
+    const { result } = renderHook(() => useProjects())
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false)
     })
 
-    it('should return empty array when no projects exist', () => {
-      // TODO: Implement actual test when hook is created
-      expect(true).toBe(true)
+    await expect(result.current.updateProject('project-1', '')).rejects.toThrow(
+      'Project name is required'
+    )
+    expect(mockUpdateProject).not.toHaveBeenCalled()
+  })
+
+  it('rolls back an optimistic delete when the API call fails', async () => {
+    const initialProjects: Project[] = [
+      { id: 'project-1', name: 'Alpha', createdAt: 10 },
+      { id: 'project-2', name: 'Beta', createdAt: 20 }
+    ]
+
+    mockGetProjects.mockResolvedValue(initialProjects)
+    mockDeleteProject.mockRejectedValue(new Error('Delete failed'))
+
+    const { result } = renderHook(() => useProjects())
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false)
+    })
+
+    act(() => {
+      result.current.setActiveProject('project-1')
+    })
+
+    await act(async () => {
+      await expect(result.current.deleteProject('project-1')).rejects.toThrow('Delete failed')
+    })
+
+    expect(result.current.projects.map(project => project.id)).toEqual([
+      'project-2',
+      'project-1'
+    ])
+    expect(result.current.activeProjectId).toBe('project-1')
+    await waitFor(() => {
+      expect(result.current.error).toBe('Could not delete project')
     })
   })
 })

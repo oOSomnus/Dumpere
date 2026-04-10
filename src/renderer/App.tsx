@@ -13,10 +13,19 @@ import { WelcomeScreen } from './components/WelcomeScreen'
 
 interface VaultAppContentProps {
   vaultName: string | null
+  isDark: boolean
+  themeLoaded: boolean
+  onToggleTheme: (checked?: boolean) => Promise<void>
   onBackToVaults: () => Promise<void> | void
 }
 
-function VaultAppContent({ vaultName, onBackToVaults }: VaultAppContentProps) {
+function VaultAppContent({
+  vaultName,
+  isDark,
+  themeLoaded,
+  onToggleTheme,
+  onBackToVaults
+}: VaultAppContentProps) {
   const app = useAppController()
   const dumpReferenceInsertion = useDumpReferenceInsertion({
     projects: app.projects,
@@ -96,7 +105,12 @@ function VaultAppContent({ vaultName, onBackToVaults }: VaultAppContentProps) {
               onOpenSettings={() => app.handleViewChange('settings')}
             />
           ) : app.currentView === 'settings' ? (
-            <SettingsPanel onBackToDumps={() => app.handleViewChange('grid')} />
+            <SettingsPanel
+              isDark={isDark}
+              themeLoaded={themeLoaded}
+              onToggleTheme={onToggleTheme}
+              onBackToDumps={() => app.handleViewChange('grid')}
+            />
           ) : (
             <CardGrid
               dumps={app.dumps}
@@ -149,7 +163,7 @@ function VaultAppContent({ vaultName, onBackToVaults }: VaultAppContentProps) {
 }
 
 export function App() {
-  useTheme()
+  const theme = useTheme()
   const { vaultState, recentVaults, isLoading: vaultLoading, error: vaultError, createVault, openVault, closeVault } = useVault()
 
   if (!vaultState.isOpen) {
@@ -165,7 +179,15 @@ export function App() {
     )
   }
 
-  return <VaultAppContent vaultName={vaultState.vaultName} onBackToVaults={closeVault} />
+  return (
+    <VaultAppContent
+      vaultName={vaultState.vaultName}
+      isDark={theme.isDark}
+      themeLoaded={theme.isLoaded}
+      onToggleTheme={theme.toggleTheme}
+      onBackToVaults={closeVault}
+    />
+  )
 }
 
 export default App

@@ -73,6 +73,18 @@ export function useAppController() {
     setSelectedTagIds([])
   }, [submitDump])
 
+  const handleCreateProject = useCallback(async (name: string) => {
+    await createProject(name)
+  }, [createProject])
+
+  const handleUpdateProject = useCallback(async (id: string, name: string) => {
+    await renameProject(id, name)
+  }, [renameProject])
+
+  const handleDeleteProject = useCallback(async (id: string) => {
+    await deleteProject(id)
+  }, [deleteProject])
+
   const handleDumpProjectChange = useCallback((dumpId: string, projectId: string | null) => {
     void updateDump(dumpId, { projectId })
   }, [updateDump])
@@ -171,9 +183,9 @@ export function useAppController() {
     isLoading,
     error,
     applyFilters,
-    createProject,
-    updateProject: renameProject,
-    deleteProject,
+    createProject: handleCreateProject,
+    updateProject: handleUpdateProject,
+    deleteProject: handleDeleteProject,
     createTag,
     getAISuggestions,
     setSelectedTagIds,

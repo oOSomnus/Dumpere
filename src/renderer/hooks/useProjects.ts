@@ -62,6 +62,7 @@ export function useProjects(): UseProjectsReturn {
       createdAt: now
     }
 
+    setError(null)
     try {
       const savedProject = await api.saveProject(newProject)
       setProjects(prev => [savedProject, ...prev])
@@ -87,6 +88,7 @@ export function useProjects(): UseProjectsReturn {
 
     const trimmedName = name.trim()
 
+    setError(null)
     try {
       const updatedProject = await api.updateProject(id, trimmedName)
       setProjects(prev => prev.map(p => p.id === id ? updatedProject : p))

@@ -15,6 +15,9 @@ const dateFilter: DateFilterState = {
 }
 
 const projects: Project[] = []
+const projectList: Project[] = [
+  { id: 'project-1', name: 'Alpha', createdAt: 1 }
+]
 const tags: Tag[] = [
   { id: 'tag-1', name: 'urgent', createdAt: 1 },
   { id: 'tag-2', name: 'bug', createdAt: 2 }
@@ -35,9 +38,9 @@ function renderSidebar(overrides: Partial<ComponentProps<typeof Sidebar>> = {}) 
       onToggleDate={vi.fn()}
       onSetDateKeys={vi.fn()}
       onClearDateFilter={vi.fn()}
-      onCreateProject={vi.fn()}
-      onUpdateProject={vi.fn()}
-      onDeleteProject={vi.fn()}
+      onCreateProject={vi.fn(async () => {})}
+      onUpdateProject={vi.fn(async () => {})}
+      onDeleteProject={vi.fn(async () => {})}
       onViewChange={vi.fn()}
       {...overrides}
     />
@@ -85,5 +88,73 @@ describe('Sidebar', () => {
 
     expect(onSearchFocusChange).toHaveBeenNthCalledWith(1, true)
     expect(onSearchFocusChange).toHaveBeenNthCalledWith(2, false)
+  })
+
+  it('preserves the create-project input when creation fails', async () => {
+    const onCreateProject = vi.fn(async () => {
+      throw new Error('Project already exists')
+    })
+
+    renderSidebar({ onCreateProject })
+
+    fireEvent.click(screen.getByLabelText('Create project'))
+
+    const input = screen.getByPlaceholderText('Project name...')
+    fireEvent.change(input, { target: { value: 'Alpha' } })
+    fireEvent.keyDown(input, { key: 'Enter' })
+
+    await waitFor(() => {
+      expect(onCreateProject).toHaveBeenCalledWith('Alpha')
+    })
+
+    expect(screen.getByText('Project already exists')).toBeInTheDocument()
+    expect(screen.getByDisplayValue('Alpha')).toBeInTheDocument()
+  })
+
+  it('preserves the edit input when renaming fails', async () => {
+    const onUpdateProject = vi.fn(async () => {
+      throw new Error('Rename failed')
+    })
+
+    renderSidebar({
+      projects: projectList,
+      onUpdateProject
+    })
+
+    fireEvent.contextMenu(screen.getByTitle('Alpha'))
+    fireEvent.click(screen.getByText('Edit'))
+
+    const input = screen.getByDisplayValue('Alpha')
+    fireEvent.change(input, { target: { value: 'Alpha Draft' } })
+    fireEvent.keyDown(input, { key: 'Enter' })
+
+    await waitFor(() => {
+      expect(onUpdateProject).toHaveBeenCalledWith('project-1', 'Alpha Draft')
+    })
+
+    expect(screen.getByText('Rename failed')).toBeInTheDocument()
+    expect(screen.getByDisplayValue('Alpha Draft')).toBeInTheDocument()
+  })
+
+  it('keeps the context menu open when project deletion fails', async () => {
+    const onDeleteProject = vi.fn(async () => {
+      throw new Error('Delete failed')
+    })
+    vi.spyOn(window, 'confirm').mockReturnValue(true)
+
+    renderSidebar({
+      projects: projectList,
+      onDeleteProject
+    })
+
+    fireEvent.contextMenu(screen.getByTitle('Alpha'))
+    fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
+
+    await waitFor(() => {
+      expect(onDeleteProject).toHaveBeenCalledWith('project-1')
+    })
+
+    expect(screen.getByText('Delete failed')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Delete' })).toBeInTheDocument()
   })
 })

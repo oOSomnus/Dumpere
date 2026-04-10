@@ -4,6 +4,7 @@ import { useSummary } from './useSummary'
 import { useWorkspaceTree } from './useWorkspaceTree'
 import { useWorkspaceNote } from './useWorkspaceNote'
 import { getElectronAPI } from '../lib/electron-api'
+import { buildUniqueWorkspaceChildName } from '../lib/workspace-path-utils'
 
 type WorkspaceMode = 'edit' | 'split' | 'preview'
 
@@ -13,22 +14,6 @@ interface UseSummaryPanelControllerOptions {
   activeProjectId: string | null
   activeNotePaths: Record<string, string>
   onActiveNotePathChange: (projectId: string, notePath: string) => void
-}
-
-function buildAutoName(existingPaths: string[], parentPath: string, type: 'folder' | 'note'): string {
-  const baseName = type === 'folder' ? 'New Folder' : 'New Note'
-  const extension = type === 'note' ? '.md' : ''
-  const normalizedParent = parentPath ? `${parentPath}/` : ''
-
-  let index = 1
-  while (true) {
-    const suffix = index === 1 ? '' : ` ${index}`
-    const candidate = `${baseName}${suffix}${extension}`
-    if (!existingPaths.includes(`${normalizedParent}${candidate}`)) {
-      return candidate
-    }
-    index += 1
-  }
 }
 
 export function useSummaryPanelController({
@@ -139,17 +124,17 @@ export function useSummaryPanelController({
     : 'All Projects'
 
   const handleCreateFolder = useCallback(async (parentPath: string) => {
-    const name = buildAutoName(notePaths.concat(tree.map(node => node.path)), parentPath, 'folder')
+    const name = buildUniqueWorkspaceChildName(tree, parentPath, 'folder')
     await createFolder(parentPath, name)
-  }, [createFolder, notePaths, tree])
+  }, [createFolder, tree])
 
   const handleCreateNote = useCallback(async (parentPath: string) => {
-    const name = buildAutoName(notePaths, parentPath, 'note')
+    const name = buildUniqueWorkspaceChildName(tree, parentPath, 'note')
     const nextNote = await createNote(parentPath, name)
     if (selectedProjectId && nextNote) {
       onActiveNotePathChange(selectedProjectId, nextNote.path)
     }
-  }, [createNote, notePaths, onActiveNotePathChange, selectedProjectId])
+  }, [createNote, onActiveNotePathChange, selectedProjectId, tree])
 
   const handleRenameEntryWithName = useCallback(async (path: string, name: string) => {
     const trimmedName = name.trim()

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { WorkspaceNode, WorkspaceNote } from '../lib/types'
 import { getElectronAPI } from '../lib/electron-api'
+import { collectWorkspaceNotePaths } from '../lib/workspace-path-utils'
 
 interface UseWorkspaceTreeReturn {
   tree: WorkspaceNode[]
@@ -12,16 +13,6 @@ interface UseWorkspaceTreeReturn {
   renameEntry: (path: string, name: string) => Promise<{ path: string } | null>
   deleteEntry: (path: string) => Promise<void>
   notePaths: string[]
-}
-
-function collectNotePaths(nodes: WorkspaceNode[]): string[] {
-  return nodes.flatMap(node => {
-    if (node.type === 'note') {
-      return node.path === 'index.md' ? [] : [node.path]
-    }
-
-    return collectNotePaths(node.children || [])
-  })
 }
 
 export function useWorkspaceTree(projectId: string | null): UseWorkspaceTreeReturn {
@@ -78,7 +69,10 @@ export function useWorkspaceTree(projectId: string | null): UseWorkspaceTreeRetu
     await refresh()
   }, [projectId, refresh])
 
-  const notePaths = useMemo(() => collectNotePaths(tree), [tree])
+  const notePaths = useMemo(
+    () => collectWorkspaceNotePaths(tree, { excludeIndexNote: true }),
+    [tree]
+  )
 
   return {
     tree,

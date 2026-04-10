@@ -62,13 +62,11 @@ export function useTheme() {
 
   // Listen for theme:changed from main process (e.g., from theme:set in another window)
   useEffect(() => {
-    let isMounted = true
-    api.onThemeChange((dark: boolean) => {
-      if (!isMounted) return
+    const unsubscribe = api.onThemeChange((dark: boolean) => {
       setIsDark(dark)
       applyThemeClass(dark)
     })
-    return () => { isMounted = false }
+    return unsubscribe
   }, [api])
 
   const setTheme = useCallback(async (setting: ThemeSetting) => {

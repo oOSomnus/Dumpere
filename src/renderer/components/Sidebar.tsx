@@ -20,9 +20,9 @@ interface SidebarProps {
   onToggleDate: (dateKey: string) => void
   onSetDateKeys: (dateKeys: string[]) => void
   onClearDateFilter: () => void
-  onCreateProject: (name: string) => void
-  onUpdateProject: (id: string, name: string) => void
-  onDeleteProject: (id: string) => void
+  onCreateProject: (name: string) => Promise<void> | void
+  onUpdateProject: (id: string, name: string) => Promise<void> | void
+  onDeleteProject: (id: string) => Promise<void> | void
   searchQuery?: string
   onSearchChange?: (query: string) => void
   onSearchFocusChange?: (focused: boolean) => void
@@ -122,10 +122,23 @@ export function Sidebar({
             className="p-1 rounded hover:bg-sidebar-accent transition-colors"
             style={{ color: 'var(--sidebar-foreground)' }}
             aria-label="Create project"
+            disabled={projectControls.isMutating}
           >
             <Plus className="w-4 h-4" />
           </button>
         </div>
+
+        {projectControls.projectError && (
+          <div
+            className="mb-2 rounded-md px-3 py-2 text-sm"
+            style={{
+              backgroundColor: 'var(--destructive)',
+              color: 'var(--destructive-foreground)'
+            }}
+          >
+            {projectControls.projectError}
+          </div>
+        )}
 
         <div className="space-y-0.5">
           <button
@@ -149,10 +162,17 @@ export function Sidebar({
                   ref={projectControls.editInputRef}
                   type="text"
                   value={projectControls.editingName}
-                  onChange={e => projectControls.setEditingName(e.target.value)}
-                  onBlur={projectControls.handleSaveEdit}
+                  onChange={e => {
+                    projectControls.clearProjectError()
+                    projectControls.setEditingName(e.target.value)
+                  }}
+                  onBlur={() => {
+                    void projectControls.handleSaveEdit()
+                  }}
                   onKeyDown={e => {
-                    if (e.key === 'Enter') projectControls.handleSaveEdit()
+                    if (e.key === 'Enter') {
+                      void projectControls.handleSaveEdit()
+                    }
                     if (e.key === 'Escape') {
                       projectControls.cancelProjectEdit()
                     }
@@ -164,6 +184,7 @@ export function Sidebar({
                     borderColor: 'var(--border)',
                   }}
                   maxLength={50}
+                  disabled={projectControls.isMutating}
                 />
               ) : (
                 <button
@@ -190,16 +211,21 @@ export function Sidebar({
               ref={projectControls.newProjectInputRef}
               type="text"
               value={projectControls.newProjectName}
-              onChange={e => projectControls.setNewProjectName(e.target.value)}
+              onChange={e => {
+                projectControls.clearProjectError()
+                projectControls.setNewProjectName(e.target.value)
+              }}
               onBlur={() => {
                 if (!projectControls.newProjectName.trim()) {
                   projectControls.cancelProjectCreation()
                 } else {
-                  projectControls.handleCreateProject()
+                  void projectControls.handleCreateProject()
                 }
               }}
               onKeyDown={e => {
-                if (e.key === 'Enter') projectControls.handleCreateProject()
+                if (e.key === 'Enter') {
+                  void projectControls.handleCreateProject()
+                }
                 if (e.key === 'Escape') {
                   projectControls.cancelProjectCreation()
                 }
@@ -212,6 +238,7 @@ export function Sidebar({
                 borderColor: 'var(--border)',
               }}
               maxLength={50}
+              disabled={projectControls.isMutating}
             />
           )}
 
@@ -373,11 +400,12 @@ export function Sidebar({
           <button
             onClick={() => {
               if (projectControls.contextMenu) {
-                projectControls.handleDeleteProject(projectControls.contextMenu.projectId)
+                void projectControls.handleDeleteProject(projectControls.contextMenu.projectId)
               }
             }}
             className="flex items-center gap-2 w-full px-3 py-2 text-sm text-left hover:bg-accent transition-colors"
             style={{ color: 'var(--destructive)' }}
+            disabled={projectControls.isMutating}
           >
             <Trash2 className="w-4 h-4" />
             Delete

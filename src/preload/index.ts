@@ -91,7 +91,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // Theme change notifications from main process
   onThemeChange: (callback: (isDark: boolean) => void) => {
-    ipcRenderer.on('theme:changed', (_, isDark) => callback(isDark))
+    const listener = (_event: Electron.IpcRendererEvent, isDark: boolean) => callback(isDark)
+    ipcRenderer.on('theme:changed', listener)
+    return () => {
+      ipcRenderer.removeListener('theme:changed', listener)
+    }
   },
 
   // Theme operations

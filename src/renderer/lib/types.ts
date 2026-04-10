@@ -138,7 +138,7 @@ export interface ElectronAPI {
   isMaximized: () => Promise<boolean>
 
   // Theme
-  onThemeChange: (callback: (isDark: boolean) => void) => void
+  onThemeChange: (callback: (isDark: boolean) => void) => () => void
   getTheme: () => Promise<'light' | 'dark' | 'system'>
   setTheme: (theme: 'light' | 'dark' | 'system') => Promise<void>
 
@@ -234,7 +234,7 @@ export const mockElectronAPI: ElectronAPI = {
   getWindowBounds: async () => null,
   setWindowBounds: async () => {},
   isMaximized: async () => false,
-  onThemeChange: () => {},
+  onThemeChange: () => () => {},
   getTheme: async () => 'system',
   setTheme: async () => {},
   exportDumps: async () => null,
