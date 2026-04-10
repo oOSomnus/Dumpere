@@ -204,6 +204,15 @@ contextBridge.exposeInMainWorld('electronAPI', {
     return ipcRenderer.invoke('summary:set-state', state)
   },
 
+  // Last selected project operations
+  getLastSelectedProjectId: () => {
+    return ipcRenderer.invoke('summary:get-last-project')
+  },
+
+  setLastSelectedProjectId: (projectId: string | null) => {
+    return ipcRenderer.invoke('summary:set-last-project', projectId)
+  },
+
   getRecentVaults: () => {
     return ipcRenderer.invoke('vault:get-recent')
   },
