@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback, useEffect, KeyboardEvent, DragEvent, ClipboardEvent } from 'react'
+import { ResizeHandle } from './ResizeHandle'
 import { FileChip } from './FileChip'
 import { ProjectSelector } from './ProjectSelector'
 import { TagInput } from './TagInput'
@@ -25,6 +26,10 @@ interface DumpInputProps {
   onTagsChange: (tagIds: string[]) => void
   getAISuggestions: (text: string) => Tag[]
   onCreateTag: (name: string) => Promise<Tag>
+  // Panel resizing
+  inputHeight?: number
+  onInputHeightChange?: (height: number) => void
+  leftOffset?: number
 }
 
 const MIME_EXTENSION_MAP: Record<string, string> = {
@@ -57,6 +62,9 @@ export function DumpInput({
   onTagsChange,
   getAISuggestions,
   onCreateTag,
+  inputHeight = 60,
+  onInputHeightChange,
+  leftOffset = 0,
 }: DumpInputProps) {
   const api = getElectronAPI()
   const [text, setText] = useState('')
@@ -65,6 +73,30 @@ export function DumpInput({
   const [tagInputOpen, setTagInputOpen] = useState(false)
   const [projectError, setProjectError] = useState<string | null>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
+
+  const handleInputResizeStart = (e: React.MouseEvent) => {
+    if (!onInputHeightChange) return
+    e.preventDefault()
+    const startY = e.clientY
+    const startHeight = inputHeight
+
+    const clamp = (value: number, min: number, max: number) =>
+      Math.min(Math.max(value, min), max)
+
+    const onMouseMove = (moveEvent: MouseEvent) => {
+      const delta = startY - moveEvent.clientY
+      const newHeight = clamp(startHeight + delta, 60, 150)
+      onInputHeightChange(newHeight)
+    }
+
+    const onMouseUp = () => {
+      document.removeEventListener('mousemove', onMouseMove)
+      document.removeEventListener('mouseup', onMouseUp)
+    }
+
+    document.addEventListener('mousemove', onMouseMove)
+    document.addEventListener('mouseup', onMouseUp)
+  }
 
   const focusInput = useCallback(() => {
     if (!shouldAutoFocus || tagInputOpen || isSubmitting) return
@@ -219,10 +251,16 @@ export function DumpInput({
         'transition-all duration-150'
       )}
       style={{
+        left: `${leftOffset}px`,
         backgroundColor: 'rgba(var(--background-rgb, 255 255 255), 0.95)',
-        borderColor: 'var(--border)'
+        borderColor: 'var(--border)',
+        zIndex: 30,
       }}
     >
+      {/* Resize handle at top edge for vertical resize */}
+      {onInputHeightChange && (
+        <ResizeHandle direction="vertical" onDragStart={handleInputResizeStart} />
+      )}
       {/* TagInput popup — positioned above the input */}
       <TagInput
         open={tagInputOpen}
@@ -254,7 +292,7 @@ export function DumpInput({
       )}
 
       {/* Input row with ProjectSelector */}
-      <div className="flex items-center px-4" style={{ height: '48px' }}>
+      <div className="flex items-center px-4" style={{ height: `${inputHeight}px` }}>
         {/* ProjectSelector — dropdown for project selection */}
         <ProjectSelector
           projects={projects}
@@ -282,7 +320,8 @@ export function DumpInput({
           )}
           style={{
             color: 'var(--foreground)',
-            height: '48px'
+            height: `${inputHeight}px`,
+            textAlign: text.length === 0 ? 'center' : 'left'
           }}
         />
 

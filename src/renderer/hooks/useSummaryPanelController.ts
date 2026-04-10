@@ -173,7 +173,7 @@ export function useSummaryPanelController({
 
   const handleCreateFolder = useCallback(async (parentPath: string) => {
     const name = buildUniqueWorkspaceChildName(tree, parentPath, 'folder')
-    await createFolder(parentPath, name)
+    return createFolder(parentPath, name)
   }, [createFolder, tree])
 
   const handleCreateNote = useCallback(async (parentPath: string) => {
@@ -182,6 +182,7 @@ export function useSummaryPanelController({
     if (selectedProjectId && nextNote) {
       onActiveNotePathChange(selectedProjectId, nextNote.path)
     }
+    return nextNote
   }, [createNote, onActiveNotePathChange, selectedProjectId, tree])
 
   const handleRenameEntryWithName = useCallback(async (path: string, name: string) => {
@@ -193,8 +194,8 @@ export function useSummaryPanelController({
     }
   }, [effectiveNotePath, onActiveNotePathChange, renameEntry, selectedProjectId])
 
-  const handleDeleteEntry = useCallback(async (path: string) => {
-    if (!window.confirm(`Delete ${path}? This cannot be undone.`)) {
+  const handleDeleteEntry = useCallback(async (path: string, options?: { skipConfirm?: boolean }) => {
+    if (!options?.skipConfirm && !window.confirm(`Delete ${path}? This cannot be undone.`)) {
       return
     }
 

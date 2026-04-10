@@ -217,6 +217,15 @@ contextBridge.exposeInMainWorld('electronAPI', {
     return ipcRenderer.invoke('vault:get-recent')
   },
 
+  // Panel size operations (for resizable sidebar and input area)
+  getPanelSizes: () => {
+    return ipcRenderer.invoke('panel:get-sizes')
+  },
+
+  setPanelSizes: (sizes: { sidebarWidth?: number; inputHeight?: number }) => {
+    return ipcRenderer.invoke('panel:set-sizes', sizes)
+  },
+
   // Dump operations (vault-based, per FILE-01, META-01, META-02)
   createDump: (input: { text: string; filePaths: string[] }) => {
     return ipcRenderer.invoke('dump:create', input)

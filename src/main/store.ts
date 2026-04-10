@@ -29,6 +29,8 @@ interface StoreSchema {
   theme?: 'light' | 'dark' | 'system'
   summaryPanelState: Record<string, { workspaceMode: 'edit' | 'split' | 'preview'; notePath: string }>
   lastSelectedProjectId: string | null
+  sidebarWidth: number  // NEW: 120-400, default 240
+  inputHeight: number   // NEW: 60-150, default 60
 }
 
 export const store = new Store<StoreSchema>({
@@ -52,6 +54,8 @@ export const store = new Store<StoreSchema>({
     currentVault: null,
     theme: 'system',
     summaryPanelState: {},
-    lastSelectedProjectId: null
+    lastSelectedProjectId: null,
+    sidebarWidth: 240,
+    inputHeight: 60
   }
 })

@@ -1,3 +1,4 @@
+import { useState, useEffect, useCallback } from 'react'
 import { useTheme } from './hooks/useTheme'
 import { useVault } from './hooks/useVault'
 import { useAppController } from './hooks/useAppController'
@@ -10,6 +11,7 @@ import { SummaryPanel } from './components/SummaryPanel'
 import { SettingsPanel } from './components/SettingsPanel'
 import { InsertReferenceDialog } from './components/InsertReferenceDialog'
 import { WelcomeScreen } from './components/WelcomeScreen'
+import { getElectronAPI } from './lib/electron-api'
 
 interface VaultAppContentProps {
   vaultName: string | null
@@ -31,10 +33,43 @@ function VaultAppContent({
     projects: app.projects,
     activeProjectId: app.activeProjectId
   })
+  const api = getElectronAPI()
+
+  // Panel sizes state with persistence
+  const [panelSizes, setPanelSizes] = useState({ sidebarWidth: 240, inputHeight: 60 })
+
+  // Load persisted panel sizes on mount
+  useEffect(() => {
+    api.getPanelSizes().then(sizes => {
+      setPanelSizes(sizes)
+    }).catch(() => {
+      // Use defaults if loading fails
+    })
+  }, [])
+
+  const handleSidebarWidthChange = useCallback((width: number) => {
+    setPanelSizes(prev => ({ ...prev, sidebarWidth: width }))
+    api.setPanelSizes({ sidebarWidth: width })
+  }, [])
+
+  const handleInputHeightChange = useCallback((height: number) => {
+    setPanelSizes(prev => ({ ...prev, inputHeight: height }))
+    api.setPanelSizes({ inputHeight: height })
+  }, [])
+
+  const handleReset = useCallback(() => {
+    const defaults = { sidebarWidth: 240, inputHeight: 60 }
+    setPanelSizes(defaults)
+    api.setPanelSizes(defaults)
+  }, [])
 
   return (
-    <AppShell sidebar={
-      <Sidebar
+    <AppShell
+      sidebarWidth={panelSizes.sidebarWidth}
+      onSidebarWidthChange={handleSidebarWidthChange}
+      onReset={handleReset}
+      sidebar={
+        <Sidebar
         projects={app.projects}
         tags={app.tags}
         activeProjectId={app.filters.projectId}
@@ -143,6 +178,9 @@ function VaultAppContent({
           onTagsChange={app.setSelectedTagIds}
           getAISuggestions={app.getAISuggestions}
           onCreateTag={app.createTag}
+          inputHeight={panelSizes.inputHeight}
+          onInputHeightChange={handleInputHeightChange}
+          leftOffset={panelSizes.sidebarWidth}
         />
       )}
 

@@ -83,10 +83,11 @@ export function Sidebar({
     <aside
       className="flex flex-col h-full"
       style={{
-        width: '240px',
+        width: '100%',
         backgroundColor: 'var(--sidebar)',
         borderRight: '1px solid var(--sidebar-border)',
         overflowY: 'auto',
+        overflowX: 'hidden',
       }}
       onClick={projectControls.closeContextMenu}
     >

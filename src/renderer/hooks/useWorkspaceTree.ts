@@ -7,8 +7,8 @@ interface UseWorkspaceTreeReturn {
   tree: WorkspaceNode[]
   isLoading: boolean
   error: string | null
-  refresh: () => Promise<void>
-  createFolder: (parentPath: string, name: string) => Promise<void>
+  refresh: (options?: { silent?: boolean }) => Promise<void>
+  createFolder: (parentPath: string, name: string) => Promise<WorkspaceNode | null>
   createNote: (parentPath: string, name: string) => Promise<WorkspaceNote | null>
   renameEntry: (path: string, name: string) => Promise<{ path: string } | null>
   deleteEntry: (path: string) => Promise<void>
@@ -21,21 +21,25 @@ export function useWorkspaceTree(projectId: string | null): UseWorkspaceTreeRetu
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const refresh = useCallback(async () => {
+  const refresh = useCallback(async (options?: { silent?: boolean }) => {
     if (!projectId) {
       setTree([])
       setIsLoading(false)
       return
     }
 
-    setIsLoading(true)
+    if (!options?.silent) {
+      setIsLoading(true)
+    }
     setError(null)
     try {
       setTree(await api.getWorkspaceTree(projectId))
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not load workspace')
     } finally {
-      setIsLoading(false)
+      if (!options?.silent) {
+        setIsLoading(false)
+      }
     }
   }, [projectId])
 
@@ -44,29 +48,30 @@ export function useWorkspaceTree(projectId: string | null): UseWorkspaceTreeRetu
   }, [refresh])
 
   const createFolder = useCallback(async (parentPath: string, name: string) => {
-    if (!projectId) return
-    await api.createWorkspaceFolder(projectId, parentPath, name)
-    await refresh()
+    if (!projectId) return null
+    const folder = await api.createWorkspaceFolder(projectId, parentPath, name)
+    await refresh({ silent: true })
+    return folder
   }, [projectId, refresh])
 
   const createNote = useCallback(async (parentPath: string, name: string) => {
     if (!projectId) return null
     const note = await api.createWorkspaceNote(projectId, parentPath, name)
-    await refresh()
+    await refresh({ silent: true })
     return note
   }, [projectId, refresh])
 
   const renameEntry = useCallback(async (path: string, name: string) => {
     if (!projectId) return null
     const result = await api.renameWorkspaceEntry(projectId, path, name)
-    await refresh()
+    await refresh({ silent: true })
     return result
   }, [projectId, refresh])
 
   const deleteEntry = useCallback(async (path: string) => {
     if (!projectId) return
     await api.deleteWorkspaceEntry(projectId, path)
-    await refresh()
+    await refresh({ silent: true })
   }, [projectId, refresh])
 
   const notePaths = useMemo(

@@ -186,6 +186,10 @@ export interface ElectronAPI {
   // Last selected project operations
   getLastSelectedProjectId: () => Promise<string | null>
   setLastSelectedProjectId: (projectId: string | null) => Promise<void>
+
+  // Panel size operations (for resizable sidebar and input area)
+  getPanelSizes: () => Promise<{ sidebarWidth: number; inputHeight: number }>
+  setPanelSizes: (sizes: { sidebarWidth?: number; inputHeight?: number }) => Promise<void>
 }
 
 // Extend Window interface
@@ -314,4 +318,7 @@ export const mockElectronAPI: ElectronAPI = {
   // Last selected project operations
   getLastSelectedProjectId: async () => null,
   setLastSelectedProjectId: async () => {},
+  // Panel size operations
+  getPanelSizes: async () => ({ sidebarWidth: 240, inputHeight: 60 }),
+  setPanelSizes: async () => {},
 }

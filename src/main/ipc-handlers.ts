@@ -869,5 +869,20 @@ export function setupIPCHandlers(): void {
     log.info(`Saved last selected project: ${projectId ?? 'All Projects'}`)
   })
 
+  // panel:get-sizes — retrieve persisted panel sizes
+  ipcMain.handle('panel:get-sizes', (): { sidebarWidth: number; inputHeight: number } => {
+    return {
+      sidebarWidth: store.get('sidebarWidth', 240),
+      inputHeight: store.get('inputHeight', 60)
+    }
+  })
+
+  // panel:set-sizes — persist panel sizes
+  ipcMain.handle('panel:set-sizes', (_, sizes: { sidebarWidth?: number; inputHeight?: number }): void => {
+    if (sizes.sidebarWidth !== undefined) store.set('sidebarWidth', sizes.sidebarWidth)
+    if (sizes.inputHeight !== undefined) store.set('inputHeight', sizes.inputHeight)
+    log.info(`Saved panel sizes: sidebarWidth=${sizes.sidebarWidth ?? 'unchanged'}, inputHeight=${sizes.inputHeight ?? 'unchanged'}`)
+  })
+
   log.info('IPC handlers registered')
 }

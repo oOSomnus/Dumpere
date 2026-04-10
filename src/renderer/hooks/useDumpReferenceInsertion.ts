@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import type { DumpEntry, Project, WorkspaceNode } from '../lib/types'
 import { getElectronAPI } from '../lib/electron-api'
 import { appendMarkdownSection, formatDumpReferences } from '../lib/workpad-utils'
@@ -54,6 +54,26 @@ export function useDumpReferenceInsertion({
   const [selectedNotePath, setSelectedNotePath] = useState<string | null>(null)
   const [noteOptions, setNoteOptions] = useState<ReferenceTargetOption[]>([])
   const [isLoadingNotes, setIsLoadingNotes] = useState(false)
+
+  useEffect(() => {
+    const loadPersistedActiveNotes = async () => {
+      try {
+        const api = getElectronAPI()
+        const state = await api.getSummaryPanelState()
+        const persistedNotes = Object.fromEntries(
+          Object.entries(state)
+            .filter(([, value]) => Boolean(value.notePath))
+            .map(([projectId, value]) => [projectId, value.notePath])
+        )
+
+        setActiveWorkspaceNotes(persistedNotes)
+      } catch {
+        // Silently fail and use in-memory state only.
+      }
+    }
+
+    void loadPersistedActiveNotes()
+  }, [])
 
   const resetState = useCallback(() => {
     setSelectedDumps([])
@@ -137,6 +157,26 @@ export function useDumpReferenceInsertion({
     }
   }, [resetState])
 
+  const handleActiveNotePathChange = useCallback((projectId: string, notePath: string) => {
+    setActiveWorkspaceNotes(prev => ({ ...prev, [projectId]: notePath }))
+
+    void (async () => {
+      try {
+        const api = getElectronAPI()
+        const currentState = await api.getSummaryPanelState()
+        await api.setSummaryPanelState({
+          ...currentState,
+          [projectId]: {
+            workspaceMode: currentState[projectId]?.workspaceMode ?? 'edit',
+            notePath
+          }
+        })
+      } catch {
+        // Silently fail and keep local state in sync.
+      }
+    })()
+  }, [])
+
   const confirmInsert = useCallback(async () => {
     if (!selectedProjectId || !selectedNotePath || selectedDumps.length === 0) {
       return
@@ -151,16 +191,9 @@ export function useDumpReferenceInsertion({
       appendMarkdownSection(currentNote.content, referenceContent)
     )
 
-    setActiveWorkspaceNotes(prev => ({
-      ...prev,
-      [selectedProjectId]: selectedNotePath
-    }))
+    handleActiveNotePathChange(selectedProjectId, selectedNotePath)
     handleOpenChange(false)
-  }, [handleOpenChange, selectedDumps, selectedNotePath, selectedProjectId])
-
-  const handleActiveNotePathChange = useCallback((projectId: string, notePath: string) => {
-    setActiveWorkspaceNotes(prev => ({ ...prev, [projectId]: notePath }))
-  }, [])
+  }, [handleActiveNotePathChange, handleOpenChange, selectedDumps, selectedNotePath, selectedProjectId])
 
   return {
     activeWorkspaceNotes,
