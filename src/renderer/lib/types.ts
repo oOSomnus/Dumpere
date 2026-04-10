@@ -178,6 +178,14 @@ export interface ElectronAPI {
   closeVault: () => Promise<VaultState>
   onVaultStateChange: (callback: (state: VaultState) => void) => void
   getRecentVaults: () => Promise<RecentVault[]>
+
+  // Summary panel state operations
+  getSummaryPanelState: () => Promise<Record<string, { workspaceMode: 'edit' | 'split' | 'preview'; notePath: string }>>
+  setSummaryPanelState: (state: Record<string, { workspaceMode: 'edit' | 'split' | 'preview'; notePath: string }>) => Promise<void>
+
+  // Last selected project operations
+  getLastSelectedProjectId: () => Promise<string | null>
+  setLastSelectedProjectId: (projectId: string | null) => Promise<void>
 }
 
 // Extend Window interface
@@ -300,4 +308,10 @@ export const mockElectronAPI: ElectronAPI = {
     }
   },
   getDumpsFromVault: async () => [],
+  // Summary panel state operations
+  getSummaryPanelState: async () => ({}),
+  setSummaryPanelState: async () => {},
+  // Last selected project operations
+  getLastSelectedProjectId: async () => null,
+  setLastSelectedProjectId: async () => {},
 }
