@@ -28,6 +28,7 @@ interface StoreSchema {
   currentVault: { path: string; name: string } | null
   theme?: 'light' | 'dark' | 'system'
   summaryPanelState: Record<string, { workspaceMode: 'edit' | 'split' | 'preview'; notePath: string }>
+  lastSelectedProjectId: string | null
 }
 
 export const store = new Store<StoreSchema>({
@@ -50,6 +51,7 @@ export const store = new Store<StoreSchema>({
     recentVaults: [],
     currentVault: null,
     theme: 'system',
-    summaryPanelState: {}
+    summaryPanelState: {},
+    lastSelectedProjectId: null
   }
 })
