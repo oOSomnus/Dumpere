@@ -16,7 +16,8 @@ A minimalist desktop app for quick work completion tracking. Press Enter to inst
 ```bash
 pnpm install          # Install dependencies
 pnpm clean            # Remove build and packaging output
-pnpm dev              # Start development server
+pnpm dev              # Start Electron in development mode with hot reload
+pnpm dev:web          # Start renderer-only Vite server
 pnpm build            # Compile source code
 pnpm pack             # Package into unpacked dir (for testing)
 pnpm dist             # Build distributable installers for current platform
