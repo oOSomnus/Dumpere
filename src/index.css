@@ -1,5 +1,8 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
+@import "@fontsource/nunito/400.css";
+@import "@fontsource/nunito/600.css";
+@import "@fontsource/nunito/700.css";
 @import "@fontsource-variable/inter";
 @tailwind base;
 @tailwind components;
@@ -8,7 +11,13 @@
 @layer base {
   .theme {
     --font-heading: var(--font-sans);
-    --font-sans: 'Inter Variable', sans-serif
+    --font-sans:
+      'Nunito',
+      'Inter Variable',
+      'PingFang SC',
+      'Hiragino Sans GB',
+      'Microsoft YaHei',
+      sans-serif
   }
   :root {
     --background: oklch(1 0 0);
@@ -85,6 +94,9 @@
     background-color: var(--background);
     color: var(--foreground);
     font-family: var(--font-sans), sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
   }
   html {
     font-family: var(--font-sans), sans-serif;
