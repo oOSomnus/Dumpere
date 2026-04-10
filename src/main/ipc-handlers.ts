@@ -858,5 +858,16 @@ export function setupIPCHandlers(): void {
     log.info(`Saved summary panel state for ${Object.keys(state).length} projects`)
   })
 
+  // summary:get-last-project — retrieve last selected project ID
+  ipcMain.handle('summary:get-last-project', (): string | null => {
+    return store.get('lastSelectedProjectId', null)
+  })
+
+  // summary:set-last-project — persist last selected project ID
+  ipcMain.handle('summary:set-last-project', (_, projectId: string | null): void => {
+    store.set('lastSelectedProjectId', projectId)
+    log.info(`Saved last selected project: ${projectId ?? 'All Projects'}`)
+  })
+
   log.info('IPC handlers registered')
 }
