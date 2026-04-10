@@ -195,6 +195,15 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on('vault:state-changed', (_, state) => callback(state))
   },
 
+  // Summary panel state operations
+  getSummaryPanelState: () => {
+    return ipcRenderer.invoke('summary:get-state')
+  },
+
+  setSummaryPanelState: (state: Record<string, { workspaceMode: 'edit' | 'split' | 'preview'; notePath: string }>) => {
+    return ipcRenderer.invoke('summary:set-state', state)
+  },
+
   getRecentVaults: () => {
     return ipcRenderer.invoke('vault:get-recent')
   },
