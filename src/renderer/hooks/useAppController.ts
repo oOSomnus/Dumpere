@@ -5,10 +5,12 @@ import { useTags } from './useTags'
 import { useFilter } from './useFilter'
 import { useSearch } from './useSearch'
 import { getElectronAPI } from '../lib/electron-api'
+import { usePrompt } from './usePrompt'
 
 export type AppView = 'grid' | 'summaries' | 'settings'
 
 export function useAppController() {
+  const prompt = usePrompt()
   const { dumps, submitDump, deleteDump, updateDump, stripTagFromDumps, isLoading, error } = useDump()
   const { projects, activeProjectId, setActiveProject, createProject, updateProject: renameProject, deleteProject } = useProjects()
   const { tags, createTag, deleteTag, getAISuggestions } = useTags()
@@ -100,7 +102,7 @@ export function useAppController() {
 
     const projectDumps = dumps.filter(d => d.projectId === projectId)
     if (projectDumps.length === 0) {
-      alert('No dumps in this project to export')
+      prompt.info('No dumps in this project to export')
       return
     }
 
@@ -109,26 +111,29 @@ export function useAppController() {
 
     const result = await api.exportDumps(projectDumps.map(d => d.id), project.name, savePath)
     if (result) {
-      alert('Export successful!')
+      prompt.success('Export successful!')
     }
-  }, [dumps, projects])
+  }, [dumps, projects, prompt])
 
   const handleImportProject = useCallback(async (projectId: string) => {
     const api = getElectronAPI()
     const project = projects.find(p => p.id === projectId)
     if (!project) return
 
-    const confirmed = window.confirm(
-      `Import to Project: Dumps will be added to ${project.name}. Existing dumps will not be affected. Continue?`
-    )
+    const confirmed = await prompt.confirm({
+      title: 'Import to Project?',
+      description: `Dumps will be added to ${project.name}. Existing dumps will not be affected.`,
+      confirmLabel: 'Import Dumps',
+      destructive: false
+    })
     if (!confirmed) return
 
     const zipPath = await api.importDialog()
     if (!zipPath) return
 
     const count = await api.importDumps(zipPath, projectId)
-    alert(`Imported ${count} dumps to ${project.name}`)
-  }, [projects])
+    prompt.success(`Imported ${count} dumps to ${project.name}`)
+  }, [projects, prompt])
 
   const handleExportSelected = useCallback(async (dumpIds: string[]) => {
     if (dumpIds.length === 0) return
@@ -139,9 +144,9 @@ export function useAppController() {
 
     const result = await api.exportDumps(dumpIds, 'export', savePath)
     if (result) {
-      alert(`Exported ${dumpIds.length} dumps`)
+      prompt.success(`Exported ${dumpIds.length} dumps`)
     }
-  }, [])
+  }, [prompt])
 
   const handleSearchChange = useCallback((query: string) => {
     switchToGrid()

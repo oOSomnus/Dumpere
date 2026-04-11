@@ -3,6 +3,7 @@ import { Plus, Check, Trash2, Edit2, Download, Upload } from 'lucide-react'
 import { DateFilterState, DatePreset, Project, Tag } from '../lib/types'
 import type { AppView } from '../hooks/useAppController'
 import { useSidebarProjects } from '../hooks/useSidebarProjects'
+import { usePrompt } from '../hooks/usePrompt'
 import { cn } from '../../lib/utils'
 import { DateFilterPopover } from './DateFilterPopover'
 import { SidebarViewNavigation } from './sidebar/SidebarViewNavigation'
@@ -56,6 +57,7 @@ export function Sidebar({
   currentView = 'grid',
   onViewChange,
 }: SidebarProps) {
+  const prompt = usePrompt()
   const presetOptions: Array<{ value: DatePreset | null; label: string }> = [
     { value: null, label: 'All Time' },
     { value: 'today', label: 'Today' },
@@ -71,9 +73,12 @@ export function Sidebar({
   })
 
   const handleDeleteTag = async (tag: Tag) => {
-    const confirmed = window.confirm(
-      `Delete tag '${tag.name}'? It will be removed from all dumps and filters.`
-    )
+    const confirmed = await prompt.confirm({
+      title: `Delete tag '${tag.name}'?`,
+      description: 'It will be removed from all dumps and filters.',
+      confirmLabel: 'Delete Tag',
+      destructive: true
+    })
 
     if (!confirmed) return
     await onDeleteTag(tag.id)

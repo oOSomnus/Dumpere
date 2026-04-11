@@ -5,6 +5,7 @@ import { useWorkspaceTree } from './useWorkspaceTree'
 import { useWorkspaceNote } from './useWorkspaceNote'
 import { getElectronAPI } from '../lib/electron-api'
 import { buildUniqueWorkspaceChildName } from '../lib/workspace-path-utils'
+import { usePrompt } from './usePrompt'
 
 type WorkspaceMode = 'edit' | 'split' | 'preview'
 
@@ -23,6 +24,7 @@ export function useSummaryPanelController({
   activeNotePaths,
   onActiveNotePathChange
 }: UseSummaryPanelControllerOptions) {
+  const prompt = usePrompt()
   const [summaryType, setSummaryType] = useState<'daily' | 'weekly'>('daily')
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null)
   const [workspaceMode, setWorkspaceMode] = useState<WorkspaceMode>('edit')
@@ -195,15 +197,24 @@ export function useSummaryPanelController({
   }, [effectiveNotePath, onActiveNotePathChange, renameEntry, selectedProjectId])
 
   const handleDeleteEntry = useCallback(async (path: string, options?: { skipConfirm?: boolean }) => {
-    if (!options?.skipConfirm && !window.confirm(`Delete ${path}? This cannot be undone.`)) {
-      return
+    if (!options?.skipConfirm) {
+      const confirmed = await prompt.confirm({
+        title: `Delete ${path}?`,
+        description: 'This cannot be undone.',
+        confirmLabel: 'Delete',
+        destructive: true
+      })
+
+      if (!confirmed) {
+        return
+      }
     }
 
     await deleteEntry(path)
     if (selectedProjectId && effectiveNotePath === path) {
       onActiveNotePathChange(selectedProjectId, '')
     }
-  }, [deleteEntry, effectiveNotePath, onActiveNotePathChange, selectedProjectId])
+  }, [deleteEntry, effectiveNotePath, onActiveNotePathChange, prompt, selectedProjectId])
 
   const handleProjectSelectionChange = useCallback(async (projectId: string | null) => {
     setSelectedProjectId(projectId)

@@ -11,6 +11,7 @@ import { SummaryPanel } from './components/SummaryPanel'
 import { SettingsPanel } from './components/SettingsPanel'
 import { InsertReferenceDialog } from './components/InsertReferenceDialog'
 import { WelcomeScreen } from './components/WelcomeScreen'
+import { PromptProvider } from './components/PromptProvider'
 import { getElectronAPI } from './lib/electron-api'
 
 interface VaultAppContentProps {
@@ -218,13 +219,15 @@ export function App() {
   }
 
   return (
-    <VaultAppContent
-      vaultName={vaultState.vaultName}
-      isDark={theme.isDark}
-      themeLoaded={theme.isLoaded}
-      onToggleTheme={theme.toggleTheme}
-      onBackToVaults={closeVault}
-    />
+    <PromptProvider>
+      <VaultAppContent
+        vaultName={vaultState.vaultName}
+        isDark={theme.isDark}
+        themeLoaded={theme.isLoaded}
+        onToggleTheme={theme.toggleTheme}
+        onBackToVaults={closeVault}
+      />
+    </PromptProvider>
   )
 }
 

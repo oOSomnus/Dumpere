@@ -7,6 +7,7 @@ import { cn } from '../../lib/utils'
 import { X, Download, Image, File, Check, ChevronDown, Copy, NotebookPen } from 'lucide-react'
 import { useFileUrl } from '../hooks/useFileUrl'
 import { getElectronAPI } from '../lib/electron-api'
+import { usePrompt } from '../hooks/usePrompt'
 
 function formatDumpAsMarkdown(dump: DumpEntry): string {
   let md = `${dump.text || ''}\n`
@@ -30,7 +31,13 @@ interface ExpandedCardProps {
   onQuoteToWorkpad?: (dump: DumpEntry) => Promise<void> | void
 }
 
-function MediaPreview({ file }: { file: { storedPath: string; mimeType: string; originalName: string } }) {
+function MediaPreview({
+  file,
+  onError
+}: {
+  file: { storedPath: string; mimeType: string; originalName: string }
+  onError: (message: string) => void
+}) {
   const fileUrl = useFileUrl(file.storedPath)
   const handleOpenFile = async () => {
     const api = getElectronAPI()
@@ -39,7 +46,7 @@ function MediaPreview({ file }: { file: { storedPath: string; mimeType: string; 
       await api.openFile(file.storedPath)
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Could not open file'
-      alert(message)
+      onError(message)
     }
   }
 
@@ -95,7 +102,13 @@ function MediaPreview({ file }: { file: { storedPath: string; mimeType: string; 
   return null
 }
 
-function FileAttachment({ file }: { file: { storedPath: string; mimeType: string; originalName: string; size: number } }) {
+function FileAttachment({
+  file,
+  onError
+}: {
+  file: { storedPath: string; mimeType: string; originalName: string; size: number }
+  onError: (message: string) => void
+}) {
   const sizeKB = Math.round(file.size / 1024)
   const sizeStr = sizeKB > 1024 ? `${(sizeKB / 1024).toFixed(1)} MB` : `${sizeKB} KB`
   const handleOpenFile = async () => {
@@ -105,7 +118,7 @@ function FileAttachment({ file }: { file: { storedPath: string; mimeType: string
       await api.openFile(file.storedPath)
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Could not open file'
-      alert(message)
+      onError(message)
     }
   }
 
@@ -132,6 +145,7 @@ function FileAttachment({ file }: { file: { storedPath: string; mimeType: string
 }
 
 export function ExpandedCard({ dump, onClose, projects, tags, onProjectChange, onTagsChange, onQuoteToWorkpad }: ExpandedCardProps) {
+  const prompt = usePrompt()
   const overlayRef = useRef<HTMLDivElement>(null)
 
   // Close on Escape key
@@ -298,7 +312,7 @@ export function ExpandedCard({ dump, onClose, projects, tags, onProjectChange, o
                       const markdown = formatDumpAsMarkdown(dump)
                       const api = getElectronAPI()
                       await api.clipboardWrite(markdown)
-                      alert('Copied to clipboard')
+                      prompt.success('Copied to clipboard')
                     }
                   }}
                   className="p-1 rounded hover:bg-accent transition-colors"
@@ -333,7 +347,7 @@ export function ExpandedCard({ dump, onClose, projects, tags, onProjectChange, o
             {mediaFiles.length > 0 && (
               <div className="space-y-3">
                 {mediaFiles.map(file => (
-                  <MediaPreview key={file.id} file={file} />
+                  <MediaPreview key={file.id} file={file} onError={(message) => prompt.error(message, 'Could not open file')} />
                 ))}
               </div>
             )}
@@ -345,7 +359,7 @@ export function ExpandedCard({ dump, onClose, projects, tags, onProjectChange, o
                   Attachments
                 </p>
                 {otherFiles.map(file => (
-                  <FileAttachment key={file.id} file={file} />
+                  <FileAttachment key={file.id} file={file} onError={(message) => prompt.error(message, 'Could not open file')} />
                 ))}
               </div>
             )}

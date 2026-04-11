@@ -3,6 +3,16 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { DumpEntry, Project, WorkspaceNode } from '../lib/types'
 import { mockElectronAPI } from '../lib/types'
 
+vi.mock('./usePrompt', () => ({
+  usePrompt: () => ({
+    confirm: vi.fn(),
+    notify: vi.fn(),
+    success: vi.fn(),
+    error: vi.fn(),
+    info: vi.fn()
+  })
+}))
+
 const projects: Project[] = [
   { id: 'project-1', name: 'Alpha', createdAt: 1 },
   { id: 'project-2', name: 'Beta', createdAt: 2 }

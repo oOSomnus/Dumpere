@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import type { DumpEntry, Project, WorkspaceNode } from '../lib/types'
 import { getElectronAPI } from '../lib/electron-api'
 import { appendMarkdownSection, formatDumpReferences } from '../lib/workpad-utils'
+import { usePrompt } from './usePrompt'
 
 export interface ReferenceTargetOption {
   path: string
@@ -47,6 +48,7 @@ export function useDumpReferenceInsertion({
   projects,
   activeProjectId
 }: UseDumpReferenceInsertionOptions): UseDumpReferenceInsertionReturn {
+  const prompt = usePrompt()
   const [activeWorkspaceNotes, setActiveWorkspaceNotes] = useState<Record<string, string>>({})
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [selectedDumps, setSelectedDumps] = useState<DumpEntry[]>([])
@@ -111,7 +113,7 @@ export function useDumpReferenceInsertion({
     }
 
     if (projects.length === 0) {
-      alert('Create a project before inserting dump references into a note.')
+      prompt.info('Create a project before inserting dump references into a note.')
       return
     }
 
@@ -130,7 +132,7 @@ export function useDumpReferenceInsertion({
     )
 
     if (!defaultProjectId) {
-      alert('Create a project before inserting dump references into a note.')
+      prompt.info('Create a project before inserting dump references into a note.')
       return
     }
 
@@ -138,7 +140,7 @@ export function useDumpReferenceInsertion({
     setSelectedProjectId(defaultProjectId)
     setIsDialogOpen(true)
     await loadTargetNotes(defaultProjectId)
-  }, [activeProjectId, loadTargetNotes, projects])
+  }, [activeProjectId, loadTargetNotes, projects, prompt])
 
   const handleProjectChange = useCallback((projectId: string) => {
     setSelectedProjectId(projectId)

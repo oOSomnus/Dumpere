@@ -1,8 +1,9 @@
 import type { ComponentProps } from 'react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { screen, fireEvent, waitFor } from '@testing-library/react'
 import { Sidebar } from './Sidebar'
 import type { DateFilterState, Project, Tag } from '../lib/types'
+import { renderWithPrompt } from '../test-utils'
 
 vi.mock('./DateFilterPopover', () => ({
   DateFilterPopover: () => <div>Date Filter</div>
@@ -24,7 +25,7 @@ const tags: Tag[] = [
 ]
 
 function renderSidebar(overrides: Partial<ComponentProps<typeof Sidebar>> = {}) {
-  return render(
+  return renderWithPrompt(
     <Sidebar
       projects={projects}
       tags={tags}
@@ -63,11 +64,11 @@ describe('Sidebar', () => {
 
   it('deletes a tag from the sidebar after confirmation', async () => {
     const onDeleteTag = vi.fn(async () => {})
-    vi.spyOn(window, 'confirm').mockReturnValue(true)
 
     renderSidebar({ onDeleteTag })
 
     fireEvent.click(screen.getByLabelText('Delete tag urgent'))
+    fireEvent.click(await screen.findByRole('button', { name: 'Delete Tag' }))
 
     await waitFor(() => {
       expect(onDeleteTag).toHaveBeenCalledWith('tag-1')
@@ -140,7 +141,6 @@ describe('Sidebar', () => {
     const onDeleteProject = vi.fn(async () => {
       throw new Error('Delete failed')
     })
-    vi.spyOn(window, 'confirm').mockReturnValue(true)
 
     renderSidebar({
       projects: projectList,
@@ -149,6 +149,7 @@ describe('Sidebar', () => {
 
     fireEvent.contextMenu(screen.getByTitle('Alpha'))
     fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Delete Project' }))
 
     await waitFor(() => {
       expect(onDeleteProject).toHaveBeenCalledWith('project-1')
@@ -156,5 +157,17 @@ describe('Sidebar', () => {
 
     expect(screen.getByText('Delete failed')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Delete' })).toBeInTheDocument()
+  })
+
+  it('shows the app-styled project delete confirmation dialog', async () => {
+    renderSidebar({
+      projects: projectList
+    })
+
+    fireEvent.contextMenu(screen.getByTitle('Alpha'))
+    fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
+
+    expect(await screen.findByText("Delete project 'Alpha'?")).toBeInTheDocument()
+    expect(screen.getByText('Dumps will be moved to Unassigned. This cannot be undone.')).toBeInTheDocument()
   })
 })

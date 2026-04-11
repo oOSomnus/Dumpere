@@ -1,5 +1,6 @@
 import { useCallback, useRef, useState, type MouseEvent } from 'react'
 import type { Project } from '../lib/types'
+import { usePrompt } from './usePrompt'
 
 interface ContextMenuState {
   projectId: string
@@ -26,6 +27,7 @@ export function useSidebarProjects({
   onUpdateProject,
   onDeleteProject
 }: UseSidebarProjectsOptions) {
+  const prompt = usePrompt()
   const [isCreatingProject, setIsCreatingProject] = useState(false)
   const [newProjectName, setNewProjectName] = useState('')
   const [editingProjectId, setEditingProjectId] = useState<string | null>(null)
@@ -110,26 +112,36 @@ export function useSidebarProjects({
 
   const handleDeleteProject = useCallback(async (projectId: string) => {
     const project = projects.find(p => p.id === projectId)
-    if (project && window.confirm(`Delete project '${project.name}'? Dumps will be moved to Unassigned. This cannot be undone.`)) {
-      if (isMutating) {
-        return
-      }
 
-      setIsMutating(true)
-      setProjectError(null)
-
-      try {
-        await onDeleteProject(projectId)
-        setContextMenu(null)
-      } catch (error) {
-        setProjectError(getErrorMessage(error, 'Could not delete project'))
-      } finally {
-        setIsMutating(false)
-      }
+    if (!project || isMutating) {
+      setContextMenu(null)
       return
     }
-    setContextMenu(null)
-  }, [isMutating, onDeleteProject, projects])
+
+    const confirmed = await prompt.confirm({
+      title: `Delete project '${project.name}'?`,
+      description: 'Dumps will be moved to Unassigned. This cannot be undone.',
+      confirmLabel: 'Delete Project',
+      destructive: true
+    })
+
+    if (!confirmed) {
+      setContextMenu(null)
+      return
+    }
+
+    setIsMutating(true)
+    setProjectError(null)
+
+    try {
+      await onDeleteProject(projectId)
+      setContextMenu(null)
+    } catch (error) {
+      setProjectError(getErrorMessage(error, 'Could not delete project'))
+    } finally {
+      setIsMutating(false)
+    }
+  }, [isMutating, onDeleteProject, projects, prompt])
 
   const openContextMenu = useCallback((event: MouseEvent, projectId: string) => {
     event.preventDefault()

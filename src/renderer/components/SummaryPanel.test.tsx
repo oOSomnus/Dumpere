@@ -1,7 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { screen, fireEvent, waitFor } from '@testing-library/react'
 import type { Project, SummaryEntry, DumpEntry, Tag } from '../lib/types'
 import { mockElectronAPI } from '../lib/types'
+import { renderWithPrompt } from '../test-utils'
 
 vi.mock('../hooks/useSummary', () => ({
   useSummary: vi.fn()
@@ -35,7 +36,8 @@ describe('SummaryPanel', () => {
   }
 
   const projects: Project[] = [
-    { id: 'project-1', name: 'Alpha', createdAt: Date.now() }
+    { id: 'project-1', name: 'Alpha', createdAt: Date.now() },
+    { id: 'project-2', name: 'Beta', createdAt: Date.now() + 1 }
   ]
 
   const dumps: DumpEntry[] = [
@@ -85,7 +87,7 @@ describe('SummaryPanel', () => {
   })
 
   it('renders the workspace editor and current summary', () => {
-    render(
+    renderWithPrompt(
       <SummaryPanel
         projects={projects}
         dumps={dumps}
@@ -142,7 +144,7 @@ describe('SummaryPanel', () => {
       saveNow
     })
 
-    render(
+    renderWithPrompt(
       <SummaryPanel
         projects={projects}
         dumps={dumps}
@@ -166,7 +168,7 @@ describe('SummaryPanel', () => {
   })
 
   it('exports the current summary', async () => {
-    render(
+    renderWithPrompt(
       <SummaryPanel
         projects={projects}
         dumps={dumps}
@@ -187,7 +189,7 @@ describe('SummaryPanel', () => {
   })
 
   it('switches the workspace note into preview mode', () => {
-    render(
+    renderWithPrompt(
       <SummaryPanel
         projects={projects}
         dumps={dumps}
@@ -206,7 +208,7 @@ describe('SummaryPanel', () => {
   })
 
   it('shows a project-selection message in all-projects mode', () => {
-    render(
+    renderWithPrompt(
       <SummaryPanel
         projects={projects}
         dumps={dumps}
@@ -220,5 +222,71 @@ describe('SummaryPanel', () => {
     )
 
     expect(screen.getByText('Select a project to open its workspace')).toBeInTheDocument()
+  })
+
+  it('renders the project selector as a page-level control instead of inside AI Summary controls', () => {
+    renderWithPrompt(
+      <SummaryPanel
+        projects={projects}
+        dumps={dumps}
+        tags={tags}
+        activeProjectId="project-1"
+        activeNotePaths={{ 'project-1': 'index.md' }}
+        onActiveNotePathChange={vi.fn()}
+        onProjectChange={vi.fn()}
+        onTagsChange={vi.fn()}
+      />
+    )
+
+    const projectSelect = screen.getByLabelText('Project')
+    const summaryActionButton = screen.getByText('Generate Summary')
+
+    expect(projectSelect.closest('section')).toBeNull()
+    expect(summaryActionButton.closest('section')).not.toBeNull()
+  })
+
+  it('updates the selected project from the page-level toolbar', async () => {
+    const onActiveNotePathChange = vi.fn()
+    vi.spyOn(mockElectronAPI, 'setLastSelectedProjectId').mockResolvedValue(undefined)
+
+    renderWithPrompt(
+      <SummaryPanel
+        projects={projects}
+        dumps={dumps}
+        tags={tags}
+        activeProjectId="project-1"
+        activeNotePaths={{ 'project-1': 'index.md' }}
+        onActiveNotePathChange={onActiveNotePathChange}
+        onProjectChange={vi.fn()}
+        onTagsChange={vi.fn()}
+      />
+    )
+
+    fireEvent.change(screen.getByLabelText('Project'), { target: { value: 'project-2' } })
+
+    await waitFor(() => {
+      expect(onActiveNotePathChange).toHaveBeenCalledWith('project-2', '')
+      expect(mockElectronAPI.setLastSelectedProjectId).toHaveBeenCalledWith('project-2')
+    })
+  })
+
+  it('shows the app-styled confirmation before deleting a workspace note', async () => {
+    renderWithPrompt(
+      <SummaryPanel
+        projects={projects}
+        dumps={dumps}
+        tags={tags}
+        activeProjectId="project-1"
+        activeNotePaths={{ 'project-1': 'index.md' }}
+        onActiveNotePathChange={vi.fn()}
+        onProjectChange={vi.fn()}
+        onTagsChange={vi.fn()}
+      />
+    )
+
+    fireEvent.click(screen.getByTitle('Delete note'))
+
+    expect(await screen.findByText('Delete index.md?')).toBeInTheDocument()
+    expect(screen.getByText('This cannot be undone.')).toBeInTheDocument()
   })
 })
