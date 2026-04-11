@@ -11,6 +11,22 @@ A minimalist desktop app for quick work completion tracking. Press Enter to inst
 - Electron + TypeScript + React
 - Local filesystem storage only
 
+## Demo Screenshots
+
+The screenshots below are captured from `pnpm dev:web`, which uses the browser fallback API with seeded mock data so the main flows can be previewed without opening a real vault.
+
+### Dumps Timeline
+
+![Dump timeline](images/readme-dumps.png)
+
+### Summaries + Workspace
+
+![Summaries and workspace](images/readme-summaries.png)
+
+### Summary Settings
+
+![Summary settings](images/readme-settings.png)
+
 ## Commands
 
 ```bash
