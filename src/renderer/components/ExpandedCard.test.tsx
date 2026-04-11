@@ -1,7 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, screen, waitFor } from '@testing-library/react'
 import { ExpandedCard } from './ExpandedCard'
 import type { DumpEntry } from '../lib/types'
+import { renderWithPrompt } from '../test-utils'
 
 vi.mock('../hooks/useFileUrl', () => ({
   useFileUrl: vi.fn((storedPath: string) => `file://${storedPath}`)
@@ -42,7 +43,7 @@ describe('ExpandedCard', () => {
   })
 
   it('opens non-media attachments with the system default app', async () => {
-    render(
+    renderWithPrompt(
       <ExpandedCard
         dump={dump}
         onClose={vi.fn()}
@@ -61,7 +62,7 @@ describe('ExpandedCard', () => {
   })
 
   it('opens images with the system default app when clicked', async () => {
-    render(
+    renderWithPrompt(
       <ExpandedCard
         dump={dump}
         onClose={vi.fn()}
@@ -100,7 +101,7 @@ describe('ExpandedCard', () => {
       ]
     }
 
-    render(
+    renderWithPrompt(
       <ExpandedCard
         dump={mediaDump}
         onClose={vi.fn()}
@@ -116,7 +117,7 @@ describe('ExpandedCard', () => {
   })
 
   it('does not show unassigned in the project selector trigger', () => {
-    render(
+    renderWithPrompt(
       <ExpandedCard
         dump={dump}
         onClose={vi.fn()}
@@ -127,7 +128,7 @@ describe('ExpandedCard', () => {
       />
     )
 
-    expect(screen.getByText('No Project')).toBeInTheDocument()
+    expect(screen.getByRole('combobox').textContent).toContain('No Project')
     expect(screen.queryByText('Unassigned')).not.toBeInTheDocument()
   })
 })

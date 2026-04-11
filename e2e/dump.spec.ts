@@ -1,7 +1,8 @@
-import { test, expect, _electron as electron } from '@playwright/test'
-import path from 'path'
+import { test, expect } from '@playwright/test'
 import fs from 'fs'
 import os from 'os'
+import path from 'path'
+import { launchApp } from './electron'
 
 function createTempDir(): string {
   return fs.mkdtempSync(path.join(os.tmpdir(), 'dumpere-e2e-'))
@@ -34,10 +35,8 @@ test.describe('Dump Operations E2E', () => {
     tempDirs = []
   })
 
-  test('dump input is disabled without vault open', async ({ _electron }) => {
-    const electronApp = await _electron.launch({
-      args: [path.join(__dirname, '../dist')],
-    })
+  test('dump input is disabled without vault open', async () => {
+    const electronApp = await launchApp()
 
     const window = await electronApp.firstWindow()
     await window.waitForLoadState('domcontentloaded')
@@ -52,10 +51,8 @@ test.describe('Dump Operations E2E', () => {
     await electronApp.close()
   })
 
-  test('can create a text dump in open vault', async ({ _electron }) => {
-    const electronApp = await _electron.launch({
-      args: [path.join(__dirname, '../dist')],
-    })
+  test('can create a text dump in open vault', async () => {
+    const electronApp = await launchApp()
 
     const window = await electronApp.firstWindow()
     await window.waitForLoadState('domcontentloaded')
@@ -82,16 +79,14 @@ test.describe('Dump Operations E2E', () => {
     expect(dump).toBeTruthy()
     expect(dump.id).toBeDefined()
     expect(dump.text).toBe('Test dump content')
-    expect(dump.created).toBeDefined()
+    expect(dump.createdAt).toBeDefined()
     expect(dump.files).toEqual([])
 
     await electronApp.close()
   })
 
-  test('can retrieve dumps from open vault', async ({ _electron }) => {
-    const electronApp = await _electron.launch({
-      args: [path.join(__dirname, '../dist')],
-    })
+  test('can retrieve dumps from open vault', async () => {
+    const electronApp = await launchApp()
 
     const window = await electronApp.firstWindow()
     await window.waitForLoadState('domcontentloaded')
@@ -118,10 +113,8 @@ test.describe('Dump Operations E2E', () => {
     await electronApp.close()
   })
 
-  test('multiple dumps are stored in correct order', async ({ _electron }) => {
-    const electronApp = await _electron.launch({
-      args: [path.join(__dirname, '../dist')],
-    })
+  test('multiple dumps are stored in correct order', async () => {
+    const electronApp = await launchApp()
 
     const window = await electronApp.firstWindow()
     await window.waitForLoadState('domcontentloaded')
@@ -153,10 +146,8 @@ test.describe('Dump Operations E2E', () => {
     await electronApp.close()
   })
 
-  test('metadata.json is updated after dump creation', async ({ _electron }) => {
-    const electronApp = await _electron.launch({
-      args: [path.join(__dirname, '../dist')],
-    })
+  test('metadata.json is updated after dump creation', async () => {
+    const electronApp = await launchApp()
 
     const window = await electronApp.firstWindow()
     await window.waitForLoadState('domcontentloaded')
@@ -186,10 +177,8 @@ test.describe('Dump Operations E2E', () => {
     await electronApp.close()
   })
 
-  test('dump with files copies to correct subdirectory', async ({ _electron }) => {
-    const electronApp = await _electron.launch({
-      args: [path.join(__dirname, '../dist')],
-    })
+  test('dump with files copies to correct subdirectory', async () => {
+    const electronApp = await launchApp()
 
     const window = await electronApp.firstWindow()
     await window.waitForLoadState('domcontentloaded')
@@ -217,16 +206,14 @@ test.describe('Dump Operations E2E', () => {
     expect(dump).toBeTruthy()
     // File would be copied to images/ subdirectory
     expect(dump.files).toHaveLength(1)
-    expect(dump.files[0].type).toBe('image')
-    expect(dump.files[0].name).toBe('test-image.jpg')
+    expect(dump.files[0].mimeType).toBe('image/jpeg')
+    expect(dump.files[0].originalName).toBe('test-image.jpg')
 
     await electronApp.close()
   })
 
-  test('recent vaults are stored after vault creation', async ({ _electron }) => {
-    const electronApp = await _electron.launch({
-      args: [path.join(__dirname, '../dist')],
-    })
+  test('recent vaults are stored after vault creation', async () => {
+    const electronApp = await launchApp()
 
     const window = await electronApp.firstWindow()
     await window.waitForLoadState('domcontentloaded')

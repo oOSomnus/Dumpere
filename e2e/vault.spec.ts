@@ -1,25 +1,8 @@
-import { test, expect, _electron as electron } from '@playwright/test'
+import { test, expect } from '@playwright/test'
 import path from 'path'
 import fs from 'fs'
 import os from 'os'
-import { fileURLToPath } from 'url'
-
-const __filename = fileURLToPath(import.meta.url)
-const __dirname = path.dirname(__filename)
-const appPath = path.join(__dirname, '../dist/main/index.js')
-const electronEnv = {
-  ...process.env,
-  ELECTRON_DISABLE_SANDBOX: '1',
-}
-
-delete electronEnv.ELECTRON_RUN_AS_NODE
-
-async function launchApp() {
-  return electron.launch({
-    args: ['--no-sandbox', appPath],
-    env: electronEnv,
-  })
-}
+import { launchApp } from './electron'
 
 test.describe('Vault E2E Tests', () => {
   let tempDirs: string[] = []
