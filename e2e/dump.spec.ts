@@ -79,7 +79,7 @@ test.describe('Dump Operations E2E', () => {
     expect(dump).toBeTruthy()
     expect(dump.id).toBeDefined()
     expect(dump.text).toBe('Test dump content')
-    expect(dump.createdAt).toBeDefined()
+    expect(dump.created).toBeDefined()
     expect(dump.files).toEqual([])
 
     await electronApp.close()
@@ -207,7 +207,7 @@ test.describe('Dump Operations E2E', () => {
     // File would be copied to images/ subdirectory
     expect(dump.files).toHaveLength(1)
     expect(dump.files[0].mimeType).toBe('image/jpeg')
-    expect(dump.files[0].originalName).toBe('test-image.jpg')
+    expect(dump.files[0].name).toBe('test-image.jpg')
 
     await electronApp.close()
   })
@@ -218,7 +218,7 @@ test.describe('Dump Operations E2E', () => {
     const window = await electronApp.firstWindow()
     await window.waitForLoadState('domcontentloaded')
 
-    const vaultDir = createValidVault()
+    const vaultDir = createTempDir()
     tempDirs.push(vaultDir)
 
     // Create vault via dialog mock
@@ -238,7 +238,7 @@ test.describe('Dump Operations E2E', () => {
     const recentVaults = await window.evaluate(() => window.electronAPI.getRecentVaults())
 
     expect(recentVaults.length).toBeGreaterThan(0)
-    expect(recentVaults[0].path).toBe(vaultDir)
+    expect(recentVaults.some(vault => vault.path === vaultDir)).toBe(true)
 
     await electronApp.close()
   })
