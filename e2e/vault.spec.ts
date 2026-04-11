@@ -60,10 +60,14 @@ test.describe('Vault E2E Tests', () => {
     expect(fs.existsSync(path.join(dumpereDir, 'videos'))).toBe(true)
     expect(fs.existsSync(path.join(dumpereDir, 'audio'))).toBe(true)
     expect(fs.existsSync(path.join(dumpereDir, 'files'))).toBe(true)
+    expect(fs.existsSync(path.join(dumpereDir, 'workspaces'))).toBe(true)
 
     const metadata = JSON.parse(fs.readFileSync(path.join(dumpereDir, 'metadata.json'), 'utf-8'))
-    expect(metadata.version).toBe('1.0')
+    expect(metadata.version).toBe(2)
+    expect(metadata.projects).toEqual([])
+    expect(metadata.tags).toEqual([])
     expect(metadata.dumps).toEqual([])
+    expect(metadata.summaries).toEqual([])
 
     await electronApp.close()
   })
@@ -102,9 +106,17 @@ test.describe('Vault E2E Tests', () => {
     fs.mkdirSync(path.join(dumpereDir, 'videos'))
     fs.mkdirSync(path.join(dumpereDir, 'audio'))
     fs.mkdirSync(path.join(dumpereDir, 'files'))
+    fs.mkdirSync(path.join(dumpereDir, 'workspaces'))
     fs.writeFileSync(
       path.join(dumpereDir, 'metadata.json'),
-      JSON.stringify({ version: '1.0', created: new Date().toISOString(), dumps: [] })
+      JSON.stringify({
+        version: 2,
+        createdAt: Date.now(),
+        projects: [],
+        tags: [],
+        dumps: [],
+        summaries: []
+      })
     )
 
     await electronApp.evaluate(async ({ dialog }, vaultPath) => {
