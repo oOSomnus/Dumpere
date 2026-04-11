@@ -62,18 +62,18 @@ test.describe('Dump Operations E2E', () => {
     tempDirs.push(vaultDir)
 
     // Open the vault directly via IPC
-    await window.evaluate(async (api, vaultPath) => {
-      await api.openVault(vaultPath)
+    await window.evaluate(async (vaultPath) => {
+      await window.electronAPI.openVault(vaultPath)
     }, vaultDir)
 
     // Verify vault opened
-    const state = await window.evaluate((api) => api.getVaultState())
+    const state = await window.evaluate(() => window.electronAPI.getVaultState())
     expect(state.isOpen).toBe(true)
     expect(state.vaultPath).toBe(vaultDir)
 
     // Create a dump via IPC - this would fail with "require is not defined" if the bug exists
-    const dump = await window.evaluate(async (api) => {
-      return await api.createDump({ text: 'Test dump content', filePaths: [] })
+    const dump = await window.evaluate(async () => {
+      return await window.electronAPI.createDump({ text: 'Test dump content', filePaths: [] })
     })
 
     expect(dump).toBeTruthy()
@@ -95,17 +95,17 @@ test.describe('Dump Operations E2E', () => {
     tempDirs.push(vaultDir)
 
     // Open vault
-    await window.evaluate(async (api, vaultPath) => {
-      await api.openVault(vaultPath)
+    await window.evaluate(async (vaultPath) => {
+      await window.electronAPI.openVault(vaultPath)
     }, vaultDir)
 
     // Create a dump
-    await window.evaluate(async (api) => {
-      await api.createDump({ text: 'My test dump', filePaths: [] })
-    }, void 0)
+    await window.evaluate(async () => {
+      await window.electronAPI.createDump({ text: 'My test dump', filePaths: [] })
+    })
 
     // Get dumps
-    const dumps = await window.evaluate((api) => api.getDumpsFromVault())
+    const dumps = await window.evaluate(() => window.electronAPI.getDumpsFromVault())
 
     expect(dumps).toHaveLength(1)
     expect(dumps[0].text).toBe('My test dump')
@@ -123,19 +123,19 @@ test.describe('Dump Operations E2E', () => {
     tempDirs.push(vaultDir)
 
     // Open vault
-    await window.evaluate(async (api, vaultPath) => {
-      await api.openVault(vaultPath)
+    await window.evaluate(async (vaultPath) => {
+      await window.electronAPI.openVault(vaultPath)
     }, vaultDir)
 
     // Create multiple dumps
-    await window.evaluate(async (api) => {
-      await api.createDump({ text: 'First dump', filePaths: [] })
-      await api.createDump({ text: 'Second dump', filePaths: [] })
-      await api.createDump({ text: 'Third dump', filePaths: [] })
-    }, void 0)
+    await window.evaluate(async () => {
+      await window.electronAPI.createDump({ text: 'First dump', filePaths: [] })
+      await window.electronAPI.createDump({ text: 'Second dump', filePaths: [] })
+      await window.electronAPI.createDump({ text: 'Third dump', filePaths: [] })
+    })
 
     // Verify dumps are stored
-    const dumps = await window.evaluate((api) => api.getDumpsFromVault())
+    const dumps = await window.evaluate(() => window.electronAPI.getDumpsFromVault())
 
     expect(dumps).toHaveLength(3)
     // Newest first (unshift behavior in metadata-service)
@@ -156,14 +156,14 @@ test.describe('Dump Operations E2E', () => {
     tempDirs.push(vaultDir)
 
     // Open vault
-    await window.evaluate(async (api, vaultPath) => {
-      await api.openVault(vaultPath)
+    await window.evaluate(async (vaultPath) => {
+      await window.electronAPI.openVault(vaultPath)
     }, vaultDir)
 
     // Create a dump
-    await window.evaluate(async (api) => {
-      await api.createDump({ text: 'Dump for metadata test', filePaths: [] })
-    }, void 0)
+    await window.evaluate(async () => {
+      await window.electronAPI.createDump({ text: 'Dump for metadata test', filePaths: [] })
+    })
 
     // Read metadata.json directly
     const metadataPath = path.join(vaultDir, '.dumpere', 'metadata.json')
@@ -192,15 +192,15 @@ test.describe('Dump Operations E2E', () => {
     tempDirs.push(path.dirname(tempFile))
 
     // Open vault
-    await window.evaluate(async (api, vaultPath) => {
-      await api.openVault(vaultPath)
+    await window.evaluate(async (vaultPath) => {
+      await window.electronAPI.openVault(vaultPath)
     }, vaultDir)
 
     // Create dump with file - for E2E, we simulate the file path handling
     // Note: In real scenario, files come from drag-drop which requires UI interaction
     // This test verifies the IPC handler works correctly
-    const dump = await window.evaluate(async (api, filePath) => {
-      return await api.createDump({ text: 'Dump with file', filePaths: [filePath] })
+    const dump = await window.evaluate(async (filePath) => {
+      return await window.electronAPI.createDump({ text: 'Dump with file', filePaths: [filePath] })
     }, tempFile)
 
     expect(dump).toBeTruthy()
@@ -235,7 +235,7 @@ test.describe('Dump Operations E2E', () => {
     await window.waitForTimeout(1000)
 
     // Check recent vaults
-    const recentVaults = await window.evaluate((api) => api.getRecentVaults())
+    const recentVaults = await window.evaluate(() => window.electronAPI.getRecentVaults())
 
     expect(recentVaults.length).toBeGreaterThan(0)
     expect(recentVaults[0].path).toBe(vaultDir)
