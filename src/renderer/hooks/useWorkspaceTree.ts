@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { WorkspaceNode, WorkspaceNote } from '../lib/types'
+import type { WorkspaceNode, WorkspaceNote } from '@/shared/types'
 import { getElectronAPI } from '../lib/electron-api'
 import { collectWorkspaceNotePaths } from '../lib/workspace-path-utils'
 
@@ -33,7 +33,7 @@ export function useWorkspaceTree(projectId: string | null): UseWorkspaceTreeRetu
     }
     setError(null)
     try {
-      setTree(await api.getWorkspaceTree(projectId))
+      setTree(await api.workspace.getTree(projectId))
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not load workspace')
     } finally {
@@ -49,28 +49,28 @@ export function useWorkspaceTree(projectId: string | null): UseWorkspaceTreeRetu
 
   const createFolder = useCallback(async (parentPath: string, name: string) => {
     if (!projectId) return null
-    const folder = await api.createWorkspaceFolder(projectId, parentPath, name)
+    const folder = await api.workspace.createFolder(projectId, parentPath, name)
     await refresh({ silent: true })
     return folder
   }, [projectId, refresh])
 
   const createNote = useCallback(async (parentPath: string, name: string) => {
     if (!projectId) return null
-    const note = await api.createWorkspaceNote(projectId, parentPath, name)
+    const note = await api.workspace.createNote(projectId, parentPath, name)
     await refresh({ silent: true })
     return note
   }, [projectId, refresh])
 
   const renameEntry = useCallback(async (path: string, name: string) => {
     if (!projectId) return null
-    const result = await api.renameWorkspaceEntry(projectId, path, name)
+    const result = await api.workspace.renameEntry(projectId, path, name)
     await refresh({ silent: true })
     return result
   }, [projectId, refresh])
 
   const deleteEntry = useCallback(async (path: string) => {
     if (!projectId) return
-    await api.deleteWorkspaceEntry(projectId, path)
+    await api.workspace.deleteEntry(projectId, path)
     await refresh({ silent: true })
   }, [projectId, refresh])
 

@@ -1,8 +1,8 @@
 import { useEffect, useMemo } from 'react'
 import * as Dialog from '@radix-ui/react-dialog'
 import { Check, NotebookPen, X } from 'lucide-react'
-import { Project } from '../lib/types'
-import { cn } from '../../lib/utils'
+import type { Project } from '@/shared/types'
+import { cn } from '@/shared/cn'
 import type { ReferenceTargetOption } from '../hooks/useDumpReferenceInsertion'
 
 interface InsertReferenceDialogProps {

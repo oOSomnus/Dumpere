@@ -1,9 +1,9 @@
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { GripVertical } from 'lucide-react'
-import { DumpEntry } from '../lib/types'
+import type { DumpEntry } from '@/shared/types'
 import { DumpCard } from './DumpCard'
-import { cn } from '../../lib/utils'
+import { cn } from '@/shared/cn'
 
 interface SortableDumpCardProps {
   dump: DumpEntry

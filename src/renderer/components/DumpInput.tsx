@@ -1,11 +1,11 @@
 import { useState, useRef, useCallback, useEffect, KeyboardEvent, DragEvent, ClipboardEvent } from 'react'
 import { ResizeHandle } from './ResizeHandle'
-import { FileChip } from './FileChip'
-import { ProjectSelector } from './ProjectSelector'
 import { TagInput } from './TagInput'
-import { Project, Tag } from '../lib/types'
-import { cn } from '../../lib/utils'
+import type { Project, Tag } from '@/shared/types'
+import { cn } from '@/shared/cn'
 import { getElectronAPI } from '../lib/electron-api'
+import { DumpAttachmentStrip } from './dump-input/DumpAttachmentStrip'
+import { DumpComposer } from './dump-input/DumpComposer'
 
 interface FileChipData {
   id: string
@@ -205,7 +205,7 @@ export function DumpInput({
       }
 
       const data = await file.arrayBuffer()
-      const tempPath = await api.createTempAttachment({
+      const tempPath = await api.files.createTempAttachment({
         name,
         mimeType: file.type,
         data
@@ -275,63 +275,22 @@ export function DumpInput({
         dumpText={text}
       />
 
-      {/* File chips row */}
-      {attachedFiles.length > 0 && (
-        <div
-          className="flex gap-2 px-4 pt-2 overflow-x-auto"
-          style={{ maxHeight: '80px' }}
-        >
-          {attachedFiles.map(file => (
-            <FileChip
-              key={file.id}
-              name={file.name}
-              onRemove={() => removeFile(file.id)}
-            />
-          ))}
-        </div>
-      )}
+      <DumpAttachmentStrip files={attachedFiles} onRemove={removeFile} />
 
-      {/* Input row with ProjectSelector */}
-      <div className="flex items-center px-4" style={{ height: `${inputHeight}px` }}>
-        {/* ProjectSelector — dropdown for project selection */}
-        <ProjectSelector
-          projects={projects}
-          activeProjectId={activeProjectId}
-          onSelect={handleProjectSelect}
-          allowAllProjects={false}
-          emptyLabel={projects.length === 0 ? 'No Projects' : 'Assign Project'}
-          hasError={!!projectError}
-        />
-
-        <textarea
-          ref={inputRef}
-          value={text}
-          onChange={handleTextChange}
-          onKeyDown={handleKeyDown}
-          onDragOver={e => { e.preventDefault(); e.stopPropagation() }}
-          onDrop={handleDrop}
-          onPaste={handlePaste}
-          placeholder="Dump something... (Enter to add tags)"
-          disabled={isSubmitting}
-          rows={1}
-          className={cn(
-            'flex-1 bg-transparent border-0 outline-none text-base resize-none',
-            'placeholder:text-muted-foreground'
-          )}
-          style={{
-            color: 'var(--foreground)',
-            height: `${inputHeight}px`,
-            textAlign: text.length === 0 ? 'center' : 'left'
-          }}
-        />
-
-        {/* Submit indicator */}
-        {isSubmitting && (
-          <span className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
-            Saving...
-          </span>
-        )}
-      </div>
+      <DumpComposer
+        inputRef={inputRef}
+        text={text}
+        onTextChange={handleTextChange}
+        onKeyDown={handleKeyDown}
+        onDrop={handleDrop}
+        onPaste={handlePaste}
+        isSubmitting={isSubmitting}
+        inputHeight={inputHeight}
+        projects={projects}
+        activeProjectId={activeProjectId}
+        onProjectSelect={handleProjectSelect}
+        projectError={projectError}
+      />
 
       {projectError && (
         <div

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type MutableRefObject } from 'react'
 import { Folder, FileText, FolderPlus, FilePlus, Pencil, Trash2 } from 'lucide-react'
-import { WorkspaceNode, WorkspaceNote } from '../lib/types'
-import { cn } from '../../lib/utils'
+import type { WorkspaceNode, WorkspaceNote } from '@/shared/types'
+import { cn } from '@/shared/cn'
 
 type CreatedWorkspaceEntry = Pick<WorkspaceNode, 'type' | 'name' | 'path'> | WorkspaceNote
 

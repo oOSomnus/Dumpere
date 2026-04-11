@@ -1,6 +1,6 @@
 import * as Popover from '@radix-ui/react-popover'
-import { Project } from '../lib/types'
-import { cn } from '../../lib/utils'
+import type { Project } from '@/shared/types'
+import { cn } from '@/shared/cn'
 import { FolderOpen, Check } from 'lucide-react'
 
 interface ProjectSelectorProps {

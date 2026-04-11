@@ -26,31 +26,43 @@ describe('App', () => {
 
     const electronAPI = {
       ...mockElectronAPI,
-      getVaultState: vi.fn(async () => closedState),
-      getRecentVaults: vi.fn(async () => []),
-      onVaultStateChange: vi.fn((callback: (state: VaultState) => void) => {
-        vaultStateChangeHandler = callback
-      }),
-      createVault: vi.fn(async () => {
-        vaultStateChangeHandler?.(openState)
-        return openState
-      }),
-      openVault: vi.fn(async () => openState),
-      closeVault: vi.fn(async () => closedState),
-      getDumps: vi.fn(async () => []),
-      getProjects: vi.fn(async () => []),
-      getTags: vi.fn(async () => []),
-      getDumpOrder: vi.fn(async () => []),
-      getSummaries: vi.fn(async () => []),
-      generateSummary: vi.fn(async () => null),
-      getWorkspaceTree: vi.fn(async () => [{ type: 'note' as const, name: 'index.md', path: 'index.md' }]),
-      createWorkspaceFolder: vi.fn(async () => ({ type: 'folder' as const, name: 'docs', path: 'docs', children: [] })),
-      createWorkspaceNote: vi.fn(async () => ({ projectId: 'project-1', path: 'index.md', content: '', updatedAt: Date.now() })),
-      readWorkspaceNote: vi.fn(async () => ({ projectId: 'project-1', path: 'index.md', content: '', updatedAt: Date.now() })),
-      updateWorkspaceNote: vi.fn(async (_projectId: string, notePath: string, content: string) => ({ projectId: 'project-1', path: notePath, content, updatedAt: Date.now() })),
-      renameWorkspaceEntry: vi.fn(async (_projectId: string, path: string) => ({ path })),
-      deleteWorkspaceEntry: vi.fn(async () => {}),
-      onThemeChange: mockOnThemeChange,
+      vault: {
+        ...mockElectronAPI.vault,
+        getState: vi.fn(async () => closedState),
+        getRecent: vi.fn(async () => []),
+        onStateChange: vi.fn((callback: (state: VaultState) => void) => {
+          vaultStateChangeHandler = callback
+          return () => {}
+        }),
+        create: vi.fn(async () => {
+          vaultStateChangeHandler?.(openState)
+          return openState
+        }),
+        open: vi.fn(async () => openState),
+        close: vi.fn(async () => closedState)
+      },
+      data: {
+        ...mockElectronAPI.data,
+        getDumps: vi.fn(async () => []),
+        getProjects: vi.fn(async () => []),
+        getTags: vi.fn(async () => []),
+        getSummaries: vi.fn(async () => []),
+        generateSummary: vi.fn(async () => null)
+      },
+      workspace: {
+        ...mockElectronAPI.workspace,
+        getTree: vi.fn(async () => [{ type: 'note' as const, name: 'index.md', path: 'index.md' }]),
+        createFolder: vi.fn(async () => ({ type: 'folder' as const, name: 'docs', path: 'docs', children: [] })),
+        createNote: vi.fn(async () => ({ projectId: 'project-1', path: 'index.md', content: '', updatedAt: Date.now() })),
+        readNote: vi.fn(async () => ({ projectId: 'project-1', path: 'index.md', content: '', updatedAt: Date.now() })),
+        updateNote: vi.fn(async (_projectId: string, notePath: string, content: string) => ({ projectId: 'project-1', path: notePath, content, updatedAt: Date.now() })),
+        renameEntry: vi.fn(async (_projectId: string, path: string) => ({ path })),
+        deleteEntry: vi.fn(async () => {})
+      },
+      ui: {
+        ...mockElectronAPI.ui,
+        onThemeChange: mockOnThemeChange
+      }
     }
 
     window.electronAPI = electronAPI

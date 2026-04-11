@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useCallback, KeyboardEvent } from 'react'
 import * as Popover from '@radix-ui/react-popover'
 import * as Checkbox from '@radix-ui/react-checkbox'
 import { Sparkles, Check, X, ArrowUp, ArrowDown } from 'lucide-react'
-import type { Tag } from '../lib/types'
+import type { Tag } from '@/shared/types'
 
 export interface TagInputProps {
   open: boolean

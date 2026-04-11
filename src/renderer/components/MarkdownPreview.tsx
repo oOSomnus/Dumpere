@@ -2,7 +2,7 @@ import { useMemo } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { Image, Link2, TriangleAlert } from 'lucide-react'
-import type { DumpEntry } from '../lib/types'
+import type { DumpEntry } from '@/shared/types'
 
 interface DumpReferenceCardProps {
   dump: DumpEntry | null

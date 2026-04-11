@@ -39,7 +39,7 @@ export function useTheme() {
 
   // Initialize: read stored theme from electron-store
   useEffect(() => {
-    api.getTheme().then((setting: ThemeSetting) => {
+    api.ui.getTheme().then((setting: ThemeSetting) => {
       setThemeSetting(setting)
     }).catch(() => {
       setThemeSetting('system')
@@ -62,7 +62,7 @@ export function useTheme() {
 
   // Listen for theme:changed from main process (e.g., from theme:set in another window)
   useEffect(() => {
-    const unsubscribe = api.onThemeChange((dark: boolean) => {
+    const unsubscribe = api.ui.onThemeChange((dark: boolean) => {
       setIsDark(dark)
       applyThemeClass(dark)
     })
@@ -71,7 +71,7 @@ export function useTheme() {
 
   const setTheme = useCallback(async (setting: ThemeSetting) => {
     setThemeSetting(setting)
-    await api.setTheme(setting)
+    await api.ui.setTheme(setting)
     const effective = getEffectiveIsDark(setting, osPrefersDark)
     setIsDark(effective)
     applyThemeClass(effective)

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Tag } from '../lib/types'
+import type { Tag } from '@/shared/types'
 import { getElectronAPI } from '../lib/electron-api'
 
 // Input validation constants
@@ -16,8 +16,6 @@ interface UseTagsReturn {
   createTag: (name: string) => Promise<Tag>
   deleteTag: (id: string) => Promise<void>
   getAISuggestions: (text: string) => Tag[]
-  acceptAISuggestion: (tagId: string) => void
-  rejectAISuggestion: (tagId: string) => void
 }
 
 export function useTags(): UseTagsReturn {
@@ -30,7 +28,7 @@ export function useTags(): UseTagsReturn {
   useEffect(() => {
     const loadTags = async () => {
       try {
-        const storedTags = await api.getTags()
+        const storedTags = await api.data.getTags()
         // Sort by createdAt descending
         const sorted = storedTags.sort((a, b) => b.createdAt - a.createdAt)
         setTags(sorted)
@@ -64,15 +62,8 @@ export function useTags(): UseTagsReturn {
       return existingTag
     }
 
-    const now = Date.now()
-    const newTag: Tag = {
-      id: crypto.randomUUID(),
-      name: normalizedName,
-      createdAt: now
-    }
-
     try {
-      const savedTag = await api.saveTag(newTag)
+      const savedTag = await api.data.createTag(normalizedName)
       setTags(prev => [savedTag, ...prev])
       return savedTag
     } catch (err) {
@@ -89,7 +80,7 @@ export function useTags(): UseTagsReturn {
     setError(null)
 
     try {
-      await api.deleteTag(id)
+      await api.data.deleteTag(id)
     } catch (err) {
       console.error('Failed to delete tag:', err)
       // Rollback
@@ -169,27 +160,12 @@ export function useTags(): UseTagsReturn {
     return suggestions
   }
 
-  // acceptAISuggestion and rejectAISuggestion are for managing selected state
-  // in TagInput popup - these are placeholder functions that could be
-  // extended to track selected suggestions in component state
-  const acceptAISuggestion = (tagId: string): void => {
-    // Placeholder - UI component manages selected state
-    console.log('Accept suggestion:', tagId)
-  }
-
-  const rejectAISuggestion = (tagId: string): void => {
-    // Placeholder - UI component manages selected state
-    console.log('Reject suggestion:', tagId)
-  }
-
   return {
     tags,
     isLoading,
     error,
     createTag,
     deleteTag,
-    getAISuggestions,
-    acceptAISuggestion,
-    rejectAISuggestion
+    getAISuggestions
   }
 }

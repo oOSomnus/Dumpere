@@ -1,4 +1,4 @@
-import type { ElectronAPI } from './types'
+import type { ElectronAPI } from '@/shared/types'
 import { mockElectronAPI } from './mock-electron-api'
 
 export function getElectronAPI(): ElectronAPI {

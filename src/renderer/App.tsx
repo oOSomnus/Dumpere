@@ -41,7 +41,7 @@ function VaultAppContent({
 
   // Load persisted panel sizes on mount
   useEffect(() => {
-    api.getPanelSizes().then(sizes => {
+    api.ui.getPanelSizes().then(sizes => {
       setPanelSizes(sizes)
     }).catch(() => {
       // Use defaults if loading fails
@@ -50,18 +50,18 @@ function VaultAppContent({
 
   const handleSidebarWidthChange = useCallback((width: number) => {
     setPanelSizes(prev => ({ ...prev, sidebarWidth: width }))
-    api.setPanelSizes({ sidebarWidth: width })
+    api.ui.setPanelSizes({ sidebarWidth: width })
   }, [])
 
   const handleInputHeightChange = useCallback((height: number) => {
     setPanelSizes(prev => ({ ...prev, inputHeight: height }))
-    api.setPanelSizes({ inputHeight: height })
+    api.ui.setPanelSizes({ inputHeight: height })
   }, [])
 
   const handleReset = useCallback(() => {
     const defaults = { sidebarWidth: 240, inputHeight: 60 }
     setPanelSizes(defaults)
-    api.setPanelSizes(defaults)
+    api.ui.setPanelSizes(defaults)
   }, [])
 
   return (

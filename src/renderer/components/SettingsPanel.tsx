@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react'
 import * as Select from '@radix-ui/react-select'
 import { ArrowLeft, Check, ChevronDown, Save, SlidersHorizontal } from 'lucide-react'
-import { SummarySettings } from '../lib/types'
-import { cn } from '../../lib/utils'
-import { Switch } from '../../components/ui/switch'
+import type { SummarySettings } from '@/shared/types'
+import { cn } from '@/shared/cn'
+import { Switch } from './ui/switch'
 import { getElectronAPI } from '../lib/electron-api'
 
 const DEFAULT_SETTINGS: SummarySettings = {
@@ -36,7 +36,7 @@ export function SettingsPanel({
   useEffect(() => {
     const loadSettings = async () => {
       try {
-        const stored = await api.getSummarySettings()
+        const stored = await api.ui.getSummarySettings()
         setSettings(stored)
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Could not load summary settings'
@@ -73,7 +73,7 @@ export function SettingsPanel({
     setSuccessMessage(null)
 
     try {
-      const saved = await api.updateSummarySettings(settings)
+      const saved = await api.ui.updateSummarySettings(settings)
       setSettings(saved)
       setSuccessMessage('Summary settings saved.')
     } catch (err) {

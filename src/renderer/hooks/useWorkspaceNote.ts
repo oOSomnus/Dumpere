@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { WorkspaceNote } from '../lib/types'
+import type { WorkspaceNote } from '@/shared/types'
 import { getElectronAPI } from '../lib/electron-api'
 
 interface UseWorkspaceNoteReturn {
@@ -33,7 +33,7 @@ export function useWorkspaceNote(projectId: string | null, notePath: string | nu
     setIsLoading(true)
     setError(null)
     try {
-      const nextNote = await api.readWorkspaceNote(projectId, notePath)
+      const nextNote = await api.workspace.readNote(projectId, notePath)
       setNote(nextNote)
       setContent(nextNote.content)
       loadedContentRef.current = nextNote.content
@@ -60,7 +60,7 @@ export function useWorkspaceNote(projectId: string | null, notePath: string | nu
     setIsSaving(true)
     setError(null)
     try {
-      const saved = await api.updateWorkspaceNote(projectId, notePath, content)
+      const saved = await api.workspace.updateNote(projectId, notePath, content)
       setNote(saved)
       loadedContentRef.current = saved.content
       return saved

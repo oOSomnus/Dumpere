@@ -1,4 +1,4 @@
-import { cn } from '../../lib/utils'
+import { cn } from '@/shared/cn'
 
 export type TimeRange = 'today' | 'week' | 'month' | null
 

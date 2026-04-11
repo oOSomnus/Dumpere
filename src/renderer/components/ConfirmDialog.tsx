@@ -1,6 +1,6 @@
 import * as Dialog from '@radix-ui/react-dialog'
 import { AlertTriangle } from 'lucide-react'
-import { cn } from '../../lib/utils'
+import { cn } from '@/shared/cn'
 
 export interface ConfirmDialogProps {
   open: boolean

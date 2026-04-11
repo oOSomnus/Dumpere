@@ -1,5 +1,5 @@
 import log from 'electron-log'
-import { SummarySettings } from '../renderer/lib/types'
+import type { SummarySettings } from '@/shared/types'
 
 const DEFAULT_OPENAI_SETTINGS: SummarySettings = {
   provider: 'openai',

@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { renderHook, waitFor, act } from '@testing-library/react'
 import type { VaultState, RecentVault } from '../lib/types'
+import { mockElectronAPI } from '../lib/types'
 
 const mockGetVaultState = vi.fn()
 const mockGetRecentVaults = vi.fn()
@@ -23,13 +24,16 @@ describe('useVault', () => {
     vi.clearAllMocks()
 
     window.electronAPI = {
-      ...(window.electronAPI ?? {}),
-      getVaultState: mockGetVaultState,
-      getRecentVaults: mockGetRecentVaults,
-      onVaultStateChange: mockOnVaultStateChange,
-      createVault: mockCreateVault,
-      openVault: mockOpenVault,
-      closeVault: mockCloseVault,
+      ...mockElectronAPI,
+      vault: {
+        ...mockElectronAPI.vault,
+        getState: mockGetVaultState,
+        getRecent: mockGetRecentVaults,
+        onStateChange: mockOnVaultStateChange,
+        create: mockCreateVault,
+        open: mockOpenVault,
+        close: mockCloseVault,
+      }
     } as typeof window.electronAPI
 
     mockGetVaultState.mockResolvedValue(closedState)

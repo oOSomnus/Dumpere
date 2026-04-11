@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import { WelcomeScreen } from './WelcomeScreen'
 import type { VaultState, RecentVault } from '../lib/types'
+import { mockElectronAPI } from '../lib/types'
 
 // Mock window.electronAPI
 const mockCreateVault = vi.fn()
@@ -26,12 +27,15 @@ describe('WelcomeScreen', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     window.electronAPI = {
-      ...(window.electronAPI ?? {}),
-      createVault: mockCreateVault,
-      openVault: mockOpenVault,
-      getVaultState: vi.fn(() => Promise.resolve({ isOpen: false, vaultPath: null, vaultName: null })),
-      getRecentVaults: vi.fn(() => Promise.resolve([])),
-      onVaultStateChange: vi.fn(),
+      ...mockElectronAPI,
+      vault: {
+        ...mockElectronAPI.vault,
+        create: mockCreateVault,
+        open: mockOpenVault,
+        getState: vi.fn(() => Promise.resolve({ isOpen: false, vaultPath: null, vaultName: null })),
+        getRecent: vi.fn(() => Promise.resolve([])),
+        onStateChange: vi.fn()
+      }
     } as typeof window.electronAPI
   })
 

@@ -106,10 +106,10 @@ export function useAppController() {
       return
     }
 
-    const savePath = await api.exportSaveDialog(`${project.name}.zip`)
+    const savePath = await api.ui.exportSaveDialog(`${project.name}.zip`)
     if (!savePath) return
 
-    const result = await api.exportDumps(projectDumps.map(d => d.id), project.name, savePath)
+    const result = await api.data.exportDumps(projectDumps.map(d => d.id), project.name, savePath)
     if (result) {
       prompt.success('Export successful!')
     }
@@ -128,10 +128,10 @@ export function useAppController() {
     })
     if (!confirmed) return
 
-    const zipPath = await api.importDialog()
+    const zipPath = await api.ui.importDialog()
     if (!zipPath) return
 
-    const count = await api.importDumps(zipPath, projectId)
+    const count = await api.data.importDumps(zipPath, projectId)
     prompt.success(`Imported ${count} dumps to ${project.name}`)
   }, [projects, prompt])
 
@@ -139,10 +139,10 @@ export function useAppController() {
     if (dumpIds.length === 0) return
 
     const api = getElectronAPI()
-    const savePath = await api.exportSaveDialog(`export-${Date.now()}.zip`)
+    const savePath = await api.ui.exportSaveDialog(`export-${Date.now()}.zip`)
     if (!savePath) return
 
-    const result = await api.exportDumps(dumpIds, 'export', savePath)
+    const result = await api.data.exportDumps(dumpIds, 'export', savePath)
     if (result) {
       prompt.success(`Exported ${dumpIds.length} dumps`)
     }

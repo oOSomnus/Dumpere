@@ -1,4 +1,4 @@
-import type { DatePreset } from './types'
+import type { DatePreset } from '@/shared/types'
 
 function pad(value: number): string {
   return value.toString().padStart(2, '0')

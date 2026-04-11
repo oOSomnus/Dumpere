@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import type { DumpEntry, Project, WorkspaceNode } from '../lib/types'
+import type { DumpEntry, Project, WorkspaceNode } from '@/shared/types'
 import { getElectronAPI } from '../lib/electron-api'
 import { appendMarkdownSection, formatDumpReferences } from '../lib/workpad-utils'
 import { usePrompt } from './usePrompt'
@@ -61,7 +61,7 @@ export function useDumpReferenceInsertion({
     const loadPersistedActiveNotes = async () => {
       try {
         const api = getElectronAPI()
-        const state = await api.getSummaryPanelState()
+        const state = await api.ui.getSummaryPanelState()
         const persistedNotes = Object.fromEntries(
           Object.entries(state)
             .filter(([, value]) => Boolean(value.notePath))
@@ -89,7 +89,7 @@ export function useDumpReferenceInsertion({
     setIsLoadingNotes(true)
 
     try {
-      const tree = await api.getWorkspaceTree(projectId)
+      const tree = await api.workspace.getTree(projectId)
       const nextNoteOptions = collectWorkspaceNoteOptions(tree)
       setNoteOptions(nextNoteOptions)
 
@@ -165,8 +165,8 @@ export function useDumpReferenceInsertion({
     void (async () => {
       try {
         const api = getElectronAPI()
-        const currentState = await api.getSummaryPanelState()
-        await api.setSummaryPanelState({
+        const currentState = await api.ui.getSummaryPanelState()
+        await api.ui.setSummaryPanelState({
           ...currentState,
           [projectId]: {
             workspaceMode: currentState[projectId]?.workspaceMode ?? 'edit',
@@ -185,9 +185,9 @@ export function useDumpReferenceInsertion({
     }
 
     const api = getElectronAPI()
-    const currentNote = await api.readWorkspaceNote(selectedProjectId, selectedNotePath)
+    const currentNote = await api.workspace.readNote(selectedProjectId, selectedNotePath)
     const referenceContent = formatDumpReferences(selectedDumps)
-    await api.updateWorkspaceNote(
+    await api.workspace.updateNote(
       selectedProjectId,
       selectedNotePath,
       appendMarkdownSection(currentNote.content, referenceContent)

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { DumpEntry, StoredFile } from '../lib/types'
+import type { DumpEntry } from '@/shared/types'
 import { getElectronAPI } from '../lib/electron-api'
 
 interface UseDumpReturn {
@@ -23,7 +23,7 @@ export function useDump(): UseDumpReturn {
   useEffect(() => {
     const loadDumps = async () => {
       try {
-        const storedDumps = await api.getDumps()
+        const storedDumps = await api.data.getDumps()
         // Sort newest first (VIEW-06)
         const sorted = storedDumps.sort((a, b) => b.createdAt - a.createdAt)
         setDumps(sorted)
@@ -61,24 +61,12 @@ export function useDump(): UseDumpReturn {
     setError(null)
 
     try {
-      // Copy files to app storage first
-      let storedFiles: StoredFile[] = []
-      if (filePaths.length > 0) {
-        storedFiles = await api.copyFiles(filePaths)
-      }
-
-      // Create the dump entry with all data
-      const dumpToSave: Omit<DumpEntry, 'id'> = {
+      const savedDump = await api.data.createDump({
         text,
-        files: storedFiles,
-        createdAt: now,
-        updatedAt: now,
-        projectId,  // Phase 2
-        tags: tagIds  // Phase 2
-      }
-
-      // Save to store via IPC
-      const savedDump = await api.saveDump(dumpToSave)
+        filePaths,
+        projectId,
+        tagIds
+      })
 
       // Replace optimistic entry with confirmed one
       setDumps(prev => {
@@ -112,7 +100,7 @@ export function useDump(): UseDumpReturn {
     setError(null)
 
     try {
-      await api.deleteDump(id)
+      await api.data.deleteDump(id)
     } catch (err) {
       console.error('Failed to delete dump:', err)
       // Rollback
@@ -137,7 +125,7 @@ export function useDump(): UseDumpReturn {
     })
 
     try {
-      await api.updateDump(id, updates)
+      await api.data.updateDump(id, updates)
     } catch (err) {
       console.error('Failed to update dump:', err)
       setDumps(previousDumps)

@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import * as Popover from '@radix-ui/react-popover'
 import { CalendarDays, ChevronLeft, ChevronRight } from 'lucide-react'
-import { cn } from '../../lib/utils'
+import { cn } from '@/shared/cn'
 import { getMonthDateKeys, toLocalDateKey } from '../lib/date-utils'
 
 interface DateFilterPopoverProps {

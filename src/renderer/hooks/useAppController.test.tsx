@@ -42,26 +42,36 @@ describe('useAppController', () => {
     vi.resetModules()
     window.electronAPI = {
       ...mockElectronAPI,
-      getDumps: vi.fn(async () => dumps),
-      getProjects: vi.fn(async () => projects),
-      getTags: vi.fn(async () => tags),
-      saveProject: vi.fn(async (project) => project),
-      updateProject: vi.fn(async (id: string, name: string) => ({ id, name, createdAt: 1 })),
-      deleteProject: vi.fn(async () => {}),
-      saveTag: vi.fn(async (tag) => tag),
-      deleteTag: vi.fn(async () => {}),
-      copyFiles: vi.fn(async () => []),
-      saveDump: vi.fn(async (dump) => ({ ...dump, id: 'saved-dump' })),
-      deleteDump: vi.fn(async () => {}),
-      updateDump: vi.fn(async (id, updates) => ({
-        id,
-        text: '',
-        files: [],
-        createdAt: Date.now(),
-        updatedAt: Date.now(),
-        projectId: updates.projectId ?? null,
-        tags: updates.tags ?? []
-      }))
+      data: {
+        ...mockElectronAPI.data,
+        getDumps: vi.fn(async () => dumps),
+        getProjects: vi.fn(async () => projects),
+        getTags: vi.fn(async () => tags),
+        createProject: vi.fn(async (name: string) => ({ id: crypto.randomUUID(), name, createdAt: Date.now() })),
+        updateProject: vi.fn(async (id: string, name: string) => ({ id, name, createdAt: 1 })),
+        deleteProject: vi.fn(async () => {}),
+        createTag: vi.fn(async (name: string) => ({ id: crypto.randomUUID(), name, createdAt: Date.now() })),
+        deleteTag: vi.fn(async () => {}),
+        createDump: vi.fn(async ({ text, projectId, tagIds }: { text: string; projectId: string; tagIds: string[] }) => ({
+          id: 'saved-dump',
+          text,
+          files: [],
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+          projectId,
+          tags: tagIds
+        })),
+        deleteDump: vi.fn(async () => {}),
+        updateDump: vi.fn(async (id, updates) => ({
+          id,
+          text: '',
+          files: [],
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+          projectId: updates.projectId ?? null,
+          tags: updates.tags ?? []
+        }))
+      }
     }
   })
 

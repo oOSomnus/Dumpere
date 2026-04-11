@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import type { RecentVault, VaultState } from '../lib/types'
+import type { RecentVault, VaultState } from '@/shared/types'
 import { getElectronAPI } from '../lib/electron-api'
 
 export function useVault() {
@@ -17,9 +17,9 @@ export function useVault() {
   useEffect(() => {
     const loadInitialState = async () => {
       try {
-        const state = await api.getVaultState()
+        const state = await api.vault.getState()
         setVaultState(state)
-        const recent = await api.getRecentVaults()
+        const recent = await api.vault.getRecent()
         setRecentVaults(recent)
       } catch (err) {
         console.error('Failed to load vault state:', err)
@@ -28,7 +28,7 @@ export function useVault() {
     loadInitialState()
 
     // Subscribe to vault state changes
-    api.onVaultStateChange((state: VaultState) => {
+    return api.vault.onStateChange((state: VaultState) => {
       setVaultState(state)
     })
   }, [])
@@ -37,9 +37,9 @@ export function useVault() {
     setIsLoading(true)
     setError(null)
     try {
-      const state = await api.createVault()
+      const state = await api.vault.create()
       setVaultState(state)
-      const recent = await api.getRecentVaults()
+      const recent = await api.vault.getRecent()
       setRecentVaults(recent)
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to create vault'
@@ -54,9 +54,9 @@ export function useVault() {
     setIsLoading(true)
     setError(null)
     try {
-      const state = await api.openVault(vaultPath)
+      const state = await api.vault.open(vaultPath)
       setVaultState(state)
-      const recent = await api.getRecentVaults()
+      const recent = await api.vault.getRecent()
       setRecentVaults(recent)
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to open vault'
@@ -71,7 +71,7 @@ export function useVault() {
     setIsLoading(true)
     setError(null)
     try {
-      const state = await api.closeVault()
+      const state = await api.vault.close()
       setVaultState(state)
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to close vault'

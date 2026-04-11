@@ -1,12 +1,11 @@
 import { useState, useCallback } from 'react'
-import { DateFilterState, DatePreset, DumpEntry } from '../lib/types'
+import type { DateFilterState, DatePreset, DumpEntry } from '@/shared/types'
 import { getPresetDateKeys, toLocalDateKey } from '../lib/date-utils'
 
 export interface FilterState {
   projectId: string | null
   tagIds: string[]
   dateFilter: DateFilterState
-  sortBy: 'createdAt' | 'custom'
 }
 
 export interface UseFilterReturn {
@@ -17,8 +16,7 @@ export interface UseFilterReturn {
   toggleDate: (dateKey: string) => void
   setDateKeys: (dateKeys: string[]) => void
   clearDateFilter: () => void
-  setSortBy: (sort: 'createdAt' | 'custom') => void
-  applyFilters: (dumps: DumpEntry[], dumpOrder?: string[]) => DumpEntry[]
+  applyFilters: (dumps: DumpEntry[]) => DumpEntry[]
 }
 
 const EMPTY_DATE_FILTER: DateFilterState = {
@@ -56,8 +54,7 @@ export function useFilter(): UseFilterReturn {
   const [filters, setFilters] = useState<FilterState>({
     projectId: null,
     tagIds: [],
-    dateFilter: EMPTY_DATE_FILTER,
-    sortBy: 'createdAt'
+    dateFilter: EMPTY_DATE_FILTER
   })
 
   const setProjectFilter = useCallback((projectId: string | null) => {
@@ -123,11 +120,7 @@ export function useFilter(): UseFilterReturn {
     }))
   }, [])
 
-  const setSortBy = useCallback((sort: 'createdAt' | 'custom') => {
-    setFilters(prev => ({ ...prev, sortBy: sort }))
-  }, [])
-
-  const applyFilters = useCallback((dumps: DumpEntry[], dumpOrder: string[] = []): DumpEntry[] => {
+  const applyFilters = useCallback((dumps: DumpEntry[]): DumpEntry[] => {
     let filtered = dumps.filter((dump) => {
       if (filters.projectId && dump.projectId !== filters.projectId) {
         return false
@@ -145,25 +138,7 @@ export function useFilter(): UseFilterReturn {
       return true
     })
 
-    if (filters.sortBy === 'custom' && dumpOrder.length > 0) {
-      const orderedDumps: { dump: DumpEntry; orderIndex: number }[] = []
-      const unorderedDumps: DumpEntry[] = []
-
-      filtered.forEach(dump => {
-        const orderIndex = dumpOrder.indexOf(dump.id)
-        if (orderIndex !== -1) {
-          orderedDumps.push({ dump, orderIndex })
-        } else {
-          unorderedDumps.push(dump)
-        }
-      })
-
-      orderedDumps.sort((a, b) => a.orderIndex - b.orderIndex)
-      unorderedDumps.sort((a, b) => b.createdAt - a.createdAt)
-      filtered = [...orderedDumps.map(item => item.dump), ...unorderedDumps]
-    } else {
-      filtered.sort((a, b) => b.createdAt - a.createdAt)
-    }
+    filtered.sort((a, b) => b.createdAt - a.createdAt)
 
     return filtered
   }, [filters])
@@ -176,7 +151,6 @@ export function useFilter(): UseFilterReturn {
     toggleDate,
     setDateKeys,
     clearDateFilter,
-    setSortBy,
     applyFilters
   }
 }

@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { CheckCircle2, Info, TriangleAlert, X } from 'lucide-react'
 import { ConfirmDialog } from './ConfirmDialog'
-import { cn } from '../../lib/utils'
+import { cn } from '@/shared/cn'
 
 export type PromptNotificationVariant = 'success' | 'error' | 'info'
 

@@ -1,5 +1,5 @@
 import { useCallback, useRef, useState, type MouseEvent } from 'react'
-import type { Project } from '../lib/types'
+import type { Project } from '@/shared/types'
 import { usePrompt } from './usePrompt'
 
 interface ContextMenuState {

@@ -26,8 +26,11 @@ describe('useTheme', () => {
 
     window.electronAPI = {
       ...mockElectronAPI,
-      getTheme: vi.fn(async () => 'system'),
-      onThemeChange: vi.fn(() => unsubscribe)
+      ui: {
+        ...mockElectronAPI.ui,
+        getTheme: vi.fn(async () => 'system'),
+        onThemeChange: vi.fn(() => unsubscribe)
+      }
     }
 
     const { result, unmount } = renderHook(() => useTheme())
@@ -38,7 +41,7 @@ describe('useTheme', () => {
 
     unmount()
 
-    expect(window.electronAPI.onThemeChange).toHaveBeenCalledTimes(1)
+    expect(window.electronAPI.ui.onThemeChange).toHaveBeenCalledTimes(1)
     expect(unsubscribe).toHaveBeenCalledTimes(1)
     expect(removeMediaListener).toHaveBeenCalledWith('change', expect.any(Function))
   })

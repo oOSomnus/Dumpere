@@ -44,25 +44,31 @@ describe('useDumpReferenceInsertion', () => {
     vi.resetModules()
     window.electronAPI = {
       ...mockElectronAPI,
-      getSummaryPanelState: vi.fn(async () => ({
-        'project-1': { workspaceMode: 'split', notePath: 'docs/plan.md' }
-      })),
-      setSummaryPanelState: vi.fn(async () => {}),
-      getWorkspaceTree: vi.fn(async (projectId: string) => (
-        projectId === 'project-1' ? projectOneTree : projectTwoTree
-      )),
-      readWorkspaceNote: vi.fn(async (projectId: string, notePath: string) => ({
-        projectId,
-        path: notePath,
-        content: '## Notes',
-        updatedAt: 1
-      })),
-      updateWorkspaceNote: vi.fn(async (projectId: string, notePath: string, content: string) => ({
-        projectId,
-        path: notePath,
-        content,
-        updatedAt: 2
-      }))
+      ui: {
+        ...mockElectronAPI.ui,
+        getSummaryPanelState: vi.fn(async () => ({
+          'project-1': { workspaceMode: 'split', notePath: 'docs/plan.md' }
+        })),
+        setSummaryPanelState: vi.fn(async () => {})
+      },
+      workspace: {
+        ...mockElectronAPI.workspace,
+        getTree: vi.fn(async (projectId: string) => (
+          projectId === 'project-1' ? projectOneTree : projectTwoTree
+        )),
+        readNote: vi.fn(async (projectId: string, notePath: string) => ({
+          projectId,
+          path: notePath,
+          content: '## Notes',
+          updatedAt: 1
+        })),
+        updateNote: vi.fn(async (projectId: string, notePath: string, content: string) => ({
+          projectId,
+          path: notePath,
+          content,
+          updatedAt: 2
+        }))
+      }
     }
   })
 
@@ -164,7 +170,7 @@ describe('useDumpReferenceInsertion', () => {
     })
 
     await waitFor(() => {
-      expect(window.electronAPI.setSummaryPanelState).toHaveBeenCalledWith({
+      expect(window.electronAPI.ui.setSummaryPanelState).toHaveBeenCalledWith({
         'project-1': { workspaceMode: 'split', notePath: 'docs/plan.md' },
         'project-2': { workspaceMode: 'edit', notePath: 'summary.md' }
       })

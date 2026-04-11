@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react'
-import { DumpEntry } from '../lib/types'
+import type { DumpEntry } from '@/shared/types'
 
 export interface SearchResult {
   dump: DumpEntry

@@ -1,23 +1,22 @@
 // @vitest-environment node
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import * as fs from 'node:fs'
-import * as path from 'node:path'
-import * as os from 'node:os'
-import * as fsPromises from 'fs/promises'
-import { createVault, openVault, getVaultState, validateVaultRoot } from './vault-service'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { basename, join } from 'node:path'
 
-// Mock Electron modules
-vi.mock('electron', () => ({
-  dialog: {
-    showOpenDialog: vi.fn(),
-  },
-  app: {
-    getPath: vi.fn(() => '/tmp/test-userData'),
-  },
+const mocks = vi.hoisted(() => ({
+  showOpenDialog: vi.fn(),
+  storeGet: vi.fn(),
+  storeSet: vi.fn()
 }))
 
-// Mock electron-log
+vi.mock('electron', () => ({
+  dialog: {
+    showOpenDialog: mocks.showOpenDialog
+  }
+}))
+
 vi.mock('electron-log', () => ({
   default: {
     info: vi.fn(),
@@ -27,151 +26,155 @@ vi.mock('electron-log', () => ({
   }
 }))
 
-// Mock electron-store
 vi.mock('./store', () => ({
   store: {
-    get: vi.fn(() => []),
-    set: vi.fn(),
+    get: mocks.storeGet,
+    set: mocks.storeSet
   }
 }))
 
-// Mock fs/promises
-vi.mock('fs/promises', () => ({
-  readdir: vi.fn(),
-  mkdir: vi.fn(),
-  writeFile: vi.fn(),
-  readFile: vi.fn(),
-  realpath: vi.fn((p) => Promise.resolve(p)),
-}))
+vi.mock('fs/promises', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('fs/promises')>()
+  return {
+    ...actual
+  }
+})
 
 describe('vault-service', () => {
   let tempDir: string
+  let vaultService: typeof import('./vault-service')
 
   beforeEach(async () => {
-    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'vault-test-'))
+    vi.resetModules()
     vi.clearAllMocks()
-    ;(fsPromises.readdir as ReturnType<typeof vi.fn>).mockImplementation(async (target: string) => fs.readdirSync(target))
-    ;(fsPromises.mkdir as ReturnType<typeof vi.fn>).mockImplementation(async (target: string) => {
-      fs.mkdirSync(target, { recursive: true })
+    tempDir = mkdtempSync(join(tmpdir(), 'dumpere-vault-service-'))
+    mocks.storeGet.mockImplementation((key: string, fallback: unknown) => {
+      if (key === 'recentVaults') {
+        return []
+      }
+      return fallback
     })
-    ;(fsPromises.writeFile as ReturnType<typeof vi.fn>).mockImplementation(async (target: string, content: string) => {
-      fs.writeFileSync(target, content)
-    })
-    ;(fsPromises.readFile as ReturnType<typeof vi.fn>).mockImplementation(async (target: string) => {
-      return fs.readFileSync(target, 'utf-8')
-    })
+
+    vaultService = await import('./vault-service')
   })
 
   afterEach(() => {
-    if (tempDir && fs.existsSync(tempDir)) {
-      fs.rmSync(tempDir, { recursive: true, force: true })
+    if (tempDir) {
+      rmSync(tempDir, { recursive: true, force: true })
     }
   })
 
-  describe('createVault', () => {
-    it('creates .dumpere structure with metadata.json', async () => {
-      const { dialog } = await import('electron')
-      dialog.showOpenDialog.mockResolvedValueOnce({
-        canceled: false,
-        filePaths: [tempDir]
-      })
-
-      const state = await createVault()
-
-      expect(state.isOpen).toBe(true)
-      expect(state.vaultPath).toBe(tempDir)
-      expect(fsPromises.mkdir).toHaveBeenCalledWith(
-        expect.stringContaining('.dumpere'),
-        { recursive: true }
-      )
-      expect(fsPromises.writeFile).toHaveBeenCalledWith(
-        expect.stringContaining('metadata.json'),
-        expect.any(String)
-      )
+  it('creates a vault with v2 metadata and workspace directories', async () => {
+    mocks.showOpenDialog.mockResolvedValueOnce({
+      canceled: false,
+      filePaths: [tempDir]
     })
 
-    it('rejects non-empty directories', async () => {
-      const { dialog } = await import('electron')
-      // Create a file in the directory
-      fs.writeFileSync(path.join(tempDir, 'somefile.txt'), 'content')
-      dialog.showOpenDialog.mockResolvedValueOnce({
-        canceled: false,
-        filePaths: [tempDir]
-      })
+    const state = await vaultService.createVault()
 
-      await expect(createVault()).rejects.toThrow('empty folder')
+    expect(state).toEqual({
+      isOpen: true,
+      vaultPath: tempDir,
+      vaultName: basename(tempDir)
+    })
+    expect(existsSync(join(tempDir, '.dumpere', 'metadata.json'))).toBe(true)
+    expect(existsSync(join(tempDir, '.dumpere', 'images'))).toBe(true)
+    expect(existsSync(join(tempDir, '.dumpere', 'videos'))).toBe(true)
+    expect(existsSync(join(tempDir, '.dumpere', 'audio'))).toBe(true)
+    expect(existsSync(join(tempDir, '.dumpere', 'files'))).toBe(true)
+    expect(existsSync(join(tempDir, '.dumpere', 'workspaces'))).toBe(true)
+
+    const metadata = JSON.parse(readFileSync(join(tempDir, '.dumpere', 'metadata.json'), 'utf8'))
+    expect(metadata).toMatchObject({
+      version: 2,
+      projects: [],
+      tags: [],
+      dumps: [],
+      summaries: []
+    })
+    expect(mocks.storeSet).toHaveBeenCalledWith('recentVaults', [
+      expect.objectContaining({
+        path: tempDir,
+        name: basename(tempDir)
+      })
+    ])
+  })
+
+  it('rejects creating a vault in a non-empty directory', async () => {
+    writeFileSync(join(tempDir, 'notes.txt'), 'busy directory')
+    mocks.showOpenDialog.mockResolvedValueOnce({
+      canceled: false,
+      filePaths: [tempDir]
     })
 
-    it('allows README.md and .gitignore', async () => {
-      const { dialog } = await import('electron')
-      fs.writeFileSync(path.join(tempDir, 'README.md'), '# Test')
-      dialog.showOpenDialog.mockResolvedValueOnce({
-        canceled: false,
-        filePaths: [tempDir]
-      })
+    await expect(vaultService.createVault()).rejects.toThrow('empty folder')
+  })
 
-      const state = await createVault()
-      expect(state.isOpen).toBe(true)
+  it('allows README.md and .gitignore in an otherwise empty directory', async () => {
+    writeFileSync(join(tempDir, 'README.md'), '# Vault')
+    writeFileSync(join(tempDir, '.gitignore'), '.DS_Store')
+    mocks.showOpenDialog.mockResolvedValueOnce({
+      canceled: false,
+      filePaths: [tempDir]
+    })
+
+    await expect(vaultService.createVault()).resolves.toMatchObject({
+      isOpen: true,
+      vaultPath: tempDir
     })
   })
 
-  describe('openVault', () => {
-    it('opens valid vault with .dumpere marker', async () => {
-      // Setup: create .dumpere structure
-      const dumpereDir = path.join(tempDir, '.dumpere')
-      fs.mkdirSync(dumpereDir)
-      fs.mkdirSync(path.join(dumpereDir, 'images'))
-      fs.mkdirSync(path.join(dumpereDir, 'videos'))
-      fs.mkdirSync(path.join(dumpereDir, 'audio'))
-      fs.mkdirSync(path.join(dumpereDir, 'files'))
-      fs.writeFileSync(
-        path.join(dumpereDir, 'metadata.json'),
-        JSON.stringify({ version: '1.0', created: new Date().toISOString(), dumps: [] })
-      )
+  it('opens a valid v2 vault', async () => {
+    mkdirSync(join(tempDir, '.dumpere', 'workspaces'), { recursive: true })
+    mkdirSync(join(tempDir, '.dumpere', 'images'), { recursive: true })
+    mkdirSync(join(tempDir, '.dumpere', 'videos'), { recursive: true })
+    mkdirSync(join(tempDir, '.dumpere', 'audio'), { recursive: true })
+    mkdirSync(join(tempDir, '.dumpere', 'files'), { recursive: true })
+    writeFileSync(join(tempDir, '.dumpere', 'metadata.json'), JSON.stringify({
+      version: 2,
+      createdAt: Date.now(),
+      projects: [],
+      tags: [],
+      dumps: [],
+      summaries: []
+    }))
 
-      const state = await openVault(tempDir)
-
-      expect(state.isOpen).toBe(true)
-      expect(state.vaultPath).toBe(tempDir)
-    })
-
-    it('rejects directory without .dumpere marker', async () => {
-      await expect(openVault(tempDir)).rejects.toThrow('not a Dumpere vault')
-    })
-
-    it('rejects vault with corrupted metadata.json', async () => {
-      const dumpereDir = path.join(tempDir, '.dumpere')
-      fs.mkdirSync(dumpereDir)
-      fs.writeFileSync(path.join(dumpereDir, 'metadata.json'), 'not valid json')
-
-      await expect(openVault(tempDir)).rejects.toThrow('corrupted')
+    await expect(vaultService.openVault(tempDir)).resolves.toEqual({
+      isOpen: true,
+      vaultPath: tempDir,
+      vaultName: basename(tempDir)
     })
   })
 
-  describe('validateVaultRoot', () => {
-    it('accepts valid paths', () => {
-      expect(validateVaultRoot('/home/user/vault')).toBe(true)
-      expect(validateVaultRoot('/home/user/my-project')).toBe(true)
-    })
-
-    it('rejects paths with ..', () => {
-      expect(validateVaultRoot('/home/user/../etc/passwd')).toBe(false)
-      expect(validateVaultRoot('/home/user/vault/../../etc')).toBe(false)
-    })
-
-    it('handles backslash normalization', () => {
-      expect(validateVaultRoot('C:\\Users\\..\\etc')).toBe(false)
-    })
+  it('rejects folders that are not Dumpere vaults', async () => {
+    await expect(vaultService.openVault(tempDir)).rejects.toThrow('not a Dumpere vault')
   })
 
-  describe('getVaultState', () => {
-    it('returns initial closed state', async () => {
-      vi.resetModules()
-      const { getVaultState: getFreshVaultState } = await import('./vault-service')
-      const state = getFreshVaultState()
-      expect(state.isOpen).toBe(false)
-      expect(state.vaultPath).toBeNull()
-      expect(state.vaultName).toBeNull()
+  it('rejects vaults with unsupported metadata versions', async () => {
+    mkdirSync(join(tempDir, '.dumpere'), { recursive: true })
+    writeFileSync(join(tempDir, '.dumpere', 'metadata.json'), JSON.stringify({
+      version: 1,
+      createdAt: Date.now(),
+      projects: [],
+      tags: [],
+      dumps: [],
+      summaries: []
+    }))
+
+    await expect(vaultService.openVault(tempDir)).rejects.toThrow('unsupported version')
+  })
+
+  it('validates vault roots defensively', () => {
+    expect(vaultService.validateVaultRoot('/home/user/vault')).toBe(true)
+    expect(vaultService.validateVaultRoot('/home/user/../secrets')).toBe(false)
+    expect(vaultService.validateVaultRoot('C:\\Users\\..\\etc')).toBe(false)
+  })
+
+  it('starts with a closed vault state', () => {
+    expect(vaultService.getVaultState()).toEqual({
+      isOpen: false,
+      vaultPath: null,
+      vaultName: null
     })
   })
 })

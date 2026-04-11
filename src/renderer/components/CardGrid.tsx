@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type MouseEvent, type ReactNode } from 'react'
-import { DumpEntry, Project, Tag } from '../lib/types'
+import type { DumpEntry, Project, Tag } from '@/shared/types'
 import { DumpCard } from './DumpCard'
 import { ExpandedCard } from './ExpandedCard'
 import { EmptyState } from './EmptyState'
@@ -15,7 +15,7 @@ interface CardGridProps {
   onDelete: (id: string) => Promise<void> | void
   isLoading?: boolean
   filters?: FilterState
-  applyFilters?: (dumps: DumpEntry[], dumpOrder?: string[]) => DumpEntry[]
+  applyFilters?: (dumps: DumpEntry[]) => DumpEntry[]
   searchResults?: SearchResult[]
   searchQuery?: string
   onExportSelected?: (dumpIds: string[]) => Promise<void> | void

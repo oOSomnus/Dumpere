@@ -1,7 +1,7 @@
 import { mkdir, readdir, readFile, rename, rm, stat, writeFile } from 'fs/promises'
 import { basename, dirname, extname, join, resolve } from 'path'
 import { getVaultState } from './vault-service'
-import type { WorkspaceNode, WorkspaceNote } from '../renderer/lib/types'
+import type { WorkspaceNode, WorkspaceNote } from '@/shared/types'
 
 const WORKSPACES_DIR = 'workspaces'
 const DEFAULT_NOTE_PATH = 'index.md'
@@ -114,13 +114,13 @@ async function buildWorkspaceTreeFromDir(projectId: string, relativeDir = ''): P
     })
 }
 
-export async function ensureProjectWorkspace(projectId: string, legacyContent = ''): Promise<void> {
+export async function ensureProjectWorkspace(projectId: string): Promise<void> {
   const root = getProjectWorkspaceRoot(projectId)
   await mkdir(root, { recursive: true })
 
   const indexPath = resolveWorkspacePath(projectId, DEFAULT_NOTE_PATH)
   if (!(await pathExists(indexPath))) {
-    await writeFile(indexPath, legacyContent, 'utf8')
+    await writeFile(indexPath, '', 'utf8')
   }
 }
 
@@ -129,8 +129,8 @@ export async function deleteProjectWorkspace(projectId: string): Promise<void> {
   await rm(root, { recursive: true, force: true })
 }
 
-export async function getWorkspaceTree(projectId: string, legacyContent = ''): Promise<WorkspaceNode[]> {
-  await ensureProjectWorkspace(projectId, legacyContent)
+export async function getWorkspaceTree(projectId: string): Promise<WorkspaceNode[]> {
+  await ensureProjectWorkspace(projectId)
   return buildWorkspaceTreeFromDir(projectId)
 }
 
@@ -163,8 +163,8 @@ export async function createWorkspaceNote(projectId: string, parentPath: string,
   }
 }
 
-export async function readWorkspaceNote(projectId: string, notePath = DEFAULT_NOTE_PATH, legacyContent = ''): Promise<WorkspaceNote> {
-  await ensureProjectWorkspace(projectId, legacyContent)
+export async function readWorkspaceNote(projectId: string, notePath = DEFAULT_NOTE_PATH): Promise<WorkspaceNote> {
+  await ensureProjectWorkspace(projectId)
   const relativePath = normalizeRelativePath(notePath || DEFAULT_NOTE_PATH) || DEFAULT_NOTE_PATH
   const fullPath = resolveWorkspacePath(projectId, relativePath)
   const content = await readFile(fullPath, 'utf8')

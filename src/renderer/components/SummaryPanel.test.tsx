@@ -48,7 +48,7 @@ describe('SummaryPanel', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
-    vi.spyOn(mockElectronAPI, 'exportSummary').mockResolvedValue('/tmp/summary.md')
+    vi.spyOn(mockElectronAPI.data, 'exportSummary').mockResolvedValue('/tmp/summary.md')
 
     ;(useSummary as ReturnType<typeof vi.fn>).mockReturnValue({
       currentSummary: summary,
@@ -184,7 +184,7 @@ describe('SummaryPanel', () => {
     fireEvent.click(screen.getByText('Export'))
 
     await waitFor(() => {
-      expect(mockElectronAPI.exportSummary).toHaveBeenCalledWith('summary-1')
+      expect(mockElectronAPI.data.exportSummary).toHaveBeenCalledWith('summary-1')
     })
   })
 
@@ -247,7 +247,7 @@ describe('SummaryPanel', () => {
 
   it('updates the selected project from the page-level toolbar', async () => {
     const onActiveNotePathChange = vi.fn()
-    vi.spyOn(mockElectronAPI, 'setLastSelectedProjectId').mockResolvedValue(undefined)
+    vi.spyOn(mockElectronAPI.ui, 'setLastSelectedProjectId').mockResolvedValue(undefined)
 
     renderWithPrompt(
       <SummaryPanel
@@ -266,7 +266,7 @@ describe('SummaryPanel', () => {
 
     await waitFor(() => {
       expect(onActiveNotePathChange).toHaveBeenCalledWith('project-2', '')
-      expect(mockElectronAPI.setLastSelectedProjectId).toHaveBeenCalledWith('project-2')
+      expect(mockElectronAPI.ui.setLastSelectedProjectId).toHaveBeenCalledWith('project-2')
     })
   })
 

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Project } from '../lib/types'
+import type { Project } from '@/shared/types'
 import { getElectronAPI } from '../lib/electron-api'
 
 // Input validation constants
@@ -28,7 +28,7 @@ export function useProjects(): UseProjectsReturn {
   useEffect(() => {
     const loadProjects = async () => {
       try {
-        const storedProjects = await api.getProjects()
+        const storedProjects = await api.data.getProjects()
         // Sort by createdAt descending
         const sorted = storedProjects.sort((a, b) => b.createdAt - a.createdAt)
         setProjects(sorted)
@@ -55,16 +55,9 @@ export function useProjects(): UseProjectsReturn {
     }
 
     const trimmedName = name.trim()
-    const now = Date.now()
-    const newProject: Project = {
-      id: crypto.randomUUID(),
-      name: trimmedName,
-      createdAt: now
-    }
-
     setError(null)
     try {
-      const savedProject = await api.saveProject(newProject)
+      const savedProject = await api.data.createProject(trimmedName)
       setProjects(prev => [savedProject, ...prev])
       return savedProject
     } catch (err) {
@@ -90,7 +83,7 @@ export function useProjects(): UseProjectsReturn {
 
     setError(null)
     try {
-      const updatedProject = await api.updateProject(id, trimmedName)
+      const updatedProject = await api.data.updateProject(id, trimmedName)
       setProjects(prev => prev.map(p => p.id === id ? updatedProject : p))
     } catch (err) {
       console.error('Failed to update project:', err)
@@ -113,7 +106,7 @@ export function useProjects(): UseProjectsReturn {
     setError(null)
 
     try {
-      await api.deleteProject(id)
+      await api.data.deleteProject(id)
     } catch (err) {
       console.error('Failed to delete project:', err)
       // Rollback

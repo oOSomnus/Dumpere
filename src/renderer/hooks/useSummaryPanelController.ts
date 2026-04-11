@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import type { DumpEntry, Project } from '../lib/types'
+import type { DumpEntry, Project } from '@/shared/types'
 import { useSummary } from './useSummary'
 import { useWorkspaceTree } from './useWorkspaceTree'
 import { useWorkspaceNote } from './useWorkspaceNote'
@@ -68,7 +68,7 @@ export function useSummaryPanelController({
     const loadLastSelectedProject = async () => {
       try {
         const api = getElectronAPI()
-        const lastProjectId = await api.getLastSelectedProjectId()
+        const lastProjectId = await api.ui.getLastSelectedProjectId()
         // Only restore if we don't have an activeProjectId from parent
         // or if the parent's activeProjectId matches the last saved one
         if (lastProjectId !== null) {
@@ -91,7 +91,7 @@ export function useSummaryPanelController({
     const loadPersistedState = async () => {
       try {
         const api = getElectronAPI()
-        const state = await api.getSummaryPanelState()
+        const state = await api.ui.getSummaryPanelState()
         const projectState = state[selectedProjectId]
         if (projectState) {
           // Restore workspace mode if valid
@@ -157,7 +157,7 @@ export function useSummaryPanelController({
   const handleExport = useCallback(async () => {
     if (currentSummary) {
       const api = getElectronAPI()
-      await api.exportSummary(currentSummary.id)
+      await api.data.exportSummary(currentSummary.id)
     }
   }, [currentSummary])
 
@@ -224,7 +224,7 @@ export function useSummaryPanelController({
     // Persist the selected project
     try {
       const api = getElectronAPI()
-      await api.setLastSelectedProjectId(projectId)
+      await api.ui.setLastSelectedProjectId(projectId)
     } catch {
       // Silently fail
     }
@@ -237,8 +237,8 @@ export function useSummaryPanelController({
     const persistState = async () => {
       try {
         const api = getElectronAPI()
-        const currentState = await api.getSummaryPanelState()
-        await api.setSummaryPanelState({
+        const currentState = await api.ui.getSummaryPanelState()
+        await api.ui.setSummaryPanelState({
           ...currentState,
           [selectedProjectId]: {
             ...currentState[selectedProjectId],
@@ -260,8 +260,8 @@ export function useSummaryPanelController({
     const persistState = async () => {
       try {
         const api = getElectronAPI()
-        const currentState = await api.getSummaryPanelState()
-        await api.setSummaryPanelState({
+        const currentState = await api.ui.getSummaryPanelState()
+        await api.ui.setSummaryPanelState({
           ...currentState,
           [selectedProjectId]: {
             ...currentState[selectedProjectId],

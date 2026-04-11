@@ -21,8 +21,8 @@ describe('useSummary', () => {
     // Reset all mocks
     vi.resetAllMocks()
     // Default mock implementations
-    vi.spyOn(mockElectronAPI, 'getSummaries').mockResolvedValue([])
-    vi.spyOn(mockElectronAPI, 'generateSummary').mockResolvedValue(null)
+    vi.spyOn(mockElectronAPI.data, 'getSummaries').mockResolvedValue([])
+    vi.spyOn(mockElectronAPI.data, 'generateSummary').mockResolvedValue(null)
   })
 
   afterEach(() => {
@@ -32,19 +32,19 @@ describe('useSummary', () => {
   describe('initial state', () => {
     it('loads stored summaries on mount via useEffect', async () => {
       const storedSummaries = [createMockSummary({ id: '1' }), createMockSummary({ id: '2' })]
-      ;(mockElectronAPI.getSummaries as ReturnType<typeof vi.fn>).mockResolvedValueOnce(storedSummaries)
+      ;(mockElectronAPI.data.getSummaries as ReturnType<typeof vi.fn>).mockResolvedValueOnce(storedSummaries)
 
       const { result } = renderHook(() => useSummary())
 
       await waitFor(() => {
-        expect(mockElectronAPI.getSummaries).toHaveBeenCalled()
+        expect(mockElectronAPI.data.getSummaries).toHaveBeenCalled()
       })
     })
 
     it('sets currentSummary to most recent stored summary on mount', async () => {
       const older = createMockSummary({ id: '1', generatedAt: Date.now() - 10000 })
       const newer = createMockSummary({ id: '2', generatedAt: Date.now() })
-      ;(mockElectronAPI.getSummaries as ReturnType<typeof vi.fn>).mockResolvedValueOnce([older, newer])
+      ;(mockElectronAPI.data.getSummaries as ReturnType<typeof vi.fn>).mockResolvedValueOnce([older, newer])
 
       const { result } = renderHook(() => useSummary())
 
@@ -55,7 +55,7 @@ describe('useSummary', () => {
 
     it('sets summaries list from stored summaries on mount', async () => {
       const storedSummaries = [createMockSummary({ id: '1' })]
-      ;(mockElectronAPI.getSummaries as ReturnType<typeof vi.fn>).mockResolvedValueOnce(storedSummaries)
+      ;(mockElectronAPI.data.getSummaries as ReturnType<typeof vi.fn>).mockResolvedValueOnce(storedSummaries)
 
       const { result } = renderHook(() => useSummary())
 
@@ -69,33 +69,33 @@ describe('useSummary', () => {
   describe('generateSummary', () => {
     it('calls api.generateSummary and sets currentSummary on success', async () => {
       const newSummary = createMockSummary({ content: 'New summary' })
-      ;(mockElectronAPI.generateSummary as ReturnType<typeof vi.fn>).mockResolvedValueOnce(newSummary)
-      ;(mockElectronAPI.getSummaries as ReturnType<typeof vi.fn>).mockResolvedValue([newSummary])
+      ;(mockElectronAPI.data.generateSummary as ReturnType<typeof vi.fn>).mockResolvedValueOnce(newSummary)
+      ;(mockElectronAPI.data.getSummaries as ReturnType<typeof vi.fn>).mockResolvedValue([newSummary])
 
       const { result } = renderHook(() => useSummary())
 
       // Wait for initial mount
       await waitFor(() => {
-        expect(mockElectronAPI.getSummaries).toHaveBeenCalled()
+        expect(mockElectronAPI.data.getSummaries).toHaveBeenCalled()
       })
 
       await act(async () => {
         await result.current.generateSummary('daily', null)
       })
 
-      expect(mockElectronAPI.generateSummary).toHaveBeenCalledWith({ type: 'daily', projectId: null })
+      expect(mockElectronAPI.data.generateSummary).toHaveBeenCalledWith({ type: 'daily', projectId: null })
       await waitFor(() => {
         expect(result.current.currentSummary).toEqual(newSummary)
       })
     })
 
     it('sets error on generateSummary failure', async () => {
-      ;(mockElectronAPI.generateSummary as ReturnType<typeof vi.fn>).mockRejectedValueOnce(new Error('Generation failed'))
+      ;(mockElectronAPI.data.generateSummary as ReturnType<typeof vi.fn>).mockRejectedValueOnce(new Error('Generation failed'))
 
       const { result } = renderHook(() => useSummary())
 
       await waitFor(() => {
-        expect(mockElectronAPI.getSummaries).toHaveBeenCalled()
+        expect(mockElectronAPI.data.getSummaries).toHaveBeenCalled()
       })
 
       await act(async () => {
@@ -108,12 +108,12 @@ describe('useSummary', () => {
     })
 
     it('throws error when generateSummary returns null (no dumps)', async () => {
-      ;(mockElectronAPI.generateSummary as ReturnType<typeof vi.fn>).mockResolvedValueOnce(null)
+      ;(mockElectronAPI.data.generateSummary as ReturnType<typeof vi.fn>).mockResolvedValueOnce(null)
 
       const { result } = renderHook(() => useSummary())
 
       await waitFor(() => {
-        expect(mockElectronAPI.getSummaries).toHaveBeenCalled()
+        expect(mockElectronAPI.data.getSummaries).toHaveBeenCalled()
       })
 
       await act(async () => {
@@ -126,8 +126,8 @@ describe('useSummary', () => {
     it('refreshes summaries list after generation', async () => {
       const initialSummaries = [createMockSummary({ id: 'initial' })]
       const newSummary = createMockSummary({ id: 'new' })
-      ;(mockElectronAPI.generateSummary as ReturnType<typeof vi.fn>).mockResolvedValue(newSummary)
-      ;(mockElectronAPI.getSummaries as ReturnType<typeof vi.fn>)
+      ;(mockElectronAPI.data.generateSummary as ReturnType<typeof vi.fn>).mockResolvedValue(newSummary)
+      ;(mockElectronAPI.data.getSummaries as ReturnType<typeof vi.fn>)
         .mockResolvedValueOnce(initialSummaries)
         .mockResolvedValue([...initialSummaries, newSummary])
 
@@ -149,12 +149,12 @@ describe('useSummary', () => {
 
   describe('clearError', () => {
     it('clears the error state', async () => {
-      ;(mockElectronAPI.generateSummary as ReturnType<typeof vi.fn>).mockRejectedValueOnce(new Error('Generation failed'))
+      ;(mockElectronAPI.data.generateSummary as ReturnType<typeof vi.fn>).mockRejectedValueOnce(new Error('Generation failed'))
 
       const { result } = renderHook(() => useSummary())
 
       await waitFor(() => {
-        expect(mockElectronAPI.getSummaries).toHaveBeenCalled()
+        expect(mockElectronAPI.data.getSummaries).toHaveBeenCalled()
       })
 
       await act(async () => {
@@ -178,7 +178,7 @@ describe('useSummary', () => {
       const { result } = renderHook(() => useSummary())
 
       await waitFor(() => {
-        expect(mockElectronAPI.getSummaries).toHaveBeenCalled()
+        expect(mockElectronAPI.data.getSummaries).toHaveBeenCalled()
       })
 
       const summary = createMockSummary({ id: 'manual' })
@@ -194,7 +194,7 @@ describe('useSummary', () => {
       const { result } = renderHook(() => useSummary())
 
       await waitFor(() => {
-        expect(mockElectronAPI.getSummaries).toHaveBeenCalled()
+        expect(mockElectronAPI.data.getSummaries).toHaveBeenCalled()
       })
 
       const summary = createMockSummary()

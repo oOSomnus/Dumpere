@@ -1,9 +1,9 @@
 import { useEffect, useRef } from 'react'
 import * as Dialog from '@radix-ui/react-dialog'
 import * as Select from '@radix-ui/react-select'
-import { DumpEntry, Project, Tag } from '../lib/types'
+import type { DumpEntry, Project, Tag } from '@/shared/types'
 import { formatRelativeTime } from '../lib/utils-time'
-import { cn } from '../../lib/utils'
+import { cn } from '@/shared/cn'
 import { X, Download, Image, File, Check, ChevronDown, Copy, NotebookPen } from 'lucide-react'
 import { useFileUrl } from '../hooks/useFileUrl'
 import { getElectronAPI } from '../lib/electron-api'
@@ -43,7 +43,7 @@ function MediaPreview({
     const api = getElectronAPI()
 
     try {
-      await api.openFile(file.storedPath)
+      await api.files.openFile(file.storedPath)
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Could not open file'
       onError(message)
@@ -115,7 +115,7 @@ function FileAttachment({
     const api = getElectronAPI()
 
     try {
-      await api.openFile(file.storedPath)
+      await api.files.openFile(file.storedPath)
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Could not open file'
       onError(message)
@@ -311,7 +311,7 @@ export function ExpandedCard({ dump, onClose, projects, tags, onProjectChange, o
                     if (dump) {
                       const markdown = formatDumpAsMarkdown(dump)
                       const api = getElectronAPI()
-                      await api.clipboardWrite(markdown)
+                      await api.ui.copyToClipboard(markdown)
                       prompt.success('Copied to clipboard')
                     }
                   }}

@@ -16,10 +16,13 @@ describe('useProjects', () => {
 
     window.electronAPI = {
       ...mockElectronAPI,
-      getProjects: mockGetProjects,
-      saveProject: mockSaveProject,
-      updateProject: mockUpdateProject,
-      deleteProject: mockDeleteProject
+      data: {
+        ...mockElectronAPI.data,
+        getProjects: mockGetProjects,
+        createProject: mockSaveProject,
+        updateProject: mockUpdateProject,
+        deleteProject: mockDeleteProject
+      }
     }
   })
 

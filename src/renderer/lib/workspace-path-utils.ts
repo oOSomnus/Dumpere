@@ -1,4 +1,4 @@
-import type { WorkspaceNode } from './types'
+import type { WorkspaceNode } from '@/shared/types'
 
 export interface WorkspacePaths {
   folderPaths: string[]

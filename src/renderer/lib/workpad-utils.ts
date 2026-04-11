@@ -1,4 +1,4 @@
-import type { DumpEntry } from './types'
+import type { DumpEntry } from '@/shared/types'
 
 export function appendMarkdownSection(existingContent: string, section: string): string {
   const trimmedExisting = existingContent.trimEnd()

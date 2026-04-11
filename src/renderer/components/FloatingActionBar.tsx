@@ -1,6 +1,6 @@
 import { useEffect } from 'react'
 import { NotebookPen, Trash2, X } from 'lucide-react'
-import { cn } from '../../lib/utils'
+import { cn } from '@/shared/cn'
 
 interface FloatingActionBarProps {
   selectionCount: number

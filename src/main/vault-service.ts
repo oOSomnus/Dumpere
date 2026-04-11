@@ -1,188 +1,135 @@
 import { dialog } from 'electron'
-import { readdir, mkdir, writeFile, readFile, realpath } from 'fs/promises'
-import { join, basename } from 'path'
+import { mkdir, readdir } from 'fs/promises'
+import { basename, join } from 'path'
 import log from 'electron-log'
 import { store } from './store'
-
-export interface VaultState {
-  isOpen: boolean
-  vaultPath: string | null
-  vaultName: string | null
-}
-
-export interface RecentVault {
-  path: string
-  name: string
-  lastOpened: number
-}
-
-// In-memory vault state (reset on app restart per single-instance design)
-let vaultState: VaultState = { isOpen: false, vaultPath: null, vaultName: null }
-let stateChangeCallbacks: Array<(state: VaultState) => void> = []
+import { createEmptyMetadata, readMetadata, writeMetadata } from './metadata-service'
+import type { RecentVault, VaultState } from '@/shared/types'
 
 const DUMPERE_DIR = '.dumpere'
-const METADATA_FILE = 'metadata.json'
 const ALLOWED_EXTRAS = ['README.md', '.gitignore']
+const ATTACHMENT_DIRS = ['images', 'videos', 'audio', 'files', 'workspaces']
 
-export function onVaultStateChange(callback: (state: VaultState) => void): void {
-  stateChangeCallbacks.push(callback)
+let vaultState: VaultState = { isOpen: false, vaultPath: null, vaultName: null }
+const stateChangeCallbacks = new Set<(state: VaultState) => void>()
+
+export function onVaultStateChange(callback: (state: VaultState) => void): () => void {
+  stateChangeCallbacks.add(callback)
+  return () => {
+    stateChangeCallbacks.delete(callback)
+  }
 }
 
 function notifyStateChange(): void {
-  for (const cb of stateChangeCallbacks) {
-    cb(vaultState)
-  }
+  stateChangeCallbacks.forEach((callback) => callback(vaultState))
 }
 
 export function getVaultState(): VaultState {
   return vaultState
 }
 
-async function resolveVaultPath(userPath: string): Promise<string> {
-  // D-05: Use fs.realpath() to resolve symlinks before any vault path operations
-  return await realpath(userPath)
-}
-
 export function validateVaultRoot(vaultPath: string): boolean {
-  // Before any file operation, verify resolved path doesn't contain '..' after normalization
   const normalized = vaultPath.replace(/\\/g, '/')
-  if (normalized.includes('..')) return false
-  return true
+  return !normalized.includes('..')
 }
 
-export async function createVault(): Promise<VaultState> {
-  log.info('createVault: showing directory picker')
+async function ensureVaultStructure(vaultPath: string): Promise<void> {
+  const root = join(vaultPath, DUMPERE_DIR)
+  await mkdir(root, { recursive: true })
 
-  const result = await dialog.showOpenDialog({
-    properties: ['openDirectory']
-  })
+  await Promise.all(ATTACHMENT_DIRS.map((directory) => (
+    mkdir(join(root, directory), { recursive: true })
+  )))
+}
 
-  if (result.canceled || !result.filePaths[0]) {
-    log.info('createVault: cancelled by user')
-    return vaultState
-  }
-
-  const userPath = result.filePaths[0]
-  const vaultPath = await resolveVaultPath(userPath)
-
-  // Validate path security
-  if (!validateVaultRoot(vaultPath)) {
-    throw new Error('Invalid vault path')
-  }
-
-  // Validate directory is empty (allow README.md or .gitignore)
-  const entries = await readdir(vaultPath)
-  const unexpected = entries.filter(e => !ALLOWED_EXTRAS.includes(e))
-  if (unexpected.length > 0) {
-    throw new Error('Choose an empty folder to create a vault')
-  }
-
-  // Create .dumpere/ marker directory
-  const markerDir = join(vaultPath, DUMPERE_DIR)
-  await mkdir(markerDir, { recursive: true })
-
-  // Create type subdirectories
-  await mkdir(join(markerDir, 'images'), { recursive: true })
-  await mkdir(join(markerDir, 'videos'), { recursive: true })
-  await mkdir(join(markerDir, 'audio'), { recursive: true })
-  await mkdir(join(markerDir, 'files'), { recursive: true })
-
-  // Create metadata.json with version + empty dumps array
-  const metadata = {
-    version: '1.0',
-    created: new Date().toISOString(),
-    dumps: []
-  }
-  await writeFile(join(markerDir, METADATA_FILE), JSON.stringify(metadata, null, 2))
-
-  // Update state
+function updateVaultState(vaultPath: string): VaultState {
   vaultState = {
     isOpen: true,
     vaultPath,
     vaultName: basename(vaultPath)
   }
 
-  // Add to recent vaults (APP-01, D-08)
-  addToRecentVaults(vaultPath, vaultState.vaultName!)
-
-  log.info(`createVault: success — ${vaultPath}`)
+  addToRecentVaults(vaultPath, vaultState.vaultName)
   notifyStateChange()
   return vaultState
 }
 
-export async function openVault(vaultPath?: string): Promise<VaultState> {
-  log.info('openVault: showing directory picker')
+export async function createVault(): Promise<VaultState> {
+  const result = await dialog.showOpenDialog({ properties: ['openDirectory'] })
+  if (result.canceled || !result.filePaths[0]) {
+    return vaultState
+  }
 
+  const vaultPath = result.filePaths[0]
+  if (!validateVaultRoot(vaultPath)) {
+    throw new Error('Invalid vault path')
+  }
+
+  const entries = await readdir(vaultPath)
+  const unexpected = entries.filter((entry) => !ALLOWED_EXTRAS.includes(entry))
+  if (unexpected.length > 0) {
+    throw new Error('Choose an empty folder to create a vault')
+  }
+
+  await ensureVaultStructure(vaultPath)
+  await writeMetadata(vaultPath, createEmptyMetadata())
+
+  log.info(`Created vault: ${vaultPath}`)
+  return updateVaultState(vaultPath)
+}
+
+export async function openVault(vaultPath?: string): Promise<VaultState> {
   let selectedPath = vaultPath
 
   if (!selectedPath) {
-    const result = await dialog.showOpenDialog({
-      properties: ['openDirectory']
-    })
-
+    const result = await dialog.showOpenDialog({ properties: ['openDirectory'] })
     if (result.canceled || !result.filePaths[0]) {
-      log.info('openVault: cancelled by user')
       return vaultState
     }
     selectedPath = result.filePaths[0]
   }
 
-  const resolvedPath = await resolveVaultPath(selectedPath)
-
-  // Validate path security
-  if (!validateVaultRoot(resolvedPath)) {
+  if (!validateVaultRoot(selectedPath)) {
     throw new Error('Invalid vault path')
   }
 
-  // Validate .dumpere/ marker exists
-  const markerDir = join(resolvedPath, DUMPERE_DIR)
-  let markerExists = false
-  try {
-    const entries = await readdir(resolvedPath)
-    markerExists = entries.includes(DUMPERE_DIR)
-  } catch {
-    markerExists = false
-  }
-
-  if (!markerExists) {
+  const entries = await readdir(selectedPath)
+  if (!entries.includes(DUMPERE_DIR)) {
     throw new Error('This folder is not a Dumpere vault')
   }
 
-  // Validate metadata.json is valid JSON
-  const metadataPath = join(markerDir, METADATA_FILE)
-  try {
-    const content = await readFile(metadataPath, 'utf-8')
-    JSON.parse(content)  // Validate it parses
-  } catch {
-    throw new Error('Vault metadata is corrupted')
-  }
+  await readMetadata(selectedPath)
+  await ensureVaultStructure(selectedPath)
 
-  // Update state
+  log.info(`Opened vault: ${selectedPath}`)
+  return updateVaultState(selectedPath)
+}
+
+export async function closeVault(): Promise<VaultState> {
   vaultState = {
-    isOpen: true,
-    vaultPath: resolvedPath,
-    vaultName: basename(resolvedPath)
+    isOpen: false,
+    vaultPath: null,
+    vaultName: null
   }
 
-  // Add to recent vaults (APP-01, D-08)
-  addToRecentVaults(resolvedPath, vaultState.vaultName!)
-
-  log.info(`openVault: success — ${resolvedPath}`)
   notifyStateChange()
   return vaultState
 }
 
-function addToRecentVaults(path: string, name: string): void {
+function addToRecentVaults(path: string, name: string | null): void {
+  if (!name) {
+    return
+  }
+
   const MAX_RECENT = 5
-  const recentVaults: RecentVault[] = store.get('recentVaults', [])
+  const recentVaults = store.get('recentVaults', [])
+  const nextVaults: RecentVault[] = recentVaults.filter((vault) => vault.path !== path)
 
-  // Remove if already exists
-  const filtered = recentVaults.filter(r => r.path !== path)
+  nextVaults.unshift({
+    path,
+    name,
+    lastOpened: Date.now()
+  })
 
-  // Add to front
-  filtered.unshift({ path, name, lastOpened: Date.now() })
-
-  // Trim to max 5
-  store.set('recentVaults', filtered.slice(0, MAX_RECENT))
-  store.set('currentVault', { path, name })
+  store.set('recentVaults', nextVaults.slice(0, MAX_RECENT))
 }

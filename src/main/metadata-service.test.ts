@@ -1,180 +1,112 @@
 // @vitest-environment node
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import * as fs from 'node:fs'
-import * as path from 'node:path'
-import * as os from 'node:os'
-import * as fsPromises from 'fs/promises'
-import { readMetadata, writeMetadata, createDump } from './metadata-service'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import {
+  createEmptyMetadata,
+  getMetadataPath,
+  readMetadata,
+  writeMetadata
+} from './metadata-service'
 
-// Mock electron-log
-vi.mock('electron-log', () => ({
-  default: {
-    info: vi.fn(),
-    debug: vi.fn(),
-    warn: vi.fn(),
-    error: vi.fn()
+vi.mock('fs/promises', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('fs/promises')>()
+  return {
+    ...actual
   }
-}))
+})
 
-// Mock vault-service
-vi.mock('./vault-service', () => ({
-  getVaultState: vi.fn(() => ({ isOpen: false, vaultPath: null, vaultName: null })),
-}))
-
-// Mock file-service
-vi.mock('./file-service', () => ({
-  copyFilesToVault: vi.fn(() => []),
-  deleteVaultFile: vi.fn(),
-}))
-
-// Mock fs/promises
-vi.mock('fs/promises', () => ({
-  readFile: vi.fn(),
-  writeFile: vi.fn(),
-  rename: vi.fn(),
-  unlink: vi.fn(),
-}))
+function createTempVaultDir(): string {
+  const vaultPath = mkdtempSync(join(tmpdir(), 'dumpere-metadata-'))
+  mkdirSync(join(vaultPath, '.dumpere'), { recursive: true })
+  return vaultPath
+}
 
 describe('metadata-service', () => {
-  let tempDir: string
-
-  beforeEach(async () => {
-    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'metadata-test-'))
-    vi.clearAllMocks()
-    // Reset the write queue by re-importing
-    vi.resetModules()
-  })
+  const createdDirs: string[] = []
 
   afterEach(() => {
-    if (tempDir && fs.existsSync(tempDir)) {
-      fs.rmSync(tempDir, { recursive: true, force: true })
+    createdDirs.splice(0).forEach((dir) => rmSync(dir, { recursive: true, force: true }))
+  })
+
+  it('creates empty v2 metadata', () => {
+    const metadata = createEmptyMetadata()
+
+    expect(metadata.version).toBe(2)
+    expect(metadata.createdAt).toEqual(expect.any(Number))
+    expect(metadata.projects).toEqual([])
+    expect(metadata.tags).toEqual([])
+    expect(metadata.dumps).toEqual([])
+    expect(metadata.summaries).toEqual([])
+  })
+
+  it('returns the metadata path inside .dumpere', async () => {
+    const vaultPath = createTempVaultDir()
+    createdDirs.push(vaultPath)
+
+    expect(getMetadataPath(vaultPath)).toBe(join(vaultPath, '.dumpere', 'metadata.json'))
+  })
+
+  it('writes metadata atomically and reads it back', async () => {
+    const vaultPath = createTempVaultDir()
+    createdDirs.push(vaultPath)
+
+    const metadata = {
+      ...createEmptyMetadata(),
+      createdAt: 123,
+      projects: [{ id: 'project-1', name: 'Alpha', createdAt: 123 }],
+      tags: [{ id: 'tag-1', name: 'deep work', createdAt: 124 }],
+      dumps: [{
+        id: 'dump-1',
+        text: 'Wrote the refactor plan',
+        files: [],
+        createdAt: 125,
+        updatedAt: 125,
+        projectId: 'project-1',
+        tags: ['tag-1']
+      }],
+      summaries: [{
+        id: 'summary-1',
+        type: 'daily' as const,
+        projectId: 'project-1',
+        generatedAt: 126,
+        content: '# Summary',
+        dumpCount: 1
+      }]
     }
+
+    await writeMetadata(vaultPath, metadata)
+
+    expect(existsSync(getMetadataPath(vaultPath))).toBe(true)
+    expect(existsSync(`${getMetadataPath(vaultPath)}.tmp`)).toBe(false)
+    expect(JSON.parse(readFileSync(getMetadataPath(vaultPath), 'utf8'))).toEqual(metadata)
+    await expect(readMetadata(vaultPath)).resolves.toEqual(metadata)
   })
 
-  describe('readMetadata', () => {
-    it('returns null when metadata.json does not exist', async () => {
-      const result = await readMetadata(tempDir)
-      expect(result).toBeNull()
-    })
+  it('rejects metadata that does not match the v2 schema', async () => {
+    const vaultPath = createTempVaultDir()
+    createdDirs.push(vaultPath)
 
-    it('returns parsed metadata for valid JSON file', async () => {
-      const dumpereDir = path.join(tempDir, '.dumpere')
-      fs.mkdirSync(dumpereDir, { recursive: true })
-      const metadata = {
-        version: '1.0',
-        created: '2024-01-01T00:00:00.000Z',
-        dumps: []
-      }
-      fs.writeFileSync(
-        path.join(dumpereDir, 'metadata.json'),
-        JSON.stringify(metadata)
-      )
-      // Mock readFile to return the content
-      const { readFile } = await import('fs/promises')
-      ;(readFile as ReturnType<typeof vi.fn>).mockResolvedValueOnce(JSON.stringify(metadata))
+    writeFileSync(getMetadataPath(vaultPath), JSON.stringify({
+      version: 1,
+      createdAt: 123,
+      projects: [],
+      tags: [],
+      dumps: [],
+      summaries: []
+    }))
 
-      const result = await readMetadata(tempDir)
-      expect(result).toEqual(metadata)
-    })
+    await expect(readMetadata(vaultPath)).rejects.toThrow('unsupported version')
   })
 
-  describe('writeMetadata', () => {
-    it('performs atomic write via temp file and rename', async () => {
-      const dumpereDir = path.join(tempDir, '.dumpere')
-      fs.mkdirSync(dumpereDir, { recursive: true })
-      const metadata = { version: '1.0', created: '2024-01-01', dumps: [] }
+  it('rejects malformed metadata JSON', async () => {
+    const vaultPath = createTempVaultDir()
+    createdDirs.push(vaultPath)
 
-      await writeMetadata(tempDir, metadata)
+    writeFileSync(getMetadataPath(vaultPath), '{not-json')
 
-      // Verify writeFile was called with temp path
-      expect(fsPromises.writeFile).toHaveBeenCalledWith(
-        expect.stringContaining('.dumpere/metadata.json.tmp'),
-        expect.any(String),
-        'utf-8'
-      )
-      // Verify rename was called
-      expect(fsPromises.rename).toHaveBeenCalledWith(
-        expect.stringContaining('.tmp'),
-        expect.stringContaining('metadata.json')
-      )
-    })
-  })
-
-  describe('createDump', () => {
-    it('throws when no vault is open', async () => {
-      const { getVaultState } = await import('./vault-service')
-      ;(getVaultState as ReturnType<typeof vi.fn>).mockReturnValueOnce({
-        isOpen: false,
-        vaultPath: null,
-        vaultName: null
-      })
-
-      await expect(createDump({ text: 'test', filePaths: [] }))
-        .rejects.toThrow('No vault open')
-    })
-
-    it('creates dump with UUID when vault is open', async () => {
-      const dumpereDir = path.join(tempDir, '.dumpere')
-      fs.mkdirSync(dumpereDir, { recursive: true })
-      fs.writeFileSync(
-        path.join(dumpereDir, 'metadata.json'),
-        JSON.stringify({ version: '1.0', created: '2024-01-01', dumps: [] })
-      )
-
-      const { getVaultState } = await import('./vault-service')
-      ;(getVaultState as ReturnType<typeof vi.fn>).mockReturnValueOnce({
-        isOpen: true,
-        vaultPath: tempDir,
-        vaultName: 'test-vault'
-      })
-
-      // Mock readFile to return empty metadata
-      const { readFile } = await import('fs/promises')
-      ;(readFile as ReturnType<typeof vi.fn>).mockResolvedValueOnce(
-        JSON.stringify({ version: '1.0', created: '2024-01-01', dumps: [] })
-      )
-
-      const result = await createDump({ text: 'Test dump content', filePaths: [] })
-
-      expect(result).toBeTruthy()
-      expect(result.id).toBeDefined()
-      expect(result.text).toBe('Test dump content')
-      expect(result.created).toBeDefined()
-    })
-  })
-
-  describe('write queue serialization (META-02)', () => {
-    it('serializes concurrent writes', async () => {
-      const dumpereDir = path.join(tempDir, '.dumpere')
-      fs.mkdirSync(dumpereDir, { recursive: true })
-      fs.writeFileSync(
-        path.join(dumpereDir, 'metadata.json'),
-        JSON.stringify({ version: '1.0', created: '2024-01-01', dumps: [] })
-      )
-
-      const { getVaultState } = await import('./vault-service')
-      ;(getVaultState as ReturnType<typeof vi.fn>).mockReturnValue({
-        isOpen: true,
-        vaultPath: tempDir,
-        vaultName: 'test-vault'
-      })
-
-      const { readFile } = await import('fs/promises')
-      ;(readFile as ReturnType<typeof vi.fn>).mockImplementation(() =>
-        Promise.resolve(JSON.stringify({ version: '1.0', created: '2024-01-01', dumps: [] }))
-      )
-
-      // Fire concurrent dumps
-      const promise1 = createDump({ text: 'dump1', filePaths: [] })
-      const promise2 = createDump({ text: 'dump2', filePaths: [] })
-
-      const [result1, result2] = await Promise.all([promise1, promise2])
-
-      // Both should succeed and have different IDs
-      expect(result1.id).not.toBe(result2.id)
-      // writeFile should be called for each (serialized)
-      expect(fsPromises.writeFile).toHaveBeenCalledTimes(2)
-    })
+    await expect(readMetadata(vaultPath)).rejects.toThrow()
   })
 })

@@ -6,8 +6,12 @@ import { useTags } from './useTags'
 describe('useTags', () => {
   beforeEach(() => {
     vi.restoreAllMocks()
-    vi.spyOn(mockElectronAPI, 'getTags').mockResolvedValue([])
-    vi.spyOn(mockElectronAPI, 'saveTag').mockImplementation(async (tag) => tag)
+    vi.spyOn(mockElectronAPI.data, 'getTags').mockResolvedValue([])
+    vi.spyOn(mockElectronAPI.data, 'createTag').mockImplementation(async (name) => ({
+      id: crypto.randomUUID(),
+      name,
+      createdAt: Date.now()
+    }))
   })
 
   it('creates tags with spaces and normalizes repeated whitespace', async () => {
@@ -23,9 +27,7 @@ describe('useTags', () => {
     })
 
     expect(createdTag).toMatchObject({ name: 'deep work' })
-    expect(mockElectronAPI.saveTag).toHaveBeenCalledWith(
-      expect.objectContaining({ name: 'deep work' })
-    )
+    expect(mockElectronAPI.data.createTag).toHaveBeenCalledWith('deep work')
   })
 
   it('rejects unsupported tag characters even when spaces are allowed', async () => {

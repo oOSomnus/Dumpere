@@ -13,7 +13,7 @@ export function useFileUrl(storedPath: string | null | undefined): string | null
       return
     }
 
-    void api.getFileUrl(storedPath).then((resolvedUrl) => {
+    void api.files.getFileUrl(storedPath).then((resolvedUrl) => {
       if (!cancelled) {
         setFileUrl(resolvedUrl)
       }

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Folder, Plus, FolderOpen } from 'lucide-react'
-import type { VaultState, RecentVault } from '../lib/types'
+import type { VaultState, RecentVault } from '@/shared/types'
 
 interface WelcomeScreenProps {
   vaultState: VaultState

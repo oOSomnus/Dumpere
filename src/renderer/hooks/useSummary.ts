@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from 'react'
-import { SummaryEntry } from '../lib/types'
+import type { SummaryEntry } from '@/shared/types'
 import { getElectronAPI } from '../lib/electron-api'
 
 interface UseSummaryReturn {
@@ -23,7 +23,7 @@ export function useSummary(): UseSummaryReturn {
   useEffect(() => {
     const loadStoredSummaries = async () => {
       try {
-        const stored = await api.getSummaries()
+        const stored = await api.data.getSummaries()
         setSummaries(stored)
         // Auto-select the most recent summary if none selected
         if (stored.length > 0 && !currentSummary) {
@@ -43,11 +43,11 @@ export function useSummary(): UseSummaryReturn {
     setError(null)
 
     try {
-      const summary = await api.generateSummary({ type, projectId })
+      const summary = await api.data.generateSummary({ type, projectId })
       if (summary) {
         setCurrentSummary(summary)
         // Refresh stored summaries list after generation
-        const stored = await api.getSummaries()
+        const stored = await api.data.getSummaries()
         setSummaries(stored)
       } else {
         throw new Error('No dumps found to summarize for this period.')

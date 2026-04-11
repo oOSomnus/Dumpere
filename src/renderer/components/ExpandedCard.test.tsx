@@ -37,8 +37,14 @@ describe('ExpandedCard', () => {
   beforeEach(() => {
     window.electronAPI = {
       ...window.electronAPI,
-      openFile: vi.fn().mockResolvedValue(undefined),
-      clipboardWrite: vi.fn().mockResolvedValue(undefined)
+      files: {
+        ...window.electronAPI?.files,
+        openFile: vi.fn().mockResolvedValue(undefined)
+      },
+      ui: {
+        ...window.electronAPI?.ui,
+        copyToClipboard: vi.fn().mockResolvedValue(undefined)
+      }
     }
   })
 
@@ -57,7 +63,7 @@ describe('ExpandedCard', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Open report.pdf' }))
 
     await waitFor(() => {
-      expect(window.electronAPI.openFile).toHaveBeenCalledWith('dumps/report.pdf')
+      expect(window.electronAPI.files.openFile).toHaveBeenCalledWith('dumps/report.pdf')
     })
   })
 
@@ -76,7 +82,7 @@ describe('ExpandedCard', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Open photo.png' }))
 
     await waitFor(() => {
-      expect(window.electronAPI.openFile).toHaveBeenCalledWith('dumps/photo.png')
+      expect(window.electronAPI.files.openFile).toHaveBeenCalledWith('dumps/photo.png')
     })
   })
 
