@@ -13,8 +13,6 @@ A minimalist desktop app for quick work completion tracking. Press Enter to inst
 
 ## Demo Screenshots
 
-The screenshots below are captured from `pnpm dev:web`, which uses the browser fallback API with seeded mock data so the main flows can be previewed without opening a real vault.
-
 ### Dumps Timeline
 
 ![Dump timeline](images/readme-dumps.png)
