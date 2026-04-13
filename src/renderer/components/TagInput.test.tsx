@@ -3,6 +3,7 @@ import { render, screen, fireEvent } from '@testing-library/react'
 import type { ComponentProps, HTMLAttributes, ReactNode } from 'react'
 import { TagInput } from './TagInput'
 import type { Tag } from '../lib/types'
+import { getTagColorForIndex } from '@/shared/tag-colors'
 
 vi.mock('@radix-ui/react-popover', async () => {
   const React = await import('react')
@@ -48,8 +49,8 @@ vi.mock('@radix-ui/react-popover', async () => {
 })
 
 const tags: Tag[] = [
-  { id: 'tag-1', name: 'alpha', createdAt: 1 },
-  { id: 'tag-2', name: 'beta', createdAt: 2 }
+  { id: 'tag-1', name: 'alpha', createdAt: 1, color: getTagColorForIndex(0) },
+  { id: 'tag-2', name: 'beta', createdAt: 2, color: getTagColorForIndex(1) }
 ]
 
 function renderTagInput(overrides: Partial<ComponentProps<typeof TagInput>> = {}) {
@@ -63,7 +64,7 @@ function renderTagInput(overrides: Partial<ComponentProps<typeof TagInput>> = {}
       onTagsChange={vi.fn()}
       allTags={tags}
       getAISuggestions={vi.fn(() => [])}
-      onCreateTag={vi.fn(async (name: string) => ({ id: 'tag-new', name, createdAt: Date.now() }))}
+      onCreateTag={vi.fn(async (name: string) => ({ id: 'tag-new', name, createdAt: Date.now(), color: getTagColorForIndex(2) }))}
       dumpText="Fix keyboard nav"
       {...overrides}
     />
@@ -97,5 +98,12 @@ describe('TagInput', () => {
     fireEvent.keyDown(input, { key: 'Enter', shiftKey: true })
 
     expect(onTagsChange).toHaveBeenCalledWith(['tag-2'])
+  })
+
+  it('renders selected tags with their own background color', () => {
+    renderTagInput({ selectedTagIds: ['tag-1'] })
+
+    const selectedTag = screen.getByLabelText('Remove selected tag alpha').closest('span')
+    expect(selectedTag?.getAttribute('style')).toContain('background-color: rgb(251, 207, 232)')
   })
 })

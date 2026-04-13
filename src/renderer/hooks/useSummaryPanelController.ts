@@ -132,6 +132,23 @@ export function useSummaryPanelController({
   const dumpMap = useMemo(() => new Map(dumps.map(dump => [dump.id, dump])), [dumps])
 
   useEffect(() => {
+    if (!selectedDump) {
+      return
+    }
+
+    const latestSelectedDump = dumpMap.get(selectedDump.id)
+
+    if (!latestSelectedDump) {
+      setSelectedDump(null)
+      return
+    }
+
+    if (latestSelectedDump !== selectedDump) {
+      setSelectedDump(latestSelectedDump)
+    }
+  }, [dumpMap, selectedDump])
+
+  useEffect(() => {
     if (filteredSummaries.length === 0) {
       setCurrentSummary(null)
       return

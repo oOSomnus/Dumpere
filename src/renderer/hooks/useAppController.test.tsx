@@ -1,6 +1,7 @@
 import { act, renderHook, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { mockElectronAPI, type DumpEntry, type Project, type Tag } from '../lib/types'
+import { getTagColorForIndex } from '@/shared/tag-colors'
 
 vi.mock('./usePrompt', () => ({
   usePrompt: () => ({
@@ -17,7 +18,7 @@ const projects: Project[] = [
 ]
 
 const tags: Tag[] = [
-  { id: 'tag-1', name: 'urgent', createdAt: 1 }
+  { id: 'tag-1', name: 'urgent', createdAt: 1, color: getTagColorForIndex(0) }
 ]
 
 const dumps: DumpEntry[] = [
@@ -50,7 +51,7 @@ describe('useAppController', () => {
         createProject: vi.fn(async (name: string) => ({ id: crypto.randomUUID(), name, createdAt: Date.now() })),
         updateProject: vi.fn(async (id: string, name: string) => ({ id, name, createdAt: 1 })),
         deleteProject: vi.fn(async () => {}),
-        createTag: vi.fn(async (name: string) => ({ id: crypto.randomUUID(), name, createdAt: Date.now() })),
+        createTag: vi.fn(async (name: string) => ({ id: crypto.randomUUID(), name, createdAt: Date.now(), color: getTagColorForIndex(1) })),
         deleteTag: vi.fn(async () => {}),
         createDump: vi.fn(async ({ text, projectId, tagIds }: { text: string; projectId: string; tagIds: string[] }) => ({
           id: 'saved-dump',

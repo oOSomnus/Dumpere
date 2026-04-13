@@ -1,6 +1,7 @@
 import { readFile, rename, writeFile } from 'fs/promises'
 import { join } from 'path'
 import type { DumpEntry, Project, SummaryEntry, Tag, VaultMetadata } from '@/shared/types'
+import { ensureTagColors } from '../shared/tag-colors'
 
 function isProject(value: unknown): value is Project {
   return typeof value === 'object' &&
@@ -15,7 +16,11 @@ function isTag(value: unknown): value is Tag {
     value !== null &&
     typeof (value as Tag).id === 'string' &&
     typeof (value as Tag).name === 'string' &&
-    typeof (value as Tag).createdAt === 'number'
+    typeof (value as Tag).createdAt === 'number' &&
+    (
+      typeof (value as Tag).color === 'undefined' ||
+      typeof (value as Tag).color === 'string'
+    )
 }
 
 function isDump(value: unknown): value is DumpEntry {
@@ -79,7 +84,7 @@ export async function readMetadata(vaultPath: string): Promise<VaultMetadata> {
     throw new Error('Vault metadata is corrupted or uses an unsupported version')
   }
 
-  return parsed
+  return ensureTagColors(parsed)
 }
 
 export async function writeMetadata(vaultPath: string, metadata: VaultMetadata): Promise<void> {

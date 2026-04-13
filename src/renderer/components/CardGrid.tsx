@@ -99,10 +99,21 @@ export function CardGrid({
   ])
 
   useEffect(() => {
-    if (selectedDump && !allVisibleIds.includes(selectedDump.id)) {
-      setSelectedDump(null)
+    if (!selectedDump) {
+      return
     }
-  }, [allVisibleIds, selectedDump])
+
+    const latestSelectedDump = filteredDumps.find((dump) => dump.id === selectedDump.id)
+
+    if (!latestSelectedDump) {
+      setSelectedDump(null)
+      return
+    }
+
+    if (latestSelectedDump !== selectedDump) {
+      setSelectedDump(latestSelectedDump)
+    }
+  }, [filteredDumps, selectedDump])
 
   const escapeRegex = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 

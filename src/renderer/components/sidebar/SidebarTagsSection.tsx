@@ -2,6 +2,7 @@ import * as Checkbox from '@radix-ui/react-checkbox'
 import { Check, Trash2 } from 'lucide-react'
 import type { Tag } from '@/shared/types'
 import { cn } from '@/shared/cn'
+import { getTagSoftStyle, getTagSwatchStyle } from '../../lib/tag-styles'
 
 interface SidebarTagsSectionProps {
   tags: Tag[]
@@ -47,10 +48,11 @@ export function SidebarTagsSection({
                 </Checkbox.Indicator>
               </Checkbox.Root>
               <span
-                className="truncate flex-1"
-                style={{ color: 'var(--sidebar-foreground)' }}
+                className="inline-flex min-w-0 flex-1 items-center gap-2 truncate rounded-full border px-2 py-1"
+                style={getTagSoftStyle(tag)}
                 title={tag.name}
               >
+                <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={getTagSwatchStyle(tag)} />
                 {tag.name}
               </span>
             </label>

@@ -4,6 +4,7 @@ import * as Select from '@radix-ui/react-select'
 import type { DumpEntry, Project, Tag } from '@/shared/types'
 import { formatRelativeTime } from '../lib/utils-time'
 import { cn } from '@/shared/cn'
+import { getTagSoftStyle, getTagSolidStyle } from '../lib/tag-styles'
 import { X, Download, Image, File, Check, ChevronDown, Copy, NotebookPen } from 'lucide-react'
 import { useFileUrl } from '../hooks/useFileUrl'
 import { getElectronAPI } from '../lib/electron-api'
@@ -262,10 +263,7 @@ export function ExpandedCard({ dump, onClose, projects, tags, onProjectChange, o
                         key={tag.id}
                         onClick={() => handleTagToggle(tag.id)}
                         className="px-2 py-0.5 rounded text-xs flex items-center gap-1 hover:opacity-80 transition-opacity"
-                        style={{
-                          backgroundColor: 'var(--accent)',
-                          color: 'var(--foreground)'
-                        }}
+                        style={getTagSolidStyle(tag)}
                         title="Click to remove"
                       >
                         {tag.name}
@@ -278,11 +276,7 @@ export function ExpandedCard({ dump, onClose, projects, tags, onProjectChange, o
                         key={tag.id}
                         onClick={() => handleTagToggle(tag.id)}
                         className="px-2 py-0.5 rounded text-xs border transition-colors hover:bg-accent"
-                        style={{
-                          backgroundColor: 'transparent',
-                          borderColor: 'var(--border)',
-                          color: 'var(--muted-foreground)'
-                        }}
+                        style={getTagSoftStyle(tag)}
                         title="Click to add"
                       >
                         + {tag.name}

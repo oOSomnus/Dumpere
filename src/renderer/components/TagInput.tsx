@@ -3,6 +3,8 @@ import * as Popover from '@radix-ui/react-popover'
 import * as Checkbox from '@radix-ui/react-checkbox'
 import { Sparkles, Check, X, ArrowUp, ArrowDown } from 'lucide-react'
 import type { Tag } from '@/shared/types'
+import { resolveTagColor } from '@/shared/tag-colors'
+import { getTagSoftStyle, getTagSolidStyle, getTagSwatchStyle } from '../lib/tag-styles'
 
 export interface TagInputProps {
   open: boolean
@@ -293,16 +295,17 @@ export function TagInput({
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'space-between',
-                        backgroundColor: isHighlighted
-                          ? 'var(--accent)'
-                          : 'transparent',
-                        color: isHighlighted ? 'var(--accent-foreground)' : 'var(--foreground)',
+                        ...(isHighlighted ? getTagSoftStyle(tag) : {}),
+                        color: 'var(--foreground)',
                         fontSize: '14px',
                         boxShadow: isHighlighted ? 'inset 0 0 0 1px var(--border)' : 'none',
                       }}
                       onMouseEnter={() => setHighlightedIndex(index)}
                     >
-                      <span>{tag.name}</span>
+                      <span className="inline-flex items-center gap-2">
+                        <span className="h-2.5 w-2.5 rounded-full" style={getTagSwatchStyle(tag)} />
+                        {tag.name}
+                      </span>
                       {isSelected && <Check size={16} />}
                     </div>
                   )
@@ -331,6 +334,7 @@ export function TagInput({
                   const absoluteIndex = aiSuggestions.length + index
                   const isHighlighted = highlightedIndex === absoluteIndex
                   const isSelected = selectedTagIds.includes(tag.id)
+                  const tagColor = resolveTagColor(tag, absoluteIndex)
                   return (
                     <div
                       key={tag.id}
@@ -349,16 +353,17 @@ export function TagInput({
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'space-between',
-                        backgroundColor: isHighlighted
-                          ? 'var(--accent)'
-                          : 'transparent',
-                        color: isHighlighted ? 'var(--accent-foreground)' : 'var(--foreground)',
+                        ...(isHighlighted ? getTagSoftStyle(tag) : {}),
+                        color: 'var(--foreground)',
                         fontSize: '14px',
                         boxShadow: isHighlighted ? 'inset 0 0 0 1px var(--border)' : 'none',
                       }}
                       onMouseEnter={() => setHighlightedIndex(absoluteIndex)}
                     >
-                      <span>{tag.name}</span>
+                      <span className="inline-flex items-center gap-2">
+                        <span className="h-2.5 w-2.5 rounded-full" style={getTagSwatchStyle(tag)} />
+                        {tag.name}
+                      </span>
                       <Checkbox.Root
                         checked={isSelected}
                         style={{
@@ -369,10 +374,9 @@ export function TagInput({
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
-                          backgroundColor: isSelected
-                            ? 'var(--accent)'
-                            : 'transparent',
-                          color: isHighlighted ? 'var(--accent-foreground)' : 'var(--foreground)'
+                          backgroundColor: isSelected ? tagColor : 'transparent',
+                          borderColor: isSelected ? tagColor : 'var(--border)',
+                          color: 'var(--foreground)'
                         }}
                       >
                         <Checkbox.Indicator>
@@ -425,9 +429,8 @@ export function TagInput({
                     gap: '4px',
                     padding: '2px 8px',
                     borderRadius: '12px',
-                    backgroundColor: 'var(--accent)',
-                    color: 'var(--foreground)',
                     fontSize: '12px',
+                    ...getTagSolidStyle(tag)
                   }}
                 >
                   {tag.name}

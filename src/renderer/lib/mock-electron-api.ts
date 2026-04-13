@@ -11,6 +11,7 @@ import type {
   WorkspaceNode,
   WorkspaceNote
 } from '@/shared/types'
+import { assignTagColor, getTagColorForIndex } from '@/shared/tag-colors'
 
 const now = Date.now()
 const hour = 60 * 60 * 1000
@@ -33,10 +34,10 @@ let projects: Project[] = [
 ]
 
 let tags: Tag[] = [
-  { id: 'tag-ship', name: 'shipping', createdAt: now - 12 * day },
-  { id: 'tag-ui', name: 'ui', createdAt: now - 11 * day },
-  { id: 'tag-copy', name: 'copy', createdAt: now - 9 * day },
-  { id: 'tag-bug', name: 'bugfix', createdAt: now - 8 * day }
+  { id: 'tag-ship', name: 'shipping', createdAt: now - 12 * day, color: getTagColorForIndex(0) },
+  { id: 'tag-ui', name: 'ui', createdAt: now - 11 * day, color: getTagColorForIndex(1) },
+  { id: 'tag-copy', name: 'copy', createdAt: now - 9 * day, color: getTagColorForIndex(2) },
+  { id: 'tag-bug', name: 'bugfix', createdAt: now - 8 * day, color: getTagColorForIndex(3) }
 ]
 
 let dumps: DumpEntry[] = [
@@ -289,7 +290,7 @@ export const mockElectronAPI: ElectronAPI = {
       if (existing) {
         return { ...existing }
       }
-      const tag: Tag = { id: crypto.randomUUID(), name, createdAt: Date.now() }
+      const tag: Tag = { id: crypto.randomUUID(), name, createdAt: Date.now(), color: assignTagColor(tags) }
       tags = [tag, ...tags]
       return { ...tag }
     },

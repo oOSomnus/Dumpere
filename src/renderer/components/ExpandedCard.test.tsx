@@ -3,6 +3,7 @@ import { fireEvent, screen, waitFor } from '@testing-library/react'
 import { ExpandedCard } from './ExpandedCard'
 import type { DumpEntry } from '../lib/types'
 import { renderWithPrompt } from '../test-utils'
+import { getTagColorForIndex } from '@/shared/tag-colors'
 
 vi.mock('../hooks/useFileUrl', () => ({
   useFileUrl: vi.fn((storedPath: string) => `file://${storedPath}`)
@@ -18,14 +19,16 @@ describe('ExpandedCard', () => {
         originalName: 'report.pdf',
         storedPath: 'dumps/report.pdf',
         mimeType: 'application/pdf',
-        size: 2048
+        size: 2048,
+        kind: 'file'
       },
       {
         id: 'file-2',
         originalName: 'photo.png',
         storedPath: 'dumps/photo.png',
         mimeType: 'image/png',
-        size: 2048
+        size: 2048,
+        kind: 'image'
       }
     ],
     createdAt: Date.now(),
@@ -95,14 +98,16 @@ describe('ExpandedCard', () => {
           originalName: 'clip.mp4',
           storedPath: 'dumps/clip.mp4',
           mimeType: 'video/mp4',
-          size: 2048
+          size: 2048,
+          kind: 'video'
         },
         {
           id: 'file-4',
           originalName: 'note.mp3',
           storedPath: 'dumps/note.mp3',
           mimeType: 'audio/mpeg',
-          size: 2048
+          size: 2048,
+          kind: 'audio'
         }
       ]
     }
@@ -136,5 +141,20 @@ describe('ExpandedCard', () => {
 
     expect(screen.getByRole('combobox').textContent).toContain('No Project')
     expect(screen.queryByText('Unassigned')).not.toBeInTheDocument()
+  })
+
+  it('renders tag pills using the stored tag color', () => {
+    renderWithPrompt(
+      <ExpandedCard
+        dump={{ ...dump, tags: ['tag-1'] }}
+        onClose={vi.fn()}
+        projects={[]}
+        tags={[{ id: 'tag-1', name: 'urgent', createdAt: 1, color: getTagColorForIndex(0) }]}
+        onProjectChange={vi.fn()}
+        onTagsChange={vi.fn()}
+      />
+    )
+
+    expect(screen.getByRole('button', { name: /urgent/i }).getAttribute('style')).toContain('background-color: rgb(251, 207, 232)')
   })
 })

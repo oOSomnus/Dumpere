@@ -4,6 +4,7 @@ import { screen, fireEvent, waitFor } from '@testing-library/react'
 import { Sidebar } from './Sidebar'
 import type { DateFilterState, Project, Tag } from '../lib/types'
 import { renderWithPrompt } from '../test-utils'
+import { getTagColorForIndex } from '@/shared/tag-colors'
 
 vi.mock('./DateFilterPopover', () => ({
   DateFilterPopover: () => <div>Date Filter</div>
@@ -20,8 +21,8 @@ const projectList: Project[] = [
   { id: 'project-1', name: 'Alpha', createdAt: 1 }
 ]
 const tags: Tag[] = [
-  { id: 'tag-1', name: 'urgent', createdAt: 1 },
-  { id: 'tag-2', name: 'bug', createdAt: 2 }
+  { id: 'tag-1', name: 'urgent', createdAt: 1, color: getTagColorForIndex(0) },
+  { id: 'tag-2', name: 'bug', createdAt: 2, color: getTagColorForIndex(1) }
 ]
 
 function renderSidebar(overrides: Partial<ComponentProps<typeof Sidebar>> = {}) {
@@ -169,5 +170,12 @@ describe('Sidebar', () => {
 
     expect(await screen.findByText("Delete project 'Alpha'?")).toBeInTheDocument()
     expect(screen.getByText('Dumps will be moved to Unassigned. This cannot be undone.')).toBeInTheDocument()
+  })
+
+  it('renders tag color swatches in the sidebar', () => {
+    renderSidebar()
+
+    const swatches = document.querySelectorAll('span.h-2\\.5.w-2\\.5')
+    expect(swatches.length).toBeGreaterThan(0)
   })
 })

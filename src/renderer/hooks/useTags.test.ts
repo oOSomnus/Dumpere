@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, renderHook, waitFor } from '@testing-library/react'
 import { mockElectronAPI } from '../lib/types'
 import { useTags } from './useTags'
+import { getTagColorForIndex } from '@/shared/tag-colors'
 
 describe('useTags', () => {
   beforeEach(() => {
@@ -10,7 +11,8 @@ describe('useTags', () => {
     vi.spyOn(mockElectronAPI.data, 'createTag').mockImplementation(async (name) => ({
       id: crypto.randomUUID(),
       name,
-      createdAt: Date.now()
+      createdAt: Date.now(),
+      color: getTagColorForIndex(0)
     }))
   })
 
@@ -27,6 +29,7 @@ describe('useTags', () => {
     })
 
     expect(createdTag).toMatchObject({ name: 'deep work' })
+    expect(createdTag).toMatchObject({ color: getTagColorForIndex(0) })
     expect(mockElectronAPI.data.createTag).toHaveBeenCalledWith('deep work')
   })
 

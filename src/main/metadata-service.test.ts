@@ -10,6 +10,7 @@ import {
   readMetadata,
   writeMetadata
 } from './metadata-service'
+import { getTagColorForIndex } from '../shared/tag-colors'
 
 vi.mock('fs/promises', async (importOriginal) => {
   const actual = await importOriginal<typeof import('fs/promises')>()
@@ -57,7 +58,7 @@ describe('metadata-service', () => {
       ...createEmptyMetadata(),
       createdAt: 123,
       projects: [{ id: 'project-1', name: 'Alpha', createdAt: 123 }],
-      tags: [{ id: 'tag-1', name: 'deep work', createdAt: 124 }],
+      tags: [{ id: 'tag-1', name: 'deep work', createdAt: 124, color: getTagColorForIndex(0) }],
       dumps: [{
         id: 'dump-1',
         text: 'Wrote the refactor plan',
@@ -99,6 +100,30 @@ describe('metadata-service', () => {
     }))
 
     await expect(readMetadata(vaultPath)).rejects.toThrow('unsupported version')
+  })
+
+  it('hydrates missing tag colors when reading older metadata', async () => {
+    const vaultPath = createTempVaultDir()
+    createdDirs.push(vaultPath)
+
+    writeFileSync(getMetadataPath(vaultPath), JSON.stringify({
+      version: 2,
+      createdAt: 123,
+      projects: [],
+      tags: [
+        { id: 'tag-1', name: 'deep work', createdAt: 124 },
+        { id: 'tag-2', name: 'review', createdAt: 125 }
+      ],
+      dumps: [],
+      summaries: []
+    }))
+
+    await expect(readMetadata(vaultPath)).resolves.toMatchObject({
+      tags: [
+        { id: 'tag-1', color: getTagColorForIndex(0) },
+        { id: 'tag-2', color: getTagColorForIndex(1) }
+      ]
+    })
   })
 
   it('rejects malformed metadata JSON', async () => {

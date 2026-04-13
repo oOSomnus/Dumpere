@@ -6,6 +6,7 @@ import { FileText, Image, Video, Music, File, X, Check } from 'lucide-react'
 import * as Checkbox from '@radix-ui/react-checkbox'
 import { ConfirmDialog } from './ConfirmDialog'
 import { useFileUrl } from '../hooks/useFileUrl'
+import { getTagSolidStyle, getTagSoftStyle } from '../lib/tag-styles'
 
 interface DumpCardProps {
   dump: DumpEntry
@@ -14,7 +15,7 @@ interface DumpCardProps {
   // Phase 2: project badge
   projectName?: string  // passed from parent to avoid hook dependency
   // Phase 2: tag chips
-  tags?: Array<{id: string; name: string}>  // passed from parent
+  tags?: Array<{id: string; name: string; color: string}>  // passed from parent
   // Phase 3: multi-select checkbox
   showCheckbox?: boolean      // Whether to show checkbox (default false)
   isSelected?: boolean        // Whether card is selected
@@ -190,10 +191,7 @@ export function DumpCard({
               <span
                 key={tag.id}
                 className="px-2 py-0.5 rounded text-xs"
-                style={{
-                  backgroundColor: 'var(--accent)',
-                  color: 'var(--foreground)'
-                }}
+                style={getTagSolidStyle(tag)}
               >
                 {tag.name}
               </span>
@@ -201,10 +199,7 @@ export function DumpCard({
             {overflowCount > 0 && (
               <span
                 className="px-2 py-0.5 rounded text-xs"
-                style={{
-                  backgroundColor: 'var(--accent)',
-                  color: 'var(--muted-foreground)'
-                }}
+                style={visibleTags[visibleTags.length - 1] ? getTagSoftStyle(visibleTags[visibleTags.length - 1]) : undefined}
               >
                 +{overflowCount}
               </span>

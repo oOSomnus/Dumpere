@@ -15,10 +15,10 @@ import {
   type VaultMetadata,
   type Project
 } from '@/shared/types'
+import { assignTagColor } from '../shared/tag-colors'
 import {
   copyFilesToVault,
   deleteVaultFile,
-  getMimeType,
   resolveVaultFilePath
 } from './file-service'
 import {
@@ -218,7 +218,8 @@ export async function createTag(name: string): Promise<Tag> {
     const createdTag: Tag = {
       id: crypto.randomUUID(),
       name: normalizedName,
-      createdAt: Date.now()
+      createdAt: Date.now(),
+      color: assignTagColor(metadata.tags)
     }
 
     metadata.tags.unshift(createdTag)
