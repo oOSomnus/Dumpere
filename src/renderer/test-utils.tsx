@@ -1,12 +1,15 @@
 import { type ReactElement, type ReactNode } from 'react'
 import { render, renderHook, type RenderHookOptions, type RenderOptions } from '@testing-library/react'
 import { PromptProvider } from './components/PromptProvider'
+import { I18nProvider } from './i18n'
 
 function TestProviders({ children }: { children: ReactNode }) {
   return (
-    <PromptProvider>
-      {children}
-    </PromptProvider>
+    <I18nProvider>
+      <PromptProvider>
+        {children}
+      </PromptProvider>
+    </I18nProvider>
   )
 }
 

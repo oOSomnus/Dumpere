@@ -2,6 +2,7 @@ import { mkdir, readdir, readFile, rename, rm, stat, writeFile } from 'fs/promis
 import { basename, dirname, extname, join, resolve } from 'path'
 import { getVaultState } from './vault-service'
 import type { WorkspaceNode, WorkspaceNote } from '@/shared/types'
+import { validateWorkspaceEntryName } from '@/shared/naming'
 
 const WORKSPACES_DIR = 'workspaces'
 const DEFAULT_NOTE_PATH = 'index.md'
@@ -41,26 +42,7 @@ function resolveWorkspacePath(projectId: string, relativePath = ''): string {
 }
 
 function normalizeEntryName(name: string, type: 'folder' | 'note'): string {
-  const trimmed = name.trim()
-
-  if (!trimmed) {
-    throw new Error(`${type === 'folder' ? 'Folder' : 'Note'} name is required`)
-  }
-
-  if (trimmed.includes('/') || trimmed.includes('\\')) {
-    throw new Error('Names cannot contain path separators')
-  }
-
-  const cleaned = trimmed.replace(/[^\w\s.-]+/g, '-').trim()
-  if (!cleaned || cleaned === '.' || cleaned === '..') {
-    throw new Error('Invalid name')
-  }
-
-  if (type === 'note') {
-    return cleaned.toLowerCase().endsWith('.md') ? cleaned : `${cleaned}.md`
-  }
-
-  return cleaned
+  return validateWorkspaceEntryName(name, type)
 }
 
 async function pathExists(path: string): Promise<boolean> {

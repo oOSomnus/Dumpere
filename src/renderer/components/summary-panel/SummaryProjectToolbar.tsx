@@ -1,4 +1,5 @@
 import type { Project } from '@/shared/types'
+import { useI18n } from '@/renderer/i18n'
 
 interface SummaryProjectToolbarProps {
   projects: Project[]
@@ -11,6 +12,7 @@ export function SummaryProjectToolbar({
   selectedProjectId,
   onProjectSelectionChange
 }: SummaryProjectToolbarProps) {
+  const { t } = useI18n()
   return (
     <div
       className="flex flex-wrap items-center gap-3 rounded-2xl border px-4 py-3"
@@ -21,7 +23,7 @@ export function SummaryProjectToolbar({
         className="text-sm font-medium"
         style={{ color: 'var(--foreground)' }}
       >
-        Project
+        {t('summary.projectLabel')}
       </label>
       <select
         id="summaries-project-select"
@@ -37,7 +39,7 @@ export function SummaryProjectToolbar({
         }}
       >
         <option value="all" style={{ color: 'var(--foreground)', backgroundColor: 'var(--popover)' }}>
-          All Projects
+          {t('sidebar.allProjects')}
         </option>
         {projects.map(project => (
           <option
@@ -50,7 +52,7 @@ export function SummaryProjectToolbar({
         ))}
       </select>
       <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
-        Choose which project workspace and summary history you want to browse.
+        {t('summary.projectHelp')}
       </p>
     </div>
   )

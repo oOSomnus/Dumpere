@@ -2,6 +2,7 @@ import type { DateFilterState, DatePreset, Project, Tag } from '@/shared/types'
 import type { AppView } from '../hooks/useAppController'
 import { useSidebarProjects } from '../hooks/useSidebarProjects'
 import { usePrompt } from '../hooks/usePrompt'
+import { useI18n } from '../i18n'
 import { SidebarDateSection } from './sidebar/SidebarDateSection'
 import { SidebarProjectSection } from './sidebar/SidebarProjectSection'
 import { SidebarSearch } from './sidebar/SidebarSearch'
@@ -58,6 +59,7 @@ export function Sidebar({
   onViewChange,
 }: SidebarProps) {
   const prompt = usePrompt()
+  const { t } = useI18n()
   const projectControls = useSidebarProjects({
     projects,
     onCreateProject,
@@ -67,9 +69,9 @@ export function Sidebar({
 
   const handleDeleteTag = async (tag: Tag) => {
     const confirmed = await prompt.confirm({
-      title: `Delete tag '${tag.name}'?`,
-      description: 'It will be removed from all dumps and filters.',
-      confirmLabel: 'Delete Tag',
+      title: t('tags.deleteTitle', { name: tag.name }),
+      description: t('tags.deleteDescription'),
+      confirmLabel: t('tags.deleteConfirm'),
       destructive: true
     })
 

@@ -1,8 +1,10 @@
 import type {
   DumpEntry,
   ElectronAPI,
+  Locale,
   Project,
   RecentVault,
+  ResolvedLocale,
   SummaryEntry,
   SummaryPanelState,
   SummarySettings,
@@ -60,7 +62,7 @@ let dumps: DumpEntry[] = [
       mimeType: 'image/png',
       size: 182034,
       kind: 'image'
-    }],
+    } as const],
     createdAt: now - 5 * hour,
     updatedAt: now - 5 * hour,
     projectId: 'proj-research',
@@ -125,6 +127,8 @@ let summarySettings: SummarySettings = {
   model: 'gpt-4.1-mini'
 }
 let panelSizes = { sidebarWidth: 280, inputHeight: 104 }
+let locale: Locale = 'system'
+let systemLocale: ResolvedLocale = 'en'
 
 const demoFilesByPath = new Map<string, string>([
   ['mock/research-board.png', `data:image/svg+xml;charset=utf-8,${encodeURIComponent(`
@@ -412,6 +416,12 @@ export const mockElectronAPI: ElectronAPI = {
     onThemeChange: () => () => {},
     getTheme: async () => 'system',
     setTheme: async () => {},
+    getLocale: async () => locale,
+    setLocale: async (nextLocale) => {
+      locale = nextLocale
+      return locale
+    },
+    getSystemLocale: async () => systemLocale,
     checkSummaryHealth: async () => true,
     getSummarySettings: async () => ({ ...summarySettings }),
     updateSummarySettings: async (settings) => {

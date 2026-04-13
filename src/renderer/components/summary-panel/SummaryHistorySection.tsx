@@ -3,6 +3,7 @@ import type { SummaryEntry } from '@/shared/types'
 import { formatRelativeTime } from '@/renderer/lib/utils-time'
 import { cn } from '@/shared/cn'
 import { MarkdownPreview } from '@/renderer/components/MarkdownPreview'
+import { useI18n } from '@/renderer/i18n'
 
 interface SummaryHistorySectionProps {
   summaryType: 'daily' | 'weekly'
@@ -39,6 +40,7 @@ export function SummaryHistorySection({
   setCurrentSummary,
   projectName
 }: SummaryHistorySectionProps) {
+  const { t, resolvedLocale } = useI18n()
   return (
     <section
       className="rounded-2xl border p-5 flex flex-col gap-5 min-h-0 flex-1"
@@ -57,7 +59,7 @@ export function SummaryHistorySection({
                 border: '1px solid var(--border)'
               }}
             >
-              {type === 'daily' ? 'Daily' : 'Weekly'}
+              {type === 'daily' ? t('summary.daily') : t('summary.weekly')}
             </button>
           ))}
         </div>
@@ -74,7 +76,7 @@ export function SummaryHistorySection({
             color: 'var(--primary-foreground)'
           }}
         >
-          {isLoading ? 'Generating summary...' : 'Generate Summary'}
+          {isLoading ? t('summary.generating') : t('summary.generate')}
         </button>
 
         {currentSummary && (
@@ -87,7 +89,7 @@ export function SummaryHistorySection({
             }}
           >
             <Download className="w-4 h-4" />
-            Export
+            {t('common.export')}
           </button>
         )}
         {currentSummary && (
@@ -103,12 +105,12 @@ export function SummaryHistorySection({
             {copied ? (
               <>
                 <Check className="w-4 h-4" />
-                Copied!
+                {t('common.copied')}
               </>
             ) : (
               <>
                 <Clipboard className="w-4 h-4" />
-                Copy
+                {t('common.copy')}
               </>
             )}
           </button>
@@ -126,7 +128,7 @@ export function SummaryHistorySection({
           <div className="flex items-start gap-2">
             <AlertCircle className="w-5 h-5 mt-0.5 flex-shrink-0" />
             <div>
-              <p className="font-medium">AI Summary Unavailable</p>
+              <p className="font-medium">{t('summary.unavailable')}</p>
               <p className="text-sm opacity-90">{error}</p>
             </div>
           </div>
@@ -137,14 +139,14 @@ export function SummaryHistorySection({
                 className="inline-flex items-center gap-2 text-sm underline"
               >
                 <Settings className="w-4 h-4" />
-                Open Settings
+                {t('summary.openSettings')}
               </button>
             )}
             <button
               onClick={clearError}
               className="text-sm opacity-80 hover:opacity-100 underline text-left"
             >
-              Dismiss
+              {t('common.dismiss')}
             </button>
           </div>
         </div>
@@ -168,19 +170,19 @@ export function SummaryHistorySection({
                 }}
               >
                 <p className="text-sm font-medium">
-                  {summary.type === 'daily' ? 'Daily' : 'Weekly'}
+                  {summary.type === 'daily' ? t('summary.daily') : t('summary.weekly')}
                 </p>
                 <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
-                  {formatRelativeTime(summary.generatedAt)} ago
+                  {formatRelativeTime(summary.generatedAt, resolvedLocale)}
                 </p>
                 <p className="text-xs mt-1" style={{ color: 'var(--muted-foreground)' }}>
-                  {summary.dumpCount} dumps
+                  {t('summary.dumpsCount', { count: summary.dumpCount })}
                 </p>
               </button>
             ))
           ) : (
             <div className="p-4 text-sm" style={{ color: 'var(--muted-foreground)' }}>
-              No saved summaries for this view yet.
+              {t('summary.noneSaved')}
             </div>
           )}
         </div>
@@ -196,16 +198,16 @@ export function SummaryHistorySection({
                   className="px-2 py-1 rounded text-xs font-medium"
                   style={{ backgroundColor: 'var(--accent)', color: 'var(--accent-foreground)' }}
                 >
-                  {currentSummary.type === 'daily' ? 'Daily' : 'Weekly'}
+                  {currentSummary.type === 'daily' ? t('summary.daily') : t('summary.weekly')}
                 </span>
                 <span className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
                   {projectName}
                 </span>
                 <span className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
-                  Generated {formatRelativeTime(currentSummary.generatedAt)} ago
+                  {t('common.generatedAgo', { time: formatRelativeTime(currentSummary.generatedAt, resolvedLocale) })}
                 </span>
                 <span className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
-                  ({currentSummary.dumpCount} dumps)
+                  ({t('summary.dumpsCount', { count: currentSummary.dumpCount })})
                 </span>
               </div>
               <MarkdownPreview content={currentSummary.content} />
@@ -214,10 +216,10 @@ export function SummaryHistorySection({
             <div className="h-full flex flex-col items-center justify-center text-center">
               <FileText className="w-12 h-12 mb-4" style={{ color: 'var(--muted-foreground)' }} />
               <h3 className="text-lg font-medium mb-2" style={{ color: 'var(--foreground)' }}>
-                {filteredSummaries.length > 0 ? 'Select a summary' : 'No summaries yet'}
+                {filteredSummaries.length > 0 ? t('summary.selectOne') : t('summary.noneYet')}
               </h3>
               <p className="text-sm max-w-md" style={{ color: 'var(--muted-foreground)' }}>
-                Generate a summary to capture the latest dump activity and append it to the project workspace.
+                {t('summary.generateHelp')}
               </p>
             </div>
           )}

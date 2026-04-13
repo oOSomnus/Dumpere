@@ -46,7 +46,7 @@ describe('useProjects', () => {
     ])
   })
 
-  it('rejects invalid project names during creation', async () => {
+  it('rejects control characters during creation', async () => {
     mockGetProjects.mockResolvedValue([])
     const { result } = renderHook(() => useProjects())
 
@@ -54,8 +54,8 @@ describe('useProjects', () => {
       expect(result.current.isLoading).toBe(false)
     })
 
-    await expect(result.current.createProject('design/ui')).rejects.toThrow(
-      'Project name must contain only alphanumeric characters and spaces'
+    await expect(result.current.createProject('bad\u0000name')).rejects.toThrow(
+      'Project name cannot contain control characters'
     )
     expect(mockSaveProject).not.toHaveBeenCalled()
   })

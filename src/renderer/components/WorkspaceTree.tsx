@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type MutableRefObject } from 'react'
 import { Folder, FileText, FolderPlus, FilePlus, Pencil, Trash2 } from 'lucide-react'
 import type { WorkspaceNode, WorkspaceNote } from '@/shared/types'
 import { cn } from '@/shared/cn'
+import { useI18n } from '@/renderer/i18n'
 
 type CreatedWorkspaceEntry = Pick<WorkspaceNode, 'type' | 'name' | 'path'> | WorkspaceNote
 
@@ -117,6 +118,7 @@ function WorkspaceTreeItem({
   onCancelRename,
   skipBlurCommitRef
 }: WorkspaceTreeItemProps) {
+  const { t } = useI18n()
   const isSelected = selectedPath === node.path
   const isEditing = editingPath === node.path
   const inputRef = useRef<HTMLInputElement | null>(null)
@@ -183,10 +185,10 @@ function WorkspaceTreeItem({
         </button>
         {!isEditing && (
           <span className="ml-2 flex items-center gap-1">
-            <button type="button" onClick={() => onStartRename(node.path, node.name)} title="Rename note">
+            <button type="button" onClick={() => onStartRename(node.path, node.name)} title={t('workspace.renameNote')}>
               <Pencil className="h-3.5 w-3.5" />
             </button>
-            <button type="button" onClick={() => onDelete(node.path)} title="Delete note">
+            <button type="button" onClick={() => onDelete(node.path)} title={t('workspace.deleteNote')}>
               <Trash2 className="h-3.5 w-3.5" />
             </button>
           </span>
@@ -210,16 +212,16 @@ function WorkspaceTreeItem({
         </span>
         {!isEditing && (
           <span className="ml-2 flex items-center gap-1">
-            <button type="button" onClick={() => onCreateFolder(node.path)} title="New folder">
+            <button type="button" onClick={() => onCreateFolder(node.path)} title={t('workspace.newFolder')}>
               <FolderPlus className="h-3.5 w-3.5" />
             </button>
-            <button type="button" onClick={() => onCreateNote(node.path)} title="New note">
+            <button type="button" onClick={() => onCreateNote(node.path)} title={t('workspace.newNote')}>
               <FilePlus className="h-3.5 w-3.5" />
             </button>
-            <button type="button" onClick={() => onStartRename(node.path, node.name)} title="Rename folder">
+            <button type="button" onClick={() => onStartRename(node.path, node.name)} title={t('workspace.renameFolder')}>
               <Pencil className="h-3.5 w-3.5" />
             </button>
-            <button type="button" onClick={() => onDelete(node.path)} title="Delete folder">
+            <button type="button" onClick={() => onDelete(node.path)} title={t('workspace.deleteFolder')}>
               <Trash2 className="h-3.5 w-3.5" />
             </button>
           </span>
@@ -258,6 +260,7 @@ export function WorkspaceTree({
   onRename,
   onDelete
 }: WorkspaceTreeProps) {
+  const { t } = useI18n()
   const [editingPath, setEditingPath] = useState<string | null>(null)
   const [draftName, setDraftName] = useState('')
   const [pendingCreatedPath, setPendingCreatedPath] = useState<string | null>(null)
@@ -325,10 +328,10 @@ export function WorkspaceTree({
           Workspace
         </p>
         <div className="flex items-center gap-1">
-          <button type="button" onClick={() => void handleCreateFolderAndRename('')} title="New folder">
+          <button type="button" onClick={() => void handleCreateFolderAndRename('')} title={t('workspace.newFolder')}>
             <FolderPlus className="h-4 w-4" />
           </button>
-          <button type="button" onClick={() => void handleCreateNoteAndRename('')} title="New note">
+          <button type="button" onClick={() => void handleCreateNoteAndRename('')} title={t('workspace.newNote')}>
             <FilePlus className="h-4 w-4" />
           </button>
         </div>

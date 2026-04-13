@@ -1,6 +1,7 @@
 import type { DateFilterState, DatePreset } from '@/shared/types'
 import { cn } from '@/shared/cn'
 import { DateFilterPopover } from '@/renderer/components/DateFilterPopover'
+import { useI18n } from '@/renderer/i18n'
 
 interface SidebarDateSectionProps {
   dateFilter: DateFilterState
@@ -10,13 +11,6 @@ interface SidebarDateSectionProps {
   onClearDateFilter: () => void
 }
 
-const presetOptions: Array<{ value: DatePreset | null; label: string }> = [
-  { value: null, label: 'All Time' },
-  { value: 'today', label: 'Today' },
-  { value: 'week', label: 'This Week' },
-  { value: 'month', label: 'This Month' }
-]
-
 export function SidebarDateSection({
   dateFilter,
   onDatePresetChange,
@@ -24,10 +18,18 @@ export function SidebarDateSection({
   onSetDateKeys,
   onClearDateFilter
 }: SidebarDateSectionProps) {
+  const { t } = useI18n()
+  const presetOptions: Array<{ value: DatePreset | null; label: string }> = [
+    { value: null, label: t('sidebar.allTime') },
+    { value: 'today', label: t('sidebar.today') },
+    { value: 'week', label: t('sidebar.thisWeek') },
+    { value: 'month', label: t('sidebar.thisMonth') }
+  ]
+
   return (
     <div className="p-3">
       <h2 className="text-sm font-semibold mb-2" style={{ color: 'var(--sidebar-foreground)' }}>
-        Dates
+        {t('sidebar.dates')}
       </h2>
       <div className="flex flex-col gap-1">
         {presetOptions.map((preset) => (

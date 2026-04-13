@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron'
-import type { ElectronAPI, SummaryPanelState, SummarySettings, ThemeSetting } from '@/shared/types'
+import type { ElectronAPI, Locale, SummaryPanelState, SummarySettings, ThemeSetting } from '@/shared/types'
 
 const electronAPI: ElectronAPI = {
   data: {
@@ -53,6 +53,9 @@ const electronAPI: ElectronAPI = {
     },
     getTheme: (): Promise<ThemeSetting> => ipcRenderer.invoke('ui:theme:get'),
     setTheme: (theme) => ipcRenderer.invoke('ui:theme:set', theme),
+    getLocale: (): Promise<Locale> => ipcRenderer.invoke('ui:locale:get'),
+    setLocale: (locale) => ipcRenderer.invoke('ui:locale:set', locale),
+    getSystemLocale: () => ipcRenderer.invoke('ui:locale:system'),
     checkSummaryHealth: () => ipcRenderer.invoke('ui:summary:check-health'),
     getSummarySettings: (): Promise<SummarySettings> => ipcRenderer.invoke('ui:summary-settings:get'),
     updateSummarySettings: (settings) => ipcRenderer.invoke('ui:summary-settings:update', settings),

@@ -109,6 +109,8 @@ export interface SummaryPanelProjectState {
 export type SummaryPanelState = Record<string, SummaryPanelProjectState>
 
 export type ThemeSetting = 'light' | 'dark' | 'system'
+export type Locale = 'system' | 'en' | 'zh-CN'
+export type ResolvedLocale = 'en' | 'zh-CN'
 
 export interface VaultMetadata {
   version: 2
@@ -173,6 +175,9 @@ export interface UIAPI {
   onThemeChange: (callback: (isDark: boolean) => void) => () => void
   getTheme: () => Promise<ThemeSetting>
   setTheme: (theme: ThemeSetting) => Promise<void>
+  getLocale: () => Promise<Locale>
+  setLocale: (locale: Locale) => Promise<Locale>
+  getSystemLocale: () => Promise<ResolvedLocale>
   checkSummaryHealth: () => Promise<boolean>
   getSummarySettings: () => Promise<SummarySettings>
   updateSummarySettings: (settings: SummarySettings) => Promise<SummarySettings>

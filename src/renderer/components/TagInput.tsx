@@ -5,6 +5,7 @@ import { Sparkles, Check, X, ArrowUp, ArrowDown } from 'lucide-react'
 import type { Tag } from '@/shared/types'
 import { resolveTagColor } from '@/shared/tag-colors'
 import { getTagSoftStyle, getTagSolidStyle, getTagSwatchStyle } from '../lib/tag-styles'
+import { useI18n } from '@/renderer/i18n'
 
 export interface TagInputProps {
   open: boolean
@@ -33,6 +34,7 @@ export function TagInput({
   onCreateTag,
   dumpText,
 }: TagInputProps) {
+  const { t } = useI18n()
   const [filterText, setFilterText] = useState('')
   const [highlightedIndex, setHighlightedIndex] = useState(0)
   const [aiSuggestions, setAiSuggestions] = useState<Tag[]>([])
@@ -233,7 +235,7 @@ export function TagInput({
                 setHighlightedIndex(0)
               }}
               onKeyDown={handleKeyDown}
-              placeholder="Search or create tag..."
+              placeholder={t('tags.searchOrCreate')}
               aria-controls="tag-input-options"
               aria-activedescendant={highlightedTag ? `tag-option-${highlightedTag.id}` : undefined}
               style={{
@@ -272,7 +274,7 @@ export function TagInput({
                   }}
                 >
                   <Sparkles size={12} className="inline mr-1" />
-                  AI Suggestions
+                  {t('tags.aiSuggestions')}
                 </div>
                 {aiSuggestions.map((tag, index) => {
                   const isHighlighted = highlightedIndex === index

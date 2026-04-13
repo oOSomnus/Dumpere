@@ -2,9 +2,10 @@ import type { ChangeEvent, ClipboardEvent, DragEvent, KeyboardEvent, RefObject }
 import type { Project } from '@/shared/types'
 import { cn } from '@/shared/cn'
 import { ProjectSelector } from '@/renderer/components/ProjectSelector'
+import { useI18n } from '@/renderer/i18n'
 
 interface DumpComposerProps {
-  inputRef: RefObject<HTMLTextAreaElement | null>
+  inputRef: RefObject<HTMLTextAreaElement>
   text: string
   onTextChange: (event: ChangeEvent<HTMLTextAreaElement>) => void
   onKeyDown: (event: KeyboardEvent<HTMLTextAreaElement>) => Promise<void>
@@ -32,10 +33,11 @@ export function DumpComposer({
   onProjectSelect,
   projectError
 }: DumpComposerProps) {
+  const { t } = useI18n()
   const isProjectSelected = activeProjectId !== null
   const placeholder = projects.length === 0
-    ? 'Create a project to start dumping.'
-    : 'Select a project to start dumping.'
+    ? t('dump.createProjectToStart')
+    : t('dump.selectProjectToStart')
 
   return (
     <div className="flex items-center px-4" style={{ height: `${inputHeight}px` }}>
@@ -44,7 +46,7 @@ export function DumpComposer({
         activeProjectId={activeProjectId}
         onSelect={onProjectSelect}
         allowAllProjects={false}
-        emptyLabel={projects.length === 0 ? 'No Projects' : 'Assign Project'}
+        emptyLabel={projects.length === 0 ? t('project.noProjects') : t('project.assignProject')}
         hasError={!!projectError}
       />
 
@@ -60,7 +62,7 @@ export function DumpComposer({
         onPaste={event => {
           void onPaste(event)
         }}
-        placeholder={isProjectSelected ? 'Dump something... (Enter to add tags)' : placeholder}
+        placeholder={isProjectSelected ? t('dump.placeholder') : placeholder}
         disabled={isSubmitting || !isProjectSelected}
         rows={1}
         className={cn(
@@ -76,7 +78,7 @@ export function DumpComposer({
 
       {isSubmitting && (
         <span className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
-          Saving...
+          {t('dump.saving')}
         </span>
       )}
     </div>

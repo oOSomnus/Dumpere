@@ -12,6 +12,7 @@ import { SettingsPanel } from './components/SettingsPanel'
 import { InsertReferenceDialog } from './components/InsertReferenceDialog'
 import { WelcomeScreen } from './components/WelcomeScreen'
 import { PromptProvider } from './components/PromptProvider'
+import { I18nProvider, useI18n } from './i18n'
 import { getElectronAPI } from './lib/electron-api'
 
 interface VaultAppContentProps {
@@ -30,6 +31,7 @@ function VaultAppContent({
   onBackToVaults
 }: VaultAppContentProps) {
   const app = useAppController()
+  const { t } = useI18n()
   const dumpReferenceInsertion = useDumpReferenceInsertion({
     projects: app.projects,
     activeProjectId: app.activeProjectId
@@ -112,7 +114,7 @@ function VaultAppContent({
         style={{ paddingBottom: '64px' }}
       >
         <div className="px-6 py-4 flex items-center justify-between gap-4 text-sm" style={{ color: 'var(--muted-foreground)' }}>
-          <span>{vaultName ? `Vault opened: ${vaultName}` : 'Vault opened'}</span>
+          <span>{vaultName ? t('app.vaultOpened', { name: vaultName }) : t('app.vaultOpenedUnnamed')}</span>
           <button
             type="button"
             onClick={() => void onBackToVaults()}
@@ -122,7 +124,7 @@ function VaultAppContent({
               backgroundColor: 'var(--secondary)'
             }}
           >
-            Back to Vaults
+            {t('app.backToVaults')}
           </button>
         </div>
 
@@ -205,29 +207,29 @@ export function App() {
   const theme = useTheme()
   const { vaultState, recentVaults, isLoading: vaultLoading, error: vaultError, createVault, openVault, closeVault } = useVault()
 
-  if (!vaultState.isOpen) {
-    return (
-      <WelcomeScreen
-        vaultState={vaultState}
-        recentVaults={recentVaults}
-        isLoading={vaultLoading}
-        error={vaultError}
-        onCreateVault={createVault}
-        onOpenVault={openVault}
-      />
-    )
-  }
-
   return (
-    <PromptProvider>
-      <VaultAppContent
-        vaultName={vaultState.vaultName}
-        isDark={theme.isDark}
-        themeLoaded={theme.isLoaded}
-        onToggleTheme={theme.toggleTheme}
-        onBackToVaults={closeVault}
-      />
-    </PromptProvider>
+    <I18nProvider>
+      {!vaultState.isOpen ? (
+        <WelcomeScreen
+          vaultState={vaultState}
+          recentVaults={recentVaults}
+          isLoading={vaultLoading}
+          error={vaultError}
+          onCreateVault={createVault}
+          onOpenVault={openVault}
+        />
+      ) : (
+        <PromptProvider>
+          <VaultAppContent
+            vaultName={vaultState.vaultName}
+            isDark={theme.isDark}
+            themeLoaded={theme.isLoaded}
+            onToggleTheme={theme.toggleTheme}
+            onBackToVaults={closeVault}
+          />
+        </PromptProvider>
+      )}
+    </I18nProvider>
   )
 }
 

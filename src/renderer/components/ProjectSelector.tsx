@@ -2,6 +2,7 @@ import * as Popover from '@radix-ui/react-popover'
 import type { Project } from '@/shared/types'
 import { cn } from '@/shared/cn'
 import { FolderOpen, Check } from 'lucide-react'
+import { useI18n } from '@/renderer/i18n'
 
 interface ProjectSelectorProps {
   projects: Project[]
@@ -20,8 +21,10 @@ export function ProjectSelector({
   emptyLabel = 'All Projects',
   hasError = false
 }: ProjectSelectorProps) {
+  const { t } = useI18n()
   const activeProject = projects.find(p => p.id === activeProjectId)
-  const displayName = activeProject?.name || emptyLabel
+  const fallbackLabel = emptyLabel === 'All Projects' ? t('sidebar.allProjects') : emptyLabel
+  const displayName = activeProject?.name || fallbackLabel
 
   return (
     <Popover.Root>
@@ -70,7 +73,7 @@ export function ProjectSelector({
                   color: 'var(--foreground)',
                 }}
               >
-                <span>All Projects</span>
+                <span>{t('sidebar.allProjects')}</span>
                 {activeProjectId === null && <Check className="w-4 h-4" style={{ color: 'var(--muted-foreground)' }} />}
               </button>
             )}
@@ -103,7 +106,7 @@ export function ProjectSelector({
                 className="px-3 py-2 text-sm"
                 style={{ color: 'var(--muted-foreground)' }}
               >
-                No projects yet
+                {t('sidebar.noProjects')}
               </p>
             )}
           </div>

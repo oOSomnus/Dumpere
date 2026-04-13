@@ -279,7 +279,7 @@ describe('ipc-handlers', () => {
 
     await expect(handlers['data:export-summary'](null, 'summary-1')).resolves.toBe('/tmp/alpha-summary.md')
     expect(mocks.showSaveDialog).toHaveBeenCalledWith(expect.objectContaining({
-      defaultPath: 'summary-alpha-team-daily-2026-04-10.md'
+      defaultPath: 'summary-Alpha Team-daily-2026-04-10.md'
     }))
     expect(mocks.exportSummary).toHaveBeenCalledWith('summary-1', '/tmp/alpha-summary.md')
   })

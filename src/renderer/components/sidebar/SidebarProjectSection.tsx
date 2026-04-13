@@ -2,6 +2,8 @@ import { Download, Edit2, Plus, Trash2, Upload } from 'lucide-react'
 import type { Project } from '@/shared/types'
 import { cn } from '@/shared/cn'
 import { useSidebarProjects } from '@/renderer/hooks/useSidebarProjects'
+import { PROJECT_NAME_MAX_LENGTH } from '@/renderer/hooks/useProjects'
+import { useI18n } from '@/renderer/i18n'
 
 interface SidebarProjectSectionProps {
   projects: Project[]
@@ -20,18 +22,19 @@ export function SidebarProjectSection({
   onExportProject,
   onImportProject
 }: SidebarProjectSectionProps) {
+  const { t } = useI18n()
   return (
     <>
       <div className="p-3 border-b" style={{ borderColor: 'var(--sidebar-border)' }}>
         <div className="flex items-center justify-between mb-2">
           <h2 className="text-sm font-semibold" style={{ color: 'var(--sidebar-foreground)' }}>
-            Projects
+            {t('sidebar.projects')}
           </h2>
           <button
             onClick={projectControls.startCreatingProject}
             className="p-1 rounded hover:bg-sidebar-accent transition-colors"
             style={{ color: 'var(--sidebar-foreground)' }}
-            aria-label="Create project"
+            aria-label={t('sidebar.createProject')}
             disabled={projectControls.isMutating}
           >
             <Plus className="w-4 h-4" />
@@ -62,7 +65,7 @@ export function SidebarProjectSection({
               color: 'var(--sidebar-foreground)',
             }}
           >
-            All Projects
+            {t('sidebar.allProjects')}
           </button>
 
           {projects.map(project => (
@@ -93,7 +96,7 @@ export function SidebarProjectSection({
                     color: 'var(--foreground)',
                     borderColor: 'var(--border)',
                   }}
-                  maxLength={50}
+                  maxLength={PROJECT_NAME_MAX_LENGTH}
                   disabled={projectControls.isMutating}
                 />
               ) : (
@@ -140,21 +143,21 @@ export function SidebarProjectSection({
                   projectControls.cancelProjectCreation()
                 }
               }}
-              placeholder="Project name..."
+              placeholder={t('sidebar.projectNamePlaceholder')}
               className="w-full px-3 py-1.5 text-sm rounded-md border"
               style={{
                 backgroundColor: 'var(--background)',
                 color: 'var(--foreground)',
                 borderColor: 'var(--border)',
               }}
-              maxLength={50}
+              maxLength={PROJECT_NAME_MAX_LENGTH}
               disabled={projectControls.isMutating}
             />
           )}
 
           {projects.length === 0 && !projectControls.isCreatingProject && (
             <p className="px-3 py-2 text-sm" style={{ color: 'var(--muted-foreground)' }}>
-              No projects yet
+              {t('sidebar.noProjects')}
             </p>
           )}
         </div>
@@ -182,7 +185,7 @@ export function SidebarProjectSection({
             style={{ color: 'var(--foreground)' }}
           >
             <Edit2 className="w-4 h-4" />
-            Edit
+            {t('sidebar.edit')}
           </button>
           {onExportProject && (
             <button
@@ -196,7 +199,7 @@ export function SidebarProjectSection({
               style={{ color: 'var(--foreground)' }}
             >
               <Download className="w-4 h-4" />
-              Export Project
+              {t('sidebar.exportProject')}
             </button>
           )}
           {onImportProject && (
@@ -211,7 +214,7 @@ export function SidebarProjectSection({
               style={{ color: 'var(--foreground)' }}
             >
               <Upload className="w-4 h-4" />
-              Import to Project
+              {t('sidebar.importToProject')}
             </button>
           )}
           <button
@@ -225,7 +228,7 @@ export function SidebarProjectSection({
             disabled={projectControls.isMutating}
           >
             <Trash2 className="w-4 h-4" />
-            Delete
+            {t('sidebar.delete')}
           </button>
         </div>
       )}

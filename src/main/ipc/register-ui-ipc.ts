@@ -1,7 +1,8 @@
-import { BrowserWindow, clipboard, dialog, ipcMain, nativeTheme } from 'electron'
+import { app, BrowserWindow, clipboard, dialog, ipcMain, nativeTheme } from 'electron'
 import { store } from '../store'
 import { checkSummaryHealth, getDefaultSummarySettings, sanitizeSummarySettings } from '../ai-service'
-import type { PanelSizes, SummaryPanelState, SummarySettings, ThemeSetting } from '@/shared/types'
+import type { Locale, PanelSizes, ResolvedLocale, SummaryPanelState, SummarySettings, ThemeSetting } from '@/shared/types'
+import { resolveSystemLocale } from '@/shared/locale'
 
 export function registerUIIPC(): void {
   ipcMain.handle('ui:theme:get', (): ThemeSetting => {
@@ -14,6 +15,19 @@ export function registerUIIPC(): void {
     BrowserWindow.getAllWindows().forEach((window) => {
       window.webContents.send('theme:changed', isDark)
     })
+  })
+
+  ipcMain.handle('ui:locale:get', (): Locale => {
+    return store.get('locale', 'system')
+  })
+
+  ipcMain.handle('ui:locale:set', (_, locale: Locale): Locale => {
+    store.set('locale', locale)
+    return locale
+  })
+
+  ipcMain.handle('ui:locale:system', (): ResolvedLocale => {
+    return resolveSystemLocale(app.getLocale())
   })
 
   ipcMain.handle('ui:summary:check-health', async () => {

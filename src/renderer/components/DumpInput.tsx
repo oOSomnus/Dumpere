@@ -6,6 +6,7 @@ import { cn } from '@/shared/cn'
 import { getElectronAPI } from '../lib/electron-api'
 import { DumpAttachmentStrip } from './dump-input/DumpAttachmentStrip'
 import { DumpComposer } from './dump-input/DumpComposer'
+import { useI18n } from '@/renderer/i18n'
 
 interface FileChipData {
   id: string
@@ -67,6 +68,7 @@ export function DumpInput({
   leftOffset = 0,
 }: DumpInputProps) {
   const api = getElectronAPI()
+  const { t } = useI18n()
   const [text, setText] = useState('')
   const [attachedFiles, setAttachedFiles] = useState<FileChipData[]>([])
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -145,8 +147,8 @@ export function DumpInput({
     if (!activeProjectId) {
       setProjectError(
         projects.length === 0
-          ? 'Create a project before saving a dump.'
-          : 'Assign a project before saving a dump.'
+          ? t('project.createBeforeDump')
+          : t('project.assignBeforeDump')
       )
       return
     }

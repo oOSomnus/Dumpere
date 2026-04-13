@@ -4,6 +4,10 @@ import electron from 'vite-plugin-electron'
 import renderer from 'vite-plugin-electron-renderer'
 import { resolve } from 'path'
 
+const alias = {
+  '@': resolve(__dirname, 'src')
+}
+
 export default defineConfig({
   plugins: [
     react(),
@@ -11,12 +15,21 @@ export default defineConfig({
       {
         entry: 'src/main/index.ts',
         onstart(args) { args.startup() },
-        vite: { build: { outDir: 'dist/main', rollupOptions: { external: ['electron'], output: { format: 'cjs' } } } }
+        vite: {
+          resolve: { alias },
+          build: {
+            outDir: 'dist/main',
+            rollupOptions: { external: ['electron'], output: { format: 'cjs' } }
+          }
+        }
       },
       {
         entry: 'src/preload/index.ts',
         onstart(args) { args.reload() },
-        vite: { build: { outDir: 'dist/preload', rollupOptions: { output: { format: 'cjs' } } } }
+        vite: {
+          resolve: { alias },
+          build: { outDir: 'dist/preload', rollupOptions: { output: { format: 'cjs' } } }
+        }
       }
     ]),
     renderer({
@@ -25,6 +38,6 @@ export default defineConfig({
       }
     })
   ],
-  resolve: { alias: { '@': resolve(__dirname, 'src') } },
+  resolve: { alias },
   build: { outDir: 'dist/renderer' }
 })

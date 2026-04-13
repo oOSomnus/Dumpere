@@ -1,6 +1,7 @@
 import * as Dialog from '@radix-ui/react-dialog'
 import { AlertTriangle } from 'lucide-react'
 import { cn } from '@/shared/cn'
+import { useI18n } from '@/renderer/i18n'
 
 export interface ConfirmDialogProps {
   open: boolean
@@ -18,11 +19,12 @@ export function ConfirmDialog({
   onOpenChange,
   title,
   description,
-  confirmLabel = 'Confirm',
-  cancelLabel = 'Cancel',
+  confirmLabel,
+  cancelLabel,
   onConfirm,
   destructive = true,
 }: ConfirmDialogProps) {
+  const { t } = useI18n()
   const handleConfirm = () => {
     onConfirm()
     onOpenChange(false)
@@ -69,7 +71,7 @@ export function ConfirmDialog({
                     color: 'var(--foreground)'
                   }}
                 >
-                  {cancelLabel}
+                  {cancelLabel || t('common.cancel')}
                 </button>
               </Dialog.Close>
               <button
@@ -80,7 +82,7 @@ export function ConfirmDialog({
                   color: 'white'
                 }}
               >
-                {confirmLabel}
+                {confirmLabel || t('common.confirm')}
               </button>
             </div>
           </div>

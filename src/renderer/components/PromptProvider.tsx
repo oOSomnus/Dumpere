@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { CheckCircle2, Info, TriangleAlert, X } from 'lucide-react'
 import { ConfirmDialog } from './ConfirmDialog'
 import { cn } from '@/shared/cn'
+import { useI18n } from '@/renderer/i18n'
 
 export type PromptNotificationVariant = 'success' | 'error' | 'info'
 
@@ -53,6 +54,7 @@ function createPromptId() {
 }
 
 export function PromptProvider({ children }: { children: ReactNode }) {
+  const { t } = useI18n()
   const [notifications, setNotifications] = useState<PromptNotification[]>([])
   const [confirmState, setConfirmState] = useState<ConfirmState>({
     open: false,
@@ -119,16 +121,16 @@ export function PromptProvider({ children }: { children: ReactNode }) {
   const value = useMemo<PromptContextValue>(() => ({
     confirm,
     notify,
-    success: (message: string, title = 'Success') => {
+    success: (message: string, title = t('prompt.success')) => {
       notify({ title, message, variant: 'success' })
     },
-    error: (message: string, title = 'Something went wrong') => {
+    error: (message: string, title = t('prompt.error')) => {
       notify({ title, message, variant: 'error' })
     },
-    info: (message: string, title = 'Notice') => {
+    info: (message: string, title = t('prompt.notice')) => {
       notify({ title, message, variant: 'info' })
     }
-  }), [confirm, notify])
+  }), [confirm, notify, t])
 
   return (
     <PromptContext.Provider value={value}>
@@ -169,6 +171,7 @@ function PromptToast({
   notification: PromptNotification
   onDismiss: () => void
 }) {
+  const { t } = useI18n()
   const icon = notification.variant === 'success'
     ? <CheckCircle2 className="h-5 w-5" />
     : notification.variant === 'error'
@@ -212,7 +215,7 @@ function PromptToast({
           onClick={onDismiss}
           className="shrink-0 rounded-md p-1 transition-colors hover:bg-accent"
           style={{ color: 'var(--muted-foreground)' }}
-          aria-label="Dismiss notification"
+          aria-label={t('prompt.dismissNotification')}
         >
           <X className="h-4 w-4" />
         </button>

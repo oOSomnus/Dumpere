@@ -1,10 +1,7 @@
 import { useState, useEffect } from 'react'
 import type { Tag } from '@/shared/types'
+import { areNamesEquivalent, getTagNameMaxLength, normalizeTagName } from '@/shared/naming'
 import { getElectronAPI } from '../lib/electron-api'
-
-// Input validation constants
-const MAX_TAG_NAME_LENGTH = 30
-const TAG_NAME_REGEX = /^(?=.*[a-zA-Z0-9])[a-zA-Z0-9 -]+$/
 
 // AI suggestion settings
 const MAX_SUGGESTIONS = 3
@@ -43,21 +40,10 @@ export function useTags(): UseTagsReturn {
   }, [])
 
   const createTag = async (name: string): Promise<Tag> => {
-    const normalizedName = name.trim().toLowerCase().replace(/\s+/g, ' ')
-
-    // Input validation
-    if (!normalizedName) {
-      throw new Error('Tag name is required')
-    }
-    if (normalizedName.length > MAX_TAG_NAME_LENGTH) {
-      throw new Error(`Tag name must be ${MAX_TAG_NAME_LENGTH} characters or less`)
-    }
-    if (!TAG_NAME_REGEX.test(normalizedName)) {
-      throw new Error('Tag name must contain only alphanumeric characters, spaces, and hyphens')
-    }
+    const normalizedName = normalizeTagName(name)
 
     // Deduplicate by name - if tag with same name exists, return existing
-    const existingTag = tags.find(t => t.name.toLowerCase() === normalizedName)
+    const existingTag = tags.find(t => areNamesEquivalent(t.name, normalizedName))
     if (existingTag) {
       return existingTag
     }
@@ -169,3 +155,5 @@ export function useTags(): UseTagsReturn {
     getAISuggestions
   }
 }
+
+export const TAG_NAME_MAX_LENGTH = getTagNameMaxLength()

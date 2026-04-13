@@ -1,4 +1,5 @@
 import type { AppView } from '@/renderer/hooks/useAppController'
+import { useI18n } from '@/renderer/i18n'
 
 interface SidebarSearchProps {
   searchQuery: string
@@ -13,6 +14,7 @@ export function SidebarSearch({
   onSearchFocusChange,
   onViewChange
 }: SidebarSearchProps) {
+  const { t } = useI18n()
   if (!onSearchChange) {
     return null
   }
@@ -28,7 +30,7 @@ export function SidebarSearch({
           onViewChange?.('grid')
           onSearchChange(event.target.value)
         }}
-        placeholder="Search dumps..."
+        placeholder={t('sidebar.searchPlaceholder')}
         className="w-full px-3 py-2 rounded-md text-sm"
         style={{
           backgroundColor: 'var(--input)',

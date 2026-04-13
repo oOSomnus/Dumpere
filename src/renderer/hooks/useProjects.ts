@@ -1,10 +1,7 @@
 import { useState, useEffect } from 'react'
 import type { Project } from '@/shared/types'
+import { getProjectNameMaxLength, validateProjectName } from '@/shared/naming'
 import { getElectronAPI } from '../lib/electron-api'
-
-// Input validation constants
-const MAX_PROJECT_NAME_LENGTH = 50
-const PROJECT_NAME_REGEX = /^[a-zA-Z0-9\s]+$/
 
 interface UseProjectsReturn {
   projects: Project[]
@@ -43,18 +40,7 @@ export function useProjects(): UseProjectsReturn {
   }, [])
 
   const createProject = async (name: string): Promise<Project> => {
-    // Input validation
-    if (!name || name.trim().length === 0) {
-      throw new Error('Project name is required')
-    }
-    if (name.length > MAX_PROJECT_NAME_LENGTH) {
-      throw new Error(`Project name must be ${MAX_PROJECT_NAME_LENGTH} characters or less`)
-    }
-    if (!PROJECT_NAME_REGEX.test(name)) {
-      throw new Error('Project name must contain only alphanumeric characters and spaces')
-    }
-
-    const trimmedName = name.trim()
+    const trimmedName = validateProjectName(name)
     setError(null)
     try {
       const savedProject = await api.data.createProject(trimmedName)
@@ -68,18 +54,7 @@ export function useProjects(): UseProjectsReturn {
   }
 
   const updateProject = async (id: string, name: string): Promise<void> => {
-    // Input validation
-    if (!name || name.trim().length === 0) {
-      throw new Error('Project name is required')
-    }
-    if (name.length > MAX_PROJECT_NAME_LENGTH) {
-      throw new Error(`Project name must be ${MAX_PROJECT_NAME_LENGTH} characters or less`)
-    }
-    if (!PROJECT_NAME_REGEX.test(name)) {
-      throw new Error('Project name must contain only alphanumeric characters and spaces')
-    }
-
-    const trimmedName = name.trim()
+    const trimmedName = validateProjectName(name)
 
     setError(null)
     try {
@@ -132,3 +107,5 @@ export function useProjects(): UseProjectsReturn {
     deleteProject
   }
 }
+
+export const PROJECT_NAME_MAX_LENGTH = getProjectNameMaxLength()

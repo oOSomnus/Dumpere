@@ -1,4 +1,7 @@
+import { useI18n } from '@/renderer/i18n'
+
 export function EmptyState() {
+  const { t } = useI18n()
   return (
     <div
       className="flex flex-col items-center justify-center"
@@ -13,7 +16,7 @@ export function EmptyState() {
           lineHeight: 1.1
         }}
       >
-        No dumps yet
+        {t('empty.noDumps')}
       </h2>
 
       {/* Body text */}
@@ -25,7 +28,7 @@ export function EmptyState() {
           lineHeight: 1.5
         }}
       >
-        Start by typing below and pressing Enter
+        {t('empty.startTyping')}
       </p>
     </div>
   )

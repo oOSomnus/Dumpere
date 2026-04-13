@@ -61,21 +61,18 @@ export function useDump(): UseDumpReturn {
     setError(null)
 
     try {
-      const savedDump = await api.data.createDump({
+      await api.data.createDump({
         text,
         filePaths,
         projectId,
         tagIds
       })
 
-      // Replace optimistic entry with confirmed one
-      setDumps(prev => {
-        const next = prev.map(d => d.id === tempId ? savedDump : d)
-        const sorted = [...next].sort((a, b) => b.createdAt - a.createdAt)
-        dumpsRef.current = sorted
-        return sorted
-      })
-
+      // Reload from source of truth so the visible list matches persisted vault state.
+      const storedDumps = await api.data.getDumps()
+      const sorted = [...storedDumps].sort((a, b) => b.createdAt - a.createdAt)
+      dumpsRef.current = sorted
+      setDumps(sorted)
     } catch (err) {
       console.error('Failed to save dump:', err)
       // Rollback optimistic update

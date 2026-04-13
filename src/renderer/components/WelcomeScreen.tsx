@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { Folder, Plus, FolderOpen } from 'lucide-react'
 import type { VaultState, RecentVault } from '@/shared/types'
+import { useI18n } from '@/renderer/i18n'
+import { formatRelativeTime } from '@/renderer/lib/utils-time'
 
 interface WelcomeScreenProps {
   vaultState: VaultState
@@ -11,23 +13,6 @@ interface WelcomeScreenProps {
   onOpenVault: (path?: string) => Promise<void>
 }
 
-// Format relative time: "2d ago", "1w ago", etc.
-function formatRelativeTime(timestamp: number): string {
-  const now = Date.now()
-  const diff = now - timestamp
-  const seconds = Math.floor(diff / 1000)
-  const minutes = Math.floor(seconds / 60)
-  const hours = Math.floor(minutes / 60)
-  const days = Math.floor(hours / 24)
-  const weeks = Math.floor(days / 7)
-
-  if (weeks > 0) return `${weeks}w ago`
-  if (days > 0) return `${days}d ago`
-  if (hours > 0) return `${hours}h ago`
-  if (minutes > 0) return `${minutes}m ago`
-  return 'just now'
-}
-
 export function WelcomeScreen({
   recentVaults,
   isLoading,
@@ -36,6 +21,7 @@ export function WelcomeScreen({
   onOpenVault
 }: WelcomeScreenProps) {
   const [loadingAction, setLoadingAction] = useState<'create' | 'open' | null>(null)
+  const { t, resolvedLocale } = useI18n()
 
   const handleCreateVault = async () => {
     setLoadingAction('create')
@@ -103,16 +89,16 @@ export function WelcomeScreen({
         </h1>
 
         {/* Tagline - Body 16px/400 muted */}
-        <p
+          <p
           className="text-base"
           style={{
             color: 'var(--muted-foreground)',
             fontWeight: 400,
             lineHeight: 1.5
           }}
-        >
-          Quick work completion tracking
-        </p>
+          >
+          {t('welcome.tagline')}
+          </p>
 
         {/* Button row - gap-4 */}
         <div
@@ -129,11 +115,11 @@ export function WelcomeScreen({
             }}
           >
             {loadingAction === 'create' ? (
-              <span>Creating...</span>
+              <span>{t('welcome.creatingVault')}</span>
             ) : (
               <>
                 <Plus size={18} />
-                <span>Create Vault</span>
+                <span>{t('welcome.createVault')}</span>
               </>
             )}
           </button>
@@ -150,11 +136,11 @@ export function WelcomeScreen({
             }}
           >
             {loadingAction === 'open' ? (
-              <span>Opening...</span>
+              <span>{t('welcome.openingVault')}</span>
             ) : (
               <>
                 <FolderOpen size={18} />
-                <span>Open Vault</span>
+                <span>{t('welcome.openVault')}</span>
               </>
             )}
           </button>
@@ -192,7 +178,7 @@ export function WelcomeScreen({
                 lineHeight: 1.2
               }}
             >
-              Recent Vaults
+              {t('welcome.recentVaults')}
             </h2>
 
             {/* Recent vault list - flex-col gap-2 */}
@@ -235,7 +221,7 @@ export function WelcomeScreen({
                       fontWeight: 400
                     }}
                   >
-                    {formatRelativeTime(vault.lastOpened)}
+                    {formatRelativeTime(vault.lastOpened, resolvedLocale)}
                   </span>
                 </button>
               ))}

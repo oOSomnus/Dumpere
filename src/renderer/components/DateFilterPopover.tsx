@@ -3,6 +3,7 @@ import * as Popover from '@radix-ui/react-popover'
 import { CalendarDays, ChevronLeft, ChevronRight } from 'lucide-react'
 import { cn } from '@/shared/cn'
 import { getMonthDateKeys, toLocalDateKey } from '../lib/date-utils'
+import { useI18n } from '@/renderer/i18n'
 
 interface DateFilterPopoverProps {
   selectedDates: string[]
@@ -31,13 +32,14 @@ export function DateFilterPopover({
   onSetDateKeys,
   onClear
 }: DateFilterPopoverProps) {
+  const { t, resolvedLocale } = useI18n()
   const [monthCursor, setMonthCursor] = useState(() => {
     const now = new Date()
     return new Date(now.getFullYear(), now.getMonth(), 1)
   })
 
   const monthGrid = useMemo(() => getMonthGrid(monthCursor), [monthCursor])
-  const monthLabel = new Intl.DateTimeFormat(undefined, {
+  const monthLabel = new Intl.DateTimeFormat(resolvedLocale, {
     month: 'long',
     year: 'numeric'
   }).format(monthCursor)
@@ -57,7 +59,7 @@ export function DateFilterPopover({
         >
           <span className="inline-flex items-center gap-2">
             <CalendarDays className="w-4 h-4" />
-            <span>Choose Dates</span>
+            <span>{t('sidebar.chooseDates')}</span>
           </span>
           {selectedDates.length > 0 && (
             <span className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
@@ -83,7 +85,7 @@ export function DateFilterPopover({
               <button
                 className="p-1 rounded hover:bg-accent"
                 onClick={() => setMonthCursor(prev => new Date(prev.getFullYear(), prev.getMonth() - 1, 1))}
-                aria-label="Previous month"
+                aria-label={t('sidebar.previousMonth')}
               >
                 <ChevronLeft className="w-4 h-4" />
               </button>
@@ -91,7 +93,7 @@ export function DateFilterPopover({
               <button
                 className="p-1 rounded hover:bg-accent"
                 onClick={() => setMonthCursor(prev => new Date(prev.getFullYear(), prev.getMonth() + 1, 1))}
-                aria-label="Next month"
+                aria-label={t('sidebar.nextMonth')}
               >
                 <ChevronRight className="w-4 h-4" />
               </button>
@@ -149,21 +151,21 @@ export function DateFilterPopover({
                   onSetDateKeys(weekKeys)
                 }}
               >
-                This Week
+                {t('sidebar.thisWeek')}
               </button>
               <button
                 className="px-3 py-2 rounded-md text-sm"
                 style={{ backgroundColor: 'var(--secondary)', color: 'var(--secondary-foreground)' }}
                 onClick={() => onSetDateKeys(getMonthDateKeys(monthCursor.getFullYear(), monthCursor.getMonth()))}
               >
-                Visible Month
+                {t('sidebar.visibleMonth')}
               </button>
               <button
                 className="px-3 py-2 rounded-md text-sm"
                 style={{ backgroundColor: 'transparent', color: 'var(--muted-foreground)' }}
                 onClick={onClear}
               >
-                Clear
+                {t('sidebar.clear')}
               </button>
             </div>
           </div>

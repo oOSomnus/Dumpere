@@ -1,6 +1,7 @@
 import { useCallback, useRef, useState, type MouseEvent } from 'react'
 import type { Project } from '@/shared/types'
 import { usePrompt } from './usePrompt'
+import { useI18n } from '@/renderer/i18n'
 
 interface ContextMenuState {
   projectId: string
@@ -28,6 +29,7 @@ export function useSidebarProjects({
   onDeleteProject
 }: UseSidebarProjectsOptions) {
   const prompt = usePrompt()
+  const { t } = useI18n()
   const [isCreatingProject, setIsCreatingProject] = useState(false)
   const [newProjectName, setNewProjectName] = useState('')
   const [editingProjectId, setEditingProjectId] = useState<string | null>(null)
@@ -119,9 +121,9 @@ export function useSidebarProjects({
     }
 
     const confirmed = await prompt.confirm({
-      title: `Delete project '${project.name}'?`,
-      description: 'Dumps will be moved to Unassigned. This cannot be undone.',
-      confirmLabel: 'Delete Project',
+      title: t('project.deleteTitle', { name: project.name }),
+      description: t('project.deleteDescription'),
+      confirmLabel: t('project.deleteConfirm'),
       destructive: true
     })
 
@@ -141,7 +143,7 @@ export function useSidebarProjects({
     } finally {
       setIsMutating(false)
     }
-  }, [isMutating, onDeleteProject, projects, prompt])
+  }, [isMutating, onDeleteProject, projects, prompt, t])
 
   const openContextMenu = useCallback((event: MouseEvent, projectId: string) => {
     event.preventDefault()

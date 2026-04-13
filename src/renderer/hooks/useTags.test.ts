@@ -28,20 +28,18 @@ describe('useTags', () => {
       createdTag = await result.current.createTag('  Deep   Work  ')
     })
 
-    expect(createdTag).toMatchObject({ name: 'deep work' })
+    expect(createdTag).toMatchObject({ name: 'Deep Work' })
     expect(createdTag).toMatchObject({ color: getTagColorForIndex(0) })
-    expect(mockElectronAPI.data.createTag).toHaveBeenCalledWith('deep work')
+    expect(mockElectronAPI.data.createTag).toHaveBeenCalledWith('Deep Work')
   })
 
-  it('rejects unsupported tag characters even when spaces are allowed', async () => {
+  it('allows Unicode and path-like tag characters', async () => {
     const { result } = renderHook(() => useTags())
 
     await waitFor(() => {
       expect(result.current.isLoading).toBe(false)
     })
 
-    await expect(result.current.createTag('design/ui')).rejects.toThrow(
-      'Tag name must contain only alphanumeric characters, spaces, and hyphens'
-    )
+    await expect(result.current.createTag('design/ui')).resolves.toMatchObject({ name: 'design/ui' })
   })
 })

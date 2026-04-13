@@ -2,13 +2,13 @@ import type { Project, DumpEntry, Tag } from '@/shared/types'
 import { useSummaryPanelController } from '../hooks/useSummaryPanelController'
 import { cn } from '@/shared/cn'
 import {
-  ArrowLeft,
-  FileText
+  ArrowLeft
 } from 'lucide-react'
 import { ExpandedCard } from './ExpandedCard'
 import { SummaryHistorySection } from './summary-panel/SummaryHistorySection'
 import { SummaryProjectToolbar } from './summary-panel/SummaryProjectToolbar'
 import { SummaryWorkspaceSection } from './summary-panel/SummaryWorkspaceSection'
+import { useI18n } from '../i18n'
 
 interface SummaryPanelProps {
   projects: Project[]
@@ -35,6 +35,7 @@ export function SummaryPanel({
   onBackToDumps,
   onOpenSettings
 }: SummaryPanelProps) {
+  const { t } = useI18n()
   const {
     summaryType,
     setSummaryType,
@@ -83,10 +84,10 @@ export function SummaryPanel({
       <div className="flex items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold" style={{ color: 'var(--foreground)' }}>
-            Summaries
+            {t('summary.title')}
           </h1>
           <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
-            Browse a project workspace beside your AI summaries.
+            {t('summary.subtitle')}
           </p>
         </div>
 
@@ -103,7 +104,7 @@ export function SummaryPanel({
             }}
           >
             <ArrowLeft className="w-4 h-4" />
-            Back to Dumps
+            {t('summary.backToDumps')}
           </button>
         )}
       </div>
@@ -117,7 +118,7 @@ export function SummaryPanel({
       <div className="flex flex-col gap-6 flex-1 min-h-0">
         <SummaryWorkspaceSection
           selectedProjectId={selectedProjectId}
-          projectName={projectName}
+          projectName={projectName ?? ''}
           workspaceMode={workspaceMode}
           setWorkspaceMode={setWorkspaceMode}
           isNoteSaving={isNoteSaving}

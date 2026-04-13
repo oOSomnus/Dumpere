@@ -1,5 +1,6 @@
 import Store from 'electron-store'
 import type {
+  Locale,
   PanelSizes,
   RecentVault,
   SummaryPanelState,
@@ -14,6 +15,7 @@ interface StoreSchema {
   windowMaximized: boolean
   recentVaults: RecentVault[]
   theme: ThemeSetting
+  locale: Locale
   summaryPanelState: SummaryPanelState
   lastSelectedProjectId: string | null
   panelSizes: PanelSizes
@@ -32,6 +34,7 @@ export const store = new Store<StoreSchema>({
     windowMaximized: false,
     recentVaults: [],
     theme: 'system',
+    locale: 'system',
     summaryPanelState: {},
     lastSelectedProjectId: null,
     panelSizes: {

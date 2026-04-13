@@ -15,6 +15,12 @@ import {
   type VaultMetadata,
   type Project
 } from '@/shared/types'
+import {
+  areNamesEquivalent,
+  normalizeTagName,
+  sanitizeFilenameForExport,
+  validateProjectName
+} from '@/shared/naming'
 import { assignTagColor } from '../shared/tag-colors'
 import {
   copyFilesToVault,
@@ -40,10 +46,6 @@ import {
   generateSummary as generateSummaryText
 } from './ai-service'
 
-const MAX_PROJECT_NAME_LENGTH = 50
-const PROJECT_NAME_REGEX = /^[a-zA-Z0-9\s]+$/
-const MAX_TAG_NAME_LENGTH = 30
-const TAG_NAME_REGEX = /^(?=.*[a-zA-Z0-9])[a-zA-Z0-9 -]+$/
 const MAX_EXPORTS = 1000
 const MAX_IMPORT_FILES = 1000
 const MAX_ZIP_SIZE = 100 * 1024 * 1024
@@ -86,34 +88,6 @@ function buildSummaryWorkpadSection(summary: SummaryEntry): string {
   return `## ${label} (${stamp})\n\n${summary.content.trim()}`
 }
 
-function normalizeProjectName(name: string): string {
-  const trimmed = name.trim()
-  if (!trimmed) {
-    throw new Error('Project name is required')
-  }
-  if (trimmed.length > MAX_PROJECT_NAME_LENGTH) {
-    throw new Error(`Project name must be ${MAX_PROJECT_NAME_LENGTH} characters or less`)
-  }
-  if (!PROJECT_NAME_REGEX.test(trimmed)) {
-    throw new Error('Project name must contain only alphanumeric characters and spaces')
-  }
-  return trimmed
-}
-
-function normalizeTagName(name: string): string {
-  const normalized = name.trim().toLowerCase().replace(/\s+/g, ' ')
-  if (!normalized) {
-    throw new Error('Tag name is required')
-  }
-  if (normalized.length > MAX_TAG_NAME_LENGTH) {
-    throw new Error(`Tag name must be ${MAX_TAG_NAME_LENGTH} characters or less`)
-  }
-  if (!TAG_NAME_REGEX.test(normalized)) {
-    throw new Error('Tag name must contain only alphanumeric characters, spaces, and hyphens')
-  }
-  return normalized
-}
-
 function ensureProjectExists(metadata: VaultMetadata, projectId: string | null): void {
   if (!projectId) {
     return
@@ -144,7 +118,7 @@ export async function getProjects(): Promise<Project[]> {
 }
 
 export async function createProject(name: string): Promise<Project> {
-  const normalizedName = normalizeProjectName(name)
+  const normalizedName = validateProjectName(name)
   const createdProject: Project = {
     id: crypto.randomUUID(),
     name: normalizedName,
@@ -163,7 +137,7 @@ export async function createProject(name: string): Promise<Project> {
 }
 
 export async function updateProject(id: string, name: string): Promise<Project> {
-  const normalizedName = normalizeProjectName(name)
+  const normalizedName = validateProjectName(name)
 
   return enqueueWrite(async () => {
     const vaultPath = requireVaultPath()
@@ -209,7 +183,7 @@ export async function createTag(name: string): Promise<Tag> {
   return enqueueWrite(async () => {
     const vaultPath = requireVaultPath()
     const metadata = await readMetadata(vaultPath)
-    const existing = metadata.tags.find((tag) => tag.name.toLowerCase() === normalizedName)
+    const existing = metadata.tags.find((tag) => areNamesEquivalent(tag.name, normalizedName))
 
     if (existing) {
       return { ...existing }
@@ -446,6 +420,7 @@ export async function exportDumps(dumpIds: string[], projectName: string, output
   }
 
   const lines: string[] = [`# ${projectName}`, '']
+  const safeProjectName = sanitizeFilenameForExport(projectName, 'project')
   for (const [date, dumpsForDate] of dateMap) {
     lines.push(`## ${date}`, '')
     for (const dump of dumpsForDate) {
@@ -469,7 +444,7 @@ export async function exportDumps(dumpIds: string[], projectName: string, output
     output.on('close', resolve)
     archive.on('error', reject)
     archive.pipe(output)
-    archive.append(markdown, { name: `${projectName}.md` })
+    archive.append(markdown, { name: `${safeProjectName}.md` })
 
     selectedDumps.forEach((dump) => {
       dump.files.forEach((file) => {

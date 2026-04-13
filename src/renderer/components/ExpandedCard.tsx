@@ -9,6 +9,7 @@ import { X, Download, Image, File, Check, ChevronDown, Copy, NotebookPen } from 
 import { useFileUrl } from '../hooks/useFileUrl'
 import { getElectronAPI } from '../lib/electron-api'
 import { usePrompt } from '../hooks/usePrompt'
+import { useI18n } from '../i18n'
 
 function formatDumpAsMarkdown(dump: DumpEntry): string {
   let md = `${dump.text || ''}\n`
@@ -39,6 +40,7 @@ function MediaPreview({
   file: { storedPath: string; mimeType: string; originalName: string }
   onError: (message: string) => void
 }) {
+  const { t } = useI18n()
   const fileUrl = useFileUrl(file.storedPath)
   const handleOpenFile = async () => {
     const api = getElectronAPI()
@@ -68,8 +70,8 @@ function MediaPreview({
         type="button"
         onClick={() => void handleOpenFile()}
         className="block w-full text-left"
-        aria-label={`Open ${file.originalName}`}
-        title="Open with default app"
+        aria-label={t('expanded.openFile', { name: file.originalName })}
+        title={t('expanded.openDefaultApp')}
       >
         <img
           src={fileUrl}
@@ -110,6 +112,7 @@ function FileAttachment({
   file: { storedPath: string; mimeType: string; originalName: string; size: number }
   onError: (message: string) => void
 }) {
+  const { t } = useI18n()
   const sizeKB = Math.round(file.size / 1024)
   const sizeStr = sizeKB > 1024 ? `${(sizeKB / 1024).toFixed(1)} MB` : `${sizeKB} KB`
   const handleOpenFile = async () => {
@@ -132,8 +135,8 @@ function FileAttachment({
         'border hover:border-primary'
       )}
       style={{ borderColor: 'var(--border)', backgroundColor: 'var(--secondary)' }}
-      aria-label={`Open ${file.originalName}`}
-      title="Open with default app"
+      aria-label={t('expanded.openFile', { name: file.originalName })}
+      title={t('expanded.openDefaultApp')}
     >
       <File className="w-4 h-4" style={{ color: 'var(--muted-foreground)' }} />
       <div className="flex-1 min-w-0">
@@ -147,6 +150,7 @@ function FileAttachment({
 
 export function ExpandedCard({ dump, onClose, projects, tags, onProjectChange, onTagsChange, onQuoteToWorkpad }: ExpandedCardProps) {
   const prompt = usePrompt()
+  const { t } = useI18n()
   const overlayRef = useRef<HTMLDivElement>(null)
 
   // Close on Escape key
@@ -211,7 +215,7 @@ export function ExpandedCard({ dump, onClose, projects, tags, onProjectChange, o
 
                 {/* Phase 2: Project display/editor */}
                 <div className="flex items-center gap-2">
-                  <span className="text-sm" style={{ color: 'var(--muted-foreground)' }}>Project:</span>
+                  <span className="text-sm" style={{ color: 'var(--muted-foreground)' }}>{t('expanded.project')}</span>
                   <Select.Root
                     value={dump.projectId ?? undefined}
                     onValueChange={handleProjectSelect}
@@ -228,7 +232,7 @@ export function ExpandedCard({ dump, onClose, projects, tags, onProjectChange, o
                         color: 'var(--foreground)'
                       }}
                     >
-                      <Select.Value placeholder="No Project" />
+                      <Select.Value placeholder={t('expanded.noProject')} />
                       <ChevronDown className="w-4 h-4" style={{ color: 'var(--muted-foreground)' }} />
                     </Select.Trigger>
                     <Select.Portal>
@@ -256,7 +260,7 @@ export function ExpandedCard({ dump, onClose, projects, tags, onProjectChange, o
 
                 {/* Phase 2: Tags display/editor */}
                 <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-sm" style={{ color: 'var(--muted-foreground)' }}>Tags:</span>
+                  <span className="text-sm" style={{ color: 'var(--muted-foreground)' }}>{t('expanded.tags')}</span>
                   <div className="flex gap-1 flex-wrap">
                     {currentTags.map(tag => (
                       <button
@@ -294,8 +298,8 @@ export function ExpandedCard({ dump, onClose, projects, tags, onProjectChange, o
                     }}
                     className="p-1 rounded hover:bg-accent transition-colors"
                     style={{ color: 'var(--foreground)' }}
-                    aria-label="Insert dump reference"
-                    title="Insert dump reference"
+                    aria-label={t('expanded.insertReference')}
+                    title={t('expanded.insertReference')}
                   >
                     <NotebookPen className="w-5 h-5" />
                   </button>
@@ -306,12 +310,12 @@ export function ExpandedCard({ dump, onClose, projects, tags, onProjectChange, o
                       const markdown = formatDumpAsMarkdown(dump)
                       const api = getElectronAPI()
                       await api.ui.copyToClipboard(markdown)
-                      prompt.success('Copied to clipboard')
+                      prompt.success(t('expanded.copied'))
                     }
                   }}
                   className="p-1 rounded hover:bg-accent transition-colors"
                   style={{ color: 'var(--foreground)' }}
-                  aria-label="Copy to clipboard"
+                  aria-label={t('expanded.copyToClipboard')}
                 >
                   <Copy className="w-5 h-5" />
                 </button>
@@ -319,7 +323,7 @@ export function ExpandedCard({ dump, onClose, projects, tags, onProjectChange, o
                   <button
                     className="p-1 rounded hover:bg-accent transition-colors"
                     style={{ color: 'var(--foreground)' }}
-                    aria-label="Close"
+                    aria-label={t('expanded.close')}
                   >
                     <X className="w-5 h-5" />
                   </button>
@@ -350,7 +354,7 @@ export function ExpandedCard({ dump, onClose, projects, tags, onProjectChange, o
             {otherFiles.length > 0 && (
               <div className="space-y-2">
                 <p className="text-sm font-medium" style={{ color: 'var(--muted-foreground)' }}>
-                  Attachments
+                  {t('expanded.attachments')}
                 </p>
                 {otherFiles.map(file => (
                   <FileAttachment key={file.id} file={file} onError={(message) => prompt.error(message, 'Could not open file')} />

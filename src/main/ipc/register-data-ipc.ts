@@ -19,6 +19,7 @@ import {
 } from '../vault-data-repository'
 import { getDefaultSummarySettings, sanitizeSummarySettings } from '../ai-service'
 import { store } from '../store'
+import { sanitizeFilenameForExport } from '@/shared/naming'
 
 export function registerDataIPC(): void {
   ipcMain.handle('data:get-dumps', () => getDumps())
@@ -49,7 +50,7 @@ export function registerDataIPC(): void {
 
     const projects = await getProjects()
     const projectName = summary.projectId
-      ? projects.find((project) => project.id === summary.projectId)?.name?.toLowerCase().replace(/\s+/g, '-') ?? 'project'
+      ? sanitizeFilenameForExport(projects.find((project) => project.id === summary.projectId)?.name ?? '', 'project')
       : 'all-projects'
     const date = new Date(summary.generatedAt).toISOString().split('T')[0]
     const defaultName = `summary-${projectName}-${summary.type}-${date}.md`
@@ -69,7 +70,7 @@ export function registerDataIPC(): void {
     let nextOutputPath = outputPath
     if (!nextOutputPath) {
       const result = await dialog.showSaveDialog({
-        defaultPath: `${projectName}.zip`,
+        defaultPath: `${sanitizeFilenameForExport(projectName, 'project')}.zip`,
         filters: [{ name: 'ZIP Archive', extensions: ['zip'] }]
       })
       if (result.canceled || !result.filePath) {

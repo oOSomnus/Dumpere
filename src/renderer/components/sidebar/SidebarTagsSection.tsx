@@ -3,6 +3,7 @@ import { Check, Trash2 } from 'lucide-react'
 import type { Tag } from '@/shared/types'
 import { cn } from '@/shared/cn'
 import { getTagSoftStyle, getTagSwatchStyle } from '../../lib/tag-styles'
+import { useI18n } from '@/renderer/i18n'
 
 interface SidebarTagsSectionProps {
   tags: Tag[]
@@ -17,10 +18,11 @@ export function SidebarTagsSection({
   onTagToggle,
   onDeleteTag
 }: SidebarTagsSectionProps) {
+  const { t } = useI18n()
   return (
     <div className="p-3 border-b" style={{ borderColor: 'var(--sidebar-border)' }}>
       <h2 className="text-sm font-semibold mb-2" style={{ color: 'var(--sidebar-foreground)' }}>
-        Tags
+        {t('sidebar.tags')}
       </h2>
 
       <div className="space-y-1">
@@ -33,7 +35,7 @@ export function SidebarTagsSection({
               <Checkbox.Root
                 checked={selectedTagIds.includes(tag.id)}
                 onCheckedChange={() => onTagToggle(tag.id)}
-                aria-label={`Toggle tag filter ${tag.name}`}
+                aria-label={t('sidebar.toggleTagFilter', { name: tag.name })}
                 className={cn(
                   'w-4 h-4 rounded border flex items-center justify-center',
                   'transition-colors duration-150'
@@ -64,7 +66,7 @@ export function SidebarTagsSection({
               }}
               className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md opacity-0 transition-opacity group-hover:opacity-100"
               style={{ color: 'var(--muted-foreground)' }}
-              aria-label={`Delete tag ${tag.name}`}
+              aria-label={t('sidebar.deleteTag', { name: tag.name })}
             >
               <Trash2 className="w-4 h-4" />
             </button>
@@ -73,7 +75,7 @@ export function SidebarTagsSection({
 
         {tags.length === 0 && (
           <p className="px-3 py-2 text-sm" style={{ color: 'var(--muted-foreground)' }}>
-            Tags will appear here as you add them to dumps.
+            {t('sidebar.tagsEmpty')}
           </p>
         )}
       </div>

@@ -3,12 +3,13 @@ import type { DumpEntry, WorkspaceNode, WorkspaceNote } from '@/shared/types'
 import { formatRelativeTime } from '@/renderer/lib/utils-time'
 import { MarkdownPreview } from '@/renderer/components/MarkdownPreview'
 import { WorkspaceTree } from '@/renderer/components/WorkspaceTree'
+import { useI18n } from '@/renderer/i18n'
 
 type WorkspaceMode = 'edit' | 'split' | 'preview'
 
 interface SummaryWorkspaceSectionProps {
   selectedProjectId: string | null
-  projectName: string
+  projectName: string | null
   workspaceMode: WorkspaceMode
   setWorkspaceMode: (mode: WorkspaceMode) => void
   isNoteSaving: boolean
@@ -17,10 +18,10 @@ interface SummaryWorkspaceSectionProps {
   noteError: string | null
   isWorkspaceLoading: boolean
   tree: WorkspaceNode[]
-  effectiveNotePath: string
+  effectiveNotePath: string | null
   onNoteSelect: (path: string) => void
-  handleCreateFolder: (parentPath?: string) => Promise<void>
-  handleCreateNote: (parentPath?: string) => Promise<void>
+  handleCreateFolder: (parentPath: string) => Promise<WorkspaceNode | null>
+  handleCreateNote: (parentPath: string) => Promise<WorkspaceNote | null>
   handleRenameEntryWithName: (path: string, nextName: string) => Promise<void>
   handleDeleteEntry: (path: string) => Promise<void>
   isNoteLoading: boolean
@@ -53,6 +54,7 @@ export function SummaryWorkspaceSection({
   dumpMap,
   setSelectedDump
 }: SummaryWorkspaceSectionProps) {
+  const { t, resolvedLocale } = useI18n()
   return (
     <section
       className="rounded-2xl border p-5 flex flex-col gap-4 min-h-0 flex-1"
@@ -61,7 +63,7 @@ export function SummaryWorkspaceSection({
       <div className="flex items-center justify-between gap-3">
         <div>
           <h2 className="text-lg font-semibold" style={{ color: 'var(--foreground)' }}>
-            Project Workspace
+            {t('summary.workspace')}
           </h2>
           <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
             {projectName}
@@ -79,7 +81,7 @@ export function SummaryWorkspaceSection({
               }}
             >
               <PencilLine className="w-4 h-4" />
-              Edit
+              {t('summary.edit')}
             </button>
             <button
               onClick={() => setWorkspaceMode('split')}
@@ -90,7 +92,7 @@ export function SummaryWorkspaceSection({
               }}
             >
               <Columns2 className="w-4 h-4" />
-              Split
+              {t('summary.split')}
             </button>
             <button
               onClick={() => setWorkspaceMode('preview')}
@@ -101,7 +103,7 @@ export function SummaryWorkspaceSection({
               }}
             >
               <Eye className="w-4 h-4" />
-              Preview
+              {t('summary.preview')}
             </button>
           </div>
         )}
@@ -110,8 +112,8 @@ export function SummaryWorkspaceSection({
       {selectedProjectId ? (
         <>
           <div className="flex items-center gap-2 text-xs" style={{ color: 'var(--muted-foreground)' }}>
-            <span>{isNoteSaving ? 'Saving...' : 'Saved locally'}</span>
-            {note?.updatedAt ? <span>Updated {formatRelativeTime(note.updatedAt)} ago</span> : null}
+            <span>{isNoteSaving ? t('common.saving') : t('common.savedLocally')}</span>
+            {note?.updatedAt ? <span>{t('common.updatedAgo', { time: formatRelativeTime(note.updatedAt, resolvedLocale) })}</span> : null}
             {note?.path ? <span>{note.path}</span> : null}
           </div>
 
@@ -134,7 +136,7 @@ export function SummaryWorkspaceSection({
             >
               {isWorkspaceLoading ? (
                 <div className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
-                  Loading workspace...
+                  {t('summary.loadingWorkspace')}
                 </div>
               ) : (
                 <WorkspaceTree
@@ -152,7 +154,7 @@ export function SummaryWorkspaceSection({
             {isNoteLoading ? (
               <div className="flex items-center justify-center rounded-xl border" style={{ borderColor: 'var(--border)' }}>
                 <span className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
-                  Loading note...
+                  {t('summary.loadingNote')}
                 </span>
               </div>
             ) : !effectiveNotePath ? (
@@ -163,10 +165,10 @@ export function SummaryWorkspaceSection({
                 <div>
                   <FileText className="mx-auto mb-3 h-10 w-10" style={{ color: 'var(--muted-foreground)' }} />
                   <p className="text-base font-medium" style={{ color: 'var(--foreground)' }}>
-                    No notes yet
+                    {t('summary.noNotes')}
                   </p>
                   <p className="mt-2 text-sm" style={{ color: 'var(--muted-foreground)' }}>
-                    Create a note from the workspace toolbar to start writing.
+                    {t('summary.createNoteHelp')}
                   </p>
                 </div>
               </div>
@@ -174,7 +176,7 @@ export function SummaryWorkspaceSection({
               <textarea
                 value={noteContent}
                 onChange={(event) => setNoteContent(event.target.value)}
-                placeholder="Write project notes here. Insert dump references to keep source material linked."
+                placeholder={t('summary.notePlaceholder')}
                 className="w-full resize-none rounded-xl border p-4 text-sm outline-none"
                 style={{
                   borderColor: 'var(--border)',
@@ -188,7 +190,7 @@ export function SummaryWorkspaceSection({
                 <textarea
                   value={noteContent}
                   onChange={(event) => setNoteContent(event.target.value)}
-                  placeholder="Write project notes here. Insert dump references to keep source material linked."
+                  placeholder={t('summary.notePlaceholder')}
                   className="min-h-[260px] w-full flex-1 resize-none rounded-xl border p-4 text-sm outline-none"
                   style={{
                     borderColor: 'var(--border)',
@@ -208,7 +210,7 @@ export function SummaryWorkspaceSection({
                     />
                   ) : (
                     <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
-                      Nothing in this note yet.
+                      {t('summary.noteEmpty')}
                     </p>
                   )}
                 </div>
@@ -226,7 +228,7 @@ export function SummaryWorkspaceSection({
                   />
                 ) : (
                   <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
-                    Nothing in this note yet.
+                    {t('summary.noteEmpty')}
                   </p>
                 )}
               </div>
@@ -241,10 +243,10 @@ export function SummaryWorkspaceSection({
           <div>
             <FileText className="mx-auto mb-3 h-10 w-10" style={{ color: 'var(--muted-foreground)' }} />
             <p className="text-base font-medium" style={{ color: 'var(--foreground)' }}>
-              Select a project to open its workspace
+              {t('summary.selectProject')}
             </p>
             <p className="mt-2 text-sm" style={{ color: 'var(--muted-foreground)' }}>
-              All Projects can still generate summaries, but workspace notes are project-specific.
+              {t('summary.selectProjectHelp')}
             </p>
           </div>
         </div>
