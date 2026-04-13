@@ -32,6 +32,11 @@ export function DumpComposer({
   onProjectSelect,
   projectError
 }: DumpComposerProps) {
+  const isProjectSelected = activeProjectId !== null
+  const placeholder = projects.length === 0
+    ? 'Create a project to start dumping.'
+    : 'Select a project to start dumping.'
+
   return (
     <div className="flex items-center px-4" style={{ height: `${inputHeight}px` }}>
       <ProjectSelector
@@ -55,15 +60,15 @@ export function DumpComposer({
         onPaste={event => {
           void onPaste(event)
         }}
-        placeholder="Dump something... (Enter to add tags)"
-        disabled={isSubmitting}
+        placeholder={isProjectSelected ? 'Dump something... (Enter to add tags)' : placeholder}
+        disabled={isSubmitting || !isProjectSelected}
         rows={1}
         className={cn(
           'flex-1 bg-transparent border-0 outline-none text-base resize-none',
           'placeholder:text-muted-foreground'
         )}
         style={{
-          color: 'var(--foreground)',
+          color: isProjectSelected ? 'var(--foreground)' : 'var(--muted-foreground)',
           height: `${inputHeight}px`,
           textAlign: text.length === 0 ? 'center' : 'left'
         }}

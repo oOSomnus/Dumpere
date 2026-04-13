@@ -37,9 +37,7 @@ export function useAppController() {
     const nextProjectFilterId = filters.projectId === projectId ? null : projectId
     switchToGrid()
 
-    if (projectId) {
-      setActiveProject(projectId)
-    }
+    setActiveProject(projectId)
 
     setProjectFilter(nextProjectFilterId)
   }, [filters.projectId, setActiveProject, setProjectFilter, switchToGrid])

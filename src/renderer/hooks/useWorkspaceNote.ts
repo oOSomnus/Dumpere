@@ -21,11 +21,16 @@ export function useWorkspaceNote(projectId: string | null, notePath: string | nu
   const [isSaving, setIsSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const loadedContentRef = useRef('')
+  const loadRequestIdRef = useRef(0)
 
   const refresh = useCallback(async () => {
+    const requestId = ++loadRequestIdRef.current
+
     if (!projectId || !notePath) {
       setNote(null)
       setContent('')
+      setError(null)
+      loadedContentRef.current = ''
       setIsLoading(false)
       return
     }
@@ -34,13 +39,21 @@ export function useWorkspaceNote(projectId: string | null, notePath: string | nu
     setError(null)
     try {
       const nextNote = await api.workspace.readNote(projectId, notePath)
+      if (requestId !== loadRequestIdRef.current) {
+        return
+      }
       setNote(nextNote)
       setContent(nextNote.content)
       loadedContentRef.current = nextNote.content
     } catch (err) {
+      if (requestId !== loadRequestIdRef.current) {
+        return
+      }
       setError(err instanceof Error ? err.message : 'Could not load note')
     } finally {
-      setIsLoading(false)
+      if (requestId === loadRequestIdRef.current) {
+        setIsLoading(false)
+      }
     }
   }, [notePath, projectId])
 

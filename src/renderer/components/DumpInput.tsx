@@ -120,6 +120,12 @@ export function DumpInput({
     }
   }, [activeProjectId])
 
+  useEffect(() => {
+    if (!activeProjectId && text) {
+      setText('')
+    }
+  }, [activeProjectId, text])
+
   const handleKeyDown = async (e: KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()

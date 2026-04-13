@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { WorkspaceNode, WorkspaceNote } from '@/shared/types'
 import { getElectronAPI } from '../lib/electron-api'
 import { collectWorkspaceNotePaths } from '../lib/workspace-path-utils'
@@ -20,10 +20,14 @@ export function useWorkspaceTree(projectId: string | null): UseWorkspaceTreeRetu
   const [tree, setTree] = useState<WorkspaceNode[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const requestIdRef = useRef(0)
 
   const refresh = useCallback(async (options?: { silent?: boolean }) => {
+    const requestId = ++requestIdRef.current
+
     if (!projectId) {
       setTree([])
+      setError(null)
       setIsLoading(false)
       return
     }
@@ -33,11 +37,18 @@ export function useWorkspaceTree(projectId: string | null): UseWorkspaceTreeRetu
     }
     setError(null)
     try {
-      setTree(await api.workspace.getTree(projectId))
+      const nextTree = await api.workspace.getTree(projectId)
+      if (requestId !== requestIdRef.current) {
+        return
+      }
+      setTree(nextTree)
     } catch (err) {
+      if (requestId !== requestIdRef.current) {
+        return
+      }
       setError(err instanceof Error ? err.message : 'Could not load workspace')
     } finally {
-      if (!options?.silent) {
+      if (!options?.silent && requestId === requestIdRef.current) {
         setIsLoading(false)
       }
     }

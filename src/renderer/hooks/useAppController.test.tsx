@@ -114,4 +114,28 @@ describe('useAppController', () => {
     expect(result.current.activeProjectId).toBe('project-1')
     expect(result.current.filters.projectId).toBe('project-1')
   })
+
+  it('clears the active project and project filter when switching to all-projects', async () => {
+    const { result } = await renderUseAppController()
+
+    await waitFor(() => {
+      expect(result.current.projects).toHaveLength(1)
+    })
+
+    act(() => {
+      result.current.handleSidebarProjectSelect('project-1')
+    })
+
+    await waitFor(() => {
+      expect(result.current.activeProjectId).toBe('project-1')
+      expect(result.current.filters.projectId).toBe('project-1')
+    })
+
+    act(() => {
+      result.current.handleSidebarProjectSelect(null)
+    })
+
+    expect(result.current.activeProjectId).toBeNull()
+    expect(result.current.filters.projectId).toBeNull()
+  })
 })

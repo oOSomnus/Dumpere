@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { DumpEntry, Project } from '@/shared/types'
 import { useSummary } from './useSummary'
 import { useWorkspaceTree } from './useWorkspaceTree'
@@ -30,6 +30,7 @@ export function useSummaryPanelController({
   const [workspaceMode, setWorkspaceMode] = useState<WorkspaceMode>('edit')
   const [copied, setCopied] = useState(false)
   const [selectedDump, setSelectedDump] = useState<DumpEntry | null>(null)
+  const hasLoadedInitialProjectRef = useRef(false)
   const { currentSummary, summaries, isLoading, error, generateSummary, clearError, setCurrentSummary } = useSummary()
   const {
     tree,
@@ -60,18 +61,22 @@ export function useSummaryPanelController({
   } = useWorkspaceNote(selectedProjectId, effectiveNotePath)
 
   useEffect(() => {
-    setSelectedProjectId(activeProjectId)
-  }, [activeProjectId])
-
-  // Load persisted last selected project on mount
-  useEffect(() => {
     const loadLastSelectedProject = async () => {
+      if (hasLoadedInitialProjectRef.current) {
+        return
+      }
+
+      hasLoadedInitialProjectRef.current = true
+
+      if (!activeProjectId) {
+        setSelectedProjectId(null)
+        return
+      }
+
       try {
         const api = getElectronAPI()
         const lastProjectId = await api.ui.getLastSelectedProjectId()
-        // Only restore if we don't have an activeProjectId from parent
-        // or if the parent's activeProjectId matches the last saved one
-        if (lastProjectId !== null) {
+        if (lastProjectId === activeProjectId) {
           setSelectedProjectId(lastProjectId)
         } else {
           setSelectedProjectId(activeProjectId)
@@ -82,9 +87,16 @@ export function useSummaryPanelController({
     }
 
     void loadLastSelectedProject()
-  }, [])
+  }, [activeProjectId])
 
-  // Load persisted summary panel state on mount and project change
+  useEffect(() => {
+    if (!hasLoadedInitialProjectRef.current) {
+      return
+    }
+
+    setSelectedProjectId(activeProjectId)
+  }, [activeProjectId])
+
   useEffect(() => {
     if (!selectedProjectId) return
 

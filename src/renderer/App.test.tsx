@@ -86,7 +86,7 @@ describe('App', () => {
       expect(screen.getByText('Vault opened: test-vault')).toBeInTheDocument()
     })
 
-    expect(screen.getByPlaceholderText('Dump something... (Enter to add tags)')).toBeInTheDocument()
+    expect(screen.getByPlaceholderText('Create a project to start dumping.')).toBeInTheDocument()
     expect(screen.queryByRole('heading', { name: 'Dumpere' })).not.toBeInTheDocument()
   })
 
@@ -97,7 +97,7 @@ describe('App', () => {
 
     fireEvent.click(await screen.findByRole('button', { name: /Create Vault/i }))
 
-    await screen.findByPlaceholderText('Dump something... (Enter to add tags)')
+    await screen.findByPlaceholderText('Create a project to start dumping.')
 
     fireEvent.click(screen.getByRole('button', { name: /Summaries/i }))
 
@@ -105,7 +105,7 @@ describe('App', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /Back to Dumps/i }))
 
-    expect(await screen.findByPlaceholderText('Dump something... (Enter to add tags)')).toBeInTheDocument()
+    expect(await screen.findByPlaceholderText('Create a project to start dumping.')).toBeInTheDocument()
   })
 
   it('can return to the vault picker from the main app', async () => {
