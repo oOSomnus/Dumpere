@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import type { ComponentProps, HTMLAttributes, ReactNode } from 'react'
 import { TagInput } from './TagInput'
 import type { Tag } from '../lib/types'
@@ -105,5 +105,29 @@ describe('TagInput', () => {
 
     const selectedTag = screen.getByLabelText('Remove selected tag alpha').closest('span')
     expect(selectedTag?.getAttribute('style')).toContain('background-color: rgb(251, 207, 232)')
+  })
+
+  it('submits on the next Enter after creating a new tag', async () => {
+    const onSubmit = vi.fn()
+    const onCreateTag = vi.fn(async (name: string) => ({
+      id: 'tag-new',
+      name,
+      createdAt: Date.now(),
+      color: getTagColorForIndex(2)
+    }))
+
+    renderTagInput({ onSubmit, onCreateTag })
+
+    const input = screen.getByPlaceholderText('Search or create tag...')
+    fireEvent.change(input, { target: { value: 'gamma' } })
+    fireEvent.keyDown(input, { key: 'Enter' })
+
+    await waitFor(() => {
+      expect(onCreateTag).toHaveBeenCalledWith('gamma')
+    })
+
+    fireEvent.keyDown(input, { key: 'Enter' })
+
+    expect(onSubmit).toHaveBeenCalledTimes(1)
   })
 })

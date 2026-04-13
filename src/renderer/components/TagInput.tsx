@@ -40,6 +40,12 @@ export function TagInput({
   const [aiSuggestions, setAiSuggestions] = useState<Tag[]>([])
   const inputRef = useRef<HTMLInputElement>(null)
   const optionRefs = useRef<Array<HTMLDivElement | null>>([])
+  const filterTextRef = useRef('')
+
+  const updateFilterText = useCallback((value: string) => {
+    filterTextRef.current = value
+    setFilterText(value)
+  }, [])
 
   // Debounced AI suggestions
   useEffect(() => {
@@ -56,6 +62,7 @@ export function TagInput({
   // Reset state when popup opens
   useEffect(() => {
     if (open) {
+      filterTextRef.current = ''
       setFilterText('')
       setHighlightedIndex(0)
       setAiSuggestions([])
@@ -118,7 +125,7 @@ export function TagInput({
   )
 
   const handleCreateNewTag = useCallback(async () => {
-    const trimmedName = filterText.trim()
+    const trimmedName = filterTextRef.current.trim()
     if (!trimmedName) return
 
     // Check if tag already exists
@@ -135,7 +142,7 @@ export function TagInput({
           onTagsChange([...selectedTagIds, existingTag.id])
         }
       }
-      setFilterText('')
+      updateFilterText('')
       return
     }
 
@@ -144,11 +151,11 @@ export function TagInput({
       if (!selectedTagIds.includes(newTag.id) && selectedTagIds.length < MAX_SELECTED_TAGS) {
         onTagsChange([...selectedTagIds, newTag.id])
       }
-      setFilterText('')
+      updateFilterText('')
     } catch {
       // Creation failed - silently ignore
     }
-  }, [filterText, allTags, selectedTagIds, onCreateTag, onTagsChange])
+  }, [allTags, onCreateTag, onTagsChange, selectedTagIds, updateFilterText])
 
   const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'ArrowDown') {
@@ -170,7 +177,7 @@ export function TagInput({
         return
       }
 
-      if (filterText.trim()) {
+      if (filterTextRef.current.trim()) {
         void handleCreateNewTag()
       } else {
         void onSubmit()
@@ -231,7 +238,7 @@ export function TagInput({
               type="text"
               value={filterText}
               onChange={e => {
-                setFilterText(e.target.value)
+                updateFilterText(e.target.value)
                 setHighlightedIndex(0)
               }}
               onKeyDown={handleKeyDown}

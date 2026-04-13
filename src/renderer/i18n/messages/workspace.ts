@@ -4,7 +4,19 @@ export const workspaceEn = {
   'workspace.newFolder': 'New folder',
   'workspace.newNote': 'New note',
   'workspace.renameFolder': 'Rename folder',
-  'workspace.deleteFolder': 'Delete folder'
+  'workspace.deleteFolder': 'Delete folder',
+  'workspace.insertReferenceTitle': 'Choose Target Note',
+  'workspace.insertReferenceDescription': 'Pick the project note that should receive these dump references.',
+  'workspace.projectLabel': 'Project',
+  'workspace.noteLabel': 'Note',
+  'workspace.loadingNotes': 'Loading notes...',
+  'workspace.noNotesAvailable': 'No notes available',
+  'workspace.referencesAppendTarget': 'References will be appended to {project}{path}.',
+  'workspace.chooseProjectAndNote': 'Choose a project and note to continue.',
+  'workspace.insertReference': 'Insert Reference',
+  'workspace.defaultFolderName': 'New Folder',
+  'workspace.defaultNoteName': 'New Note',
+  'workspace.createProjectBeforeReferences': 'Create a project before inserting dump references into a note.'
 } as const
 
 export const workspaceZhCN = {
@@ -13,5 +25,17 @@ export const workspaceZhCN = {
   'workspace.newFolder': '新建文件夹',
   'workspace.newNote': '新建笔记',
   'workspace.renameFolder': '重命名文件夹',
-  'workspace.deleteFolder': '删除文件夹'
+  'workspace.deleteFolder': '删除文件夹',
+  'workspace.insertReferenceTitle': '选择目标笔记',
+  'workspace.insertReferenceDescription': '选择要插入这些 dump 引用的项目笔记。',
+  'workspace.projectLabel': '项目',
+  'workspace.noteLabel': '笔记',
+  'workspace.loadingNotes': '正在加载笔记...',
+  'workspace.noNotesAvailable': '暂无可用笔记',
+  'workspace.referencesAppendTarget': '引用会追加到 {project}{path}。',
+  'workspace.chooseProjectAndNote': '请选择项目和笔记以继续。',
+  'workspace.insertReference': '插入引用',
+  'workspace.defaultFolderName': '新建文件夹',
+  'workspace.defaultNoteName': '新建笔记',
+  'workspace.createProjectBeforeReferences': '请先创建项目，再将 dump 引用插入到笔记中。'
 } as const

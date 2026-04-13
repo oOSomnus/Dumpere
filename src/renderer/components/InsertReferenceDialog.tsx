@@ -4,6 +4,7 @@ import { Check, NotebookPen, X } from 'lucide-react'
 import type { Project } from '@/shared/types'
 import { cn } from '@/shared/cn'
 import type { ReferenceTargetOption } from '../hooks/useDumpReferenceInsertion'
+import { useI18n } from '../i18n'
 
 interface InsertReferenceDialogProps {
   open: boolean
@@ -30,6 +31,7 @@ export function InsertReferenceDialog({
   onConfirm,
   onOpenChange
 }: InsertReferenceDialogProps) {
+  const { t } = useI18n()
   const selectedProject = useMemo(
     () => projects.find(project => project.id === selectedProjectId) ?? null,
     [projects, selectedProjectId]
@@ -61,17 +63,17 @@ export function InsertReferenceDialog({
             <div>
               <Dialog.Title className="flex items-center gap-2 text-lg font-semibold">
                 <NotebookPen className="h-5 w-5" />
-                Choose Target Note
+                {t('workspace.insertReferenceTitle')}
               </Dialog.Title>
               <Dialog.Description className="mt-1 text-sm" style={{ color: 'var(--muted-foreground)' }}>
-                Pick the project note that should receive these dump references.
+                {t('workspace.insertReferenceDescription')}
               </Dialog.Description>
             </div>
             <Dialog.Close asChild>
               <button
                 type="button"
                 className="rounded-md p-1 transition-colors hover:bg-accent"
-                aria-label="Close"
+                aria-label={t('common.dismiss')}
               >
                 <X className="h-4 w-4" />
               </button>
@@ -80,7 +82,7 @@ export function InsertReferenceDialog({
 
           <div className="mt-5 space-y-4">
             <label className="block space-y-2">
-              <span className="text-sm font-medium">Project</span>
+              <span className="text-sm font-medium">{t('workspace.projectLabel')}</span>
               <select
                 value={selectedProjectId ?? ''}
                 onChange={(event) => onProjectChange(event.target.value)}
@@ -100,7 +102,7 @@ export function InsertReferenceDialog({
             </label>
 
             <label className="block space-y-2">
-              <span className="text-sm font-medium">Note</span>
+              <span className="text-sm font-medium">{t('workspace.noteLabel')}</span>
               <select
                 value={selectedNotePath ?? ''}
                 onChange={(event) => onNoteChange(event.target.value)}
@@ -114,7 +116,7 @@ export function InsertReferenceDialog({
               >
                 {noteOptions.length === 0 ? (
                   <option value="">
-                    {isLoadingNotes ? 'Loading notes...' : 'No notes available'}
+                    {isLoadingNotes ? t('workspace.loadingNotes') : t('workspace.noNotesAvailable')}
                   </option>
                 ) : (
                   noteOptions.map(note => (
@@ -135,8 +137,11 @@ export function InsertReferenceDialog({
               }}
             >
               {selectedProject
-                ? `References will be appended to ${selectedProject.name}${selectedNotePath ? ` / ${selectedNotePath}` : ''}.`
-                : 'Choose a project and note to continue.'}
+                ? t('workspace.referencesAppendTarget', {
+                    project: selectedProject.name,
+                    path: selectedNotePath ? ` / ${selectedNotePath}` : ''
+                  })
+                : t('workspace.chooseProjectAndNote')}
             </div>
           </div>
 
@@ -147,7 +152,7 @@ export function InsertReferenceDialog({
                 className="rounded-lg px-3 py-2 text-sm transition-colors hover:bg-accent"
                 style={{ color: 'var(--foreground)' }}
               >
-                Cancel
+                {t('common.cancel')}
               </button>
             </Dialog.Close>
             <button
@@ -161,7 +166,7 @@ export function InsertReferenceDialog({
               }}
             >
               <Check className="h-4 w-4" />
-              Insert Reference
+              {t('workspace.insertReference')}
             </button>
           </div>
         </Dialog.Content>

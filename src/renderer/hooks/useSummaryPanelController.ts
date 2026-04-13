@@ -6,6 +6,7 @@ import { useWorkspaceNote } from './useWorkspaceNote'
 import { getElectronAPI } from '../lib/electron-api'
 import { buildUniqueWorkspaceChildName } from '../lib/workspace-path-utils'
 import { usePrompt } from './usePrompt'
+import { useI18n } from '../i18n'
 
 type WorkspaceMode = 'edit' | 'split' | 'preview'
 
@@ -25,6 +26,7 @@ export function useSummaryPanelController({
   onActiveNotePathChange
 }: UseSummaryPanelControllerOptions) {
   const prompt = usePrompt()
+  const { t } = useI18n()
   const [summaryType, setSummaryType] = useState<'daily' | 'weekly'>('daily')
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null)
   const [workspaceMode, setWorkspaceMode] = useState<WorkspaceMode>('edit')
@@ -203,18 +205,24 @@ export function useSummaryPanelController({
     : 'All Projects'
 
   const handleCreateFolder = useCallback(async (parentPath: string) => {
-    const name = buildUniqueWorkspaceChildName(tree, parentPath, 'folder')
+    const name = buildUniqueWorkspaceChildName(tree, parentPath, 'folder', {
+      folder: t('workspace.defaultFolderName'),
+      note: t('workspace.defaultNoteName')
+    })
     return createFolder(parentPath, name)
-  }, [createFolder, tree])
+  }, [createFolder, t, tree])
 
   const handleCreateNote = useCallback(async (parentPath: string) => {
-    const name = buildUniqueWorkspaceChildName(tree, parentPath, 'note')
+    const name = buildUniqueWorkspaceChildName(tree, parentPath, 'note', {
+      folder: t('workspace.defaultFolderName'),
+      note: t('workspace.defaultNoteName')
+    })
     const nextNote = await createNote(parentPath, name)
     if (selectedProjectId && nextNote) {
       onActiveNotePathChange(selectedProjectId, nextNote.path)
     }
     return nextNote
-  }, [createNote, onActiveNotePathChange, selectedProjectId, tree])
+  }, [createNote, onActiveNotePathChange, selectedProjectId, t, tree])
 
   const handleRenameEntryWithName = useCallback(async (path: string, name: string) => {
     const trimmedName = name.trim()

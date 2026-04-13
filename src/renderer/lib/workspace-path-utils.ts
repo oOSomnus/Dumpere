@@ -44,11 +44,12 @@ export function collectWorkspaceNotePaths(
 export function buildUniqueWorkspaceChildName(
   nodes: WorkspaceNode[],
   parentPath: string,
-  type: 'folder' | 'note'
+  type: 'folder' | 'note',
+  labels: { folder: string; note: string } = { folder: 'New Folder', note: 'New Note' }
 ): string {
   const { folderPaths, notePaths } = collectWorkspacePaths(nodes)
   const existingPaths = new Set(type === 'folder' ? folderPaths : notePaths)
-  const baseName = type === 'folder' ? 'New Folder' : 'New Note'
+  const baseName = type === 'folder' ? labels.folder : labels.note
   const extension = type === 'note' ? '.md' : ''
   const normalizedParent = parentPath ? `${parentPath}/` : ''
 
