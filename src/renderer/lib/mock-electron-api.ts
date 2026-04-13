@@ -1,4 +1,5 @@
 import type {
+  AppearanceSettings,
   DumpEntry,
   ElectronAPI,
   Locale,
@@ -13,6 +14,7 @@ import type {
   WorkspaceNode,
   WorkspaceNote
 } from '@/shared/types'
+import { DEFAULT_APPEARANCE_SETTINGS } from '@/shared/appearance'
 import { assignTagColor, getTagColorForIndex } from '@/shared/tag-colors'
 
 const now = Date.now()
@@ -120,6 +122,7 @@ let summaryPanelState: SummaryPanelState = {
 }
 
 let lastSelectedProjectId: string | null = 'proj-release'
+let appearance: AppearanceSettings = { ...DEFAULT_APPEARANCE_SETTINGS }
 let summarySettings: SummarySettings = {
   provider: 'openai',
   baseUrl: 'https://api.openai.com/v1',
@@ -413,9 +416,12 @@ export const mockElectronAPI: ElectronAPI = {
     getRecent: async () => [...recentVaults]
   },
   ui: {
-    onThemeChange: () => () => {},
-    getTheme: async () => 'system',
-    setTheme: async () => {},
+    onAppearanceChange: () => () => {},
+    getAppearance: async () => ({ ...appearance }),
+    updateAppearance: async (patch) => {
+      appearance = { ...appearance, ...patch }
+      return { ...appearance }
+    },
     getLocale: async () => locale,
     setLocale: async (nextLocale) => {
       locale = nextLocale

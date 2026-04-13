@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
-import { useTheme } from './hooks/useTheme'
+import type { AppearanceSettings, ColorSchemeId, ThemeMode } from '@/shared/types'
+import { useAppearance } from './hooks/useAppearance'
 import { useVault } from './hooks/useVault'
 import { useAppController } from './hooks/useAppController'
 import { useDumpReferenceInsertion } from './hooks/useDumpReferenceInsertion'
@@ -17,17 +18,19 @@ import { getElectronAPI } from './lib/electron-api'
 
 interface VaultAppContentProps {
   vaultName: string | null
-  isDark: boolean
-  themeLoaded: boolean
-  onToggleTheme: (checked?: boolean) => Promise<void>
+  appearance: AppearanceSettings
+  appearanceLoaded: boolean
+  onModeChange: (mode: ThemeMode) => Promise<void>
+  onColorSchemeChange: (colorScheme: ColorSchemeId) => Promise<void>
   onBackToVaults: () => Promise<void> | void
 }
 
 function VaultAppContent({
   vaultName,
-  isDark,
-  themeLoaded,
-  onToggleTheme,
+  appearance,
+  appearanceLoaded,
+  onModeChange,
+  onColorSchemeChange,
   onBackToVaults
 }: VaultAppContentProps) {
   const app = useAppController()
@@ -144,9 +147,10 @@ function VaultAppContent({
             />
           ) : app.currentView === 'settings' ? (
             <SettingsPanel
-              isDark={isDark}
-              themeLoaded={themeLoaded}
-              onToggleTheme={onToggleTheme}
+              appearance={appearance}
+              appearanceLoaded={appearanceLoaded}
+              onModeChange={onModeChange}
+              onColorSchemeChange={onColorSchemeChange}
               onBackToDumps={() => app.handleViewChange('grid')}
             />
           ) : (
@@ -204,7 +208,7 @@ function VaultAppContent({
 }
 
 export function App() {
-  const theme = useTheme()
+  const appearance = useAppearance()
   const { vaultState, recentVaults, isLoading: vaultLoading, error: vaultError, createVault, openVault, closeVault } = useVault()
 
   return (
@@ -222,9 +226,10 @@ export function App() {
         <PromptProvider>
           <VaultAppContent
             vaultName={vaultState.vaultName}
-            isDark={theme.isDark}
-            themeLoaded={theme.isLoaded}
-            onToggleTheme={theme.toggleTheme}
+            appearance={appearance.appearance}
+            appearanceLoaded={appearance.isLoaded}
+            onModeChange={appearance.setMode}
+            onColorSchemeChange={appearance.setColorScheme}
             onBackToVaults={closeVault}
           />
         </PromptProvider>

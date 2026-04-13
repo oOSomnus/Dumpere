@@ -108,7 +108,17 @@ export interface SummaryPanelProjectState {
 
 export type SummaryPanelState = Record<string, SummaryPanelProjectState>
 
-export type ThemeSetting = 'light' | 'dark' | 'system'
+export type ThemeMode = 'light' | 'dark' | 'system'
+export type ColorSchemeId = 'default' | 'anuppuccin'
+export interface AppearanceSettings {
+  mode: ThemeMode
+  colorScheme: ColorSchemeId
+}
+
+export interface ResolvedAppearance extends AppearanceSettings {
+  isDark: boolean
+}
+
 export type Locale = 'system' | 'en' | 'zh-CN'
 export type ResolvedLocale = 'en' | 'zh-CN'
 
@@ -172,9 +182,9 @@ export interface VaultAPI {
 }
 
 export interface UIAPI {
-  onThemeChange: (callback: (isDark: boolean) => void) => () => void
-  getTheme: () => Promise<ThemeSetting>
-  setTheme: (theme: ThemeSetting) => Promise<void>
+  onAppearanceChange: (callback: (appearance: ResolvedAppearance) => void) => () => void
+  getAppearance: () => Promise<AppearanceSettings>
+  updateAppearance: (patch: Partial<AppearanceSettings>) => Promise<AppearanceSettings>
   getLocale: () => Promise<Locale>
   setLocale: (locale: Locale) => Promise<Locale>
   getSystemLocale: () => Promise<ResolvedLocale>

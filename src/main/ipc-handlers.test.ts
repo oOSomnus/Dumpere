@@ -10,6 +10,7 @@ const mocks = vi.hoisted(() => ({
   clipboardWriteText: vi.fn(),
   shellOpenPath: vi.fn(),
   browserSend: vi.fn(),
+  storeHas: vi.fn(),
   storeGet: vi.fn(),
   storeSet: vi.fn(),
   checkSummaryHealth: vi.fn(),
@@ -82,6 +83,7 @@ vi.mock('electron-log', () => ({
 
 vi.mock('./store', () => ({
   store: {
+    has: mocks.storeHas,
     get: mocks.storeGet,
     set: mocks.storeSet
   }
@@ -133,6 +135,7 @@ vi.mock('./workspace-service', () => ({
 
 describe('ipc-handlers', () => {
   let handlers: Record<string, (...args: unknown[]) => unknown>
+  let storeState: Record<string, unknown>
 
   beforeEach(async () => {
     vi.resetModules()
@@ -145,14 +148,21 @@ describe('ipc-handlers', () => {
       model: 'gpt-4.1-mini'
     }
 
+    storeState = {
+      summarySettings: defaultSettings,
+      recentVaults: [{ path: '/vault', name: 'Vault', lastOpened: 1 }],
+      theme: 'system',
+      summaryPanelState: {},
+      lastSelectedProjectId: null,
+      panelSizes: { sidebarWidth: 240, inputHeight: 60 }
+    }
+
+    mocks.storeHas.mockImplementation((key: string) => key in storeState)
     mocks.storeGet.mockImplementation((key: string, fallback: unknown) => {
-      if (key === 'summarySettings') return defaultSettings
-      if (key === 'recentVaults') return [{ path: '/vault', name: 'Vault', lastOpened: 1 }]
-      if (key === 'theme') return 'system'
-      if (key === 'summaryPanelState') return {}
-      if (key === 'lastSelectedProjectId') return null
-      if (key === 'panelSizes') return { sidebarWidth: 240, inputHeight: 60 }
-      return fallback
+      return key in storeState ? storeState[key] : fallback
+    })
+    mocks.storeSet.mockImplementation((key: string, value: unknown) => {
+      storeState[key] = value
     })
     mocks.getDefaultSummarySettings.mockReturnValue(defaultSettings)
     mocks.sanitizeSummarySettings.mockImplementation((settings) => settings)
@@ -236,6 +246,27 @@ describe('ipc-handlers', () => {
     mocks.sanitizeSummarySettings.mockReturnValueOnce(settings)
     expect(handlers['ui:summary-settings:update'](null, settings)).toEqual(settings)
     expect(mocks.storeSet).toHaveBeenCalledWith('summarySettings', settings)
+  })
+
+  it('migrates legacy theme state to appearance settings and broadcasts updates', () => {
+    expect(handlers['ui:appearance:get']()).toEqual({
+      mode: 'system',
+      colorScheme: 'default'
+    })
+    expect(storeState.appearance).toEqual({
+      mode: 'system',
+      colorScheme: 'default'
+    })
+
+    expect(handlers['ui:appearance:update'](null, { colorScheme: 'anuppuccin' })).toEqual({
+      mode: 'system',
+      colorScheme: 'anuppuccin'
+    })
+    expect(mocks.browserSend).toHaveBeenCalledWith('appearance:changed', {
+      mode: 'system',
+      colorScheme: 'anuppuccin',
+      isDark: false
+    })
   })
 
   it('generates summaries through the data namespace using stored settings', async () => {

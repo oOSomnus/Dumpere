@@ -1,20 +1,23 @@
 import Store from 'electron-store'
 import type {
+  AppearanceSettings,
   Locale,
   PanelSizes,
   RecentVault,
   SummaryPanelState,
   SummarySettings,
-  ThemeSetting,
+  ThemeMode,
   WindowBounds
 } from '@/shared/types'
+import { DEFAULT_APPEARANCE_SETTINGS } from '@/shared/appearance'
 
 interface StoreSchema {
   summarySettings: SummarySettings
   windowBounds: WindowBounds | null
   windowMaximized: boolean
   recentVaults: RecentVault[]
-  theme: ThemeSetting
+  appearance: AppearanceSettings
+  theme?: ThemeMode
   locale: Locale
   summaryPanelState: SummaryPanelState
   lastSelectedProjectId: string | null
@@ -33,7 +36,7 @@ export const store = new Store<StoreSchema>({
     windowBounds: null,
     windowMaximized: false,
     recentVaults: [],
-    theme: 'system',
+    appearance: DEFAULT_APPEARANCE_SETTINGS,
     locale: 'system',
     summaryPanelState: {},
     lastSelectedProjectId: null,

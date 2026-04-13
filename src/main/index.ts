@@ -4,6 +4,7 @@ import { store } from './store'
 import { setupIPCHandlers } from './ipc-handlers'
 import { fileURLToPath } from 'url'
 import { dirname, resolve } from 'path'
+import { broadcastAppearanceChange } from './appearance'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
@@ -88,11 +89,7 @@ function createWindow() {
     showWindowOnceReady()
   }, 3000)
 
-  // Send initial theme
-  mainWindow.webContents.send('theme:changed', nativeTheme.shouldUseDarkColors)
-  nativeTheme.on('updated', () => {
-    mainWindow?.webContents.send('theme:changed', nativeTheme.shouldUseDarkColors)
-  })
+  broadcastAppearanceChange()
 
   mainWindow.webContents.on('did-fail-load', (_, errorCode, errorDescription, validatedURL) => {
     log.error(`Renderer failed to load: ${errorCode} ${errorDescription} ${validatedURL}`)
@@ -147,6 +144,9 @@ if (!gotTheLock) {
   app.whenReady().then(() => {
     log.info('App ready, starting Dumpere')
     setupIPCHandlers()
+    nativeTheme.on('updated', () => {
+      broadcastAppearanceChange()
+    })
     createWindow()
 
     app.on('activate', () => {

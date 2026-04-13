@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron'
-import type { ElectronAPI, Locale, SummaryPanelState, SummarySettings, ThemeSetting } from '@/shared/types'
+import type { AppearanceSettings, ElectronAPI, Locale, ResolvedAppearance, SummaryPanelState, SummarySettings } from '@/shared/types'
 
 const electronAPI: ElectronAPI = {
   data: {
@@ -44,15 +44,15 @@ const electronAPI: ElectronAPI = {
     getRecent: () => ipcRenderer.invoke('vault:get-recent')
   },
   ui: {
-    onThemeChange: (callback) => {
-      const listener = (_event: Electron.IpcRendererEvent, isDark: boolean) => callback(isDark)
-      ipcRenderer.on('theme:changed', listener)
+    onAppearanceChange: (callback) => {
+      const listener = (_event: Electron.IpcRendererEvent, appearance: ResolvedAppearance) => callback(appearance)
+      ipcRenderer.on('appearance:changed', listener)
       return () => {
-        ipcRenderer.removeListener('theme:changed', listener)
+        ipcRenderer.removeListener('appearance:changed', listener)
       }
     },
-    getTheme: (): Promise<ThemeSetting> => ipcRenderer.invoke('ui:theme:get'),
-    setTheme: (theme) => ipcRenderer.invoke('ui:theme:set', theme),
+    getAppearance: (): Promise<AppearanceSettings> => ipcRenderer.invoke('ui:appearance:get'),
+    updateAppearance: (patch) => ipcRenderer.invoke('ui:appearance:update', patch),
     getLocale: (): Promise<Locale> => ipcRenderer.invoke('ui:locale:get'),
     setLocale: (locale) => ipcRenderer.invoke('ui:locale:set', locale),
     getSystemLocale: () => ipcRenderer.invoke('ui:locale:system'),

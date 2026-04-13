@@ -4,7 +4,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { mockElectronAPI, type VaultState } from './lib/types'
 
 describe('App', () => {
-  let mockOnThemeChange: ReturnType<typeof vi.fn>
+  let mockOnAppearanceChange: ReturnType<typeof vi.fn>
 
   const closedState: VaultState = {
     isOpen: false,
@@ -20,7 +20,7 @@ describe('App', () => {
 
   beforeEach(() => {
     vi.resetModules()
-    mockOnThemeChange = vi.fn(() => vi.fn())
+    mockOnAppearanceChange = vi.fn(() => vi.fn())
 
     let vaultStateChangeHandler: ((state: VaultState) => void) | undefined
 
@@ -61,7 +61,7 @@ describe('App', () => {
       },
       ui: {
         ...mockElectronAPI.ui,
-        onThemeChange: mockOnThemeChange
+        onAppearanceChange: mockOnAppearanceChange
       }
     }
 
@@ -136,13 +136,13 @@ describe('App', () => {
     expect(await screen.findByRole('heading', { name: 'Summary Settings' })).toBeInTheDocument()
   })
 
-  it('does not register an extra theme listener when opening settings', async () => {
+  it('does not register an extra appearance listener when opening settings', async () => {
     const { App } = await import('./App')
 
     render(<App />)
 
     await waitFor(() => {
-      expect(mockOnThemeChange).toHaveBeenCalledTimes(1)
+      expect(mockOnAppearanceChange).toHaveBeenCalledTimes(1)
     })
 
     fireEvent.click(await screen.findByRole('button', { name: /Create Vault/i }))
@@ -151,6 +151,6 @@ describe('App', () => {
     fireEvent.click(screen.getByText('Settings'))
 
     expect(await screen.findByRole('heading', { name: 'Summary Settings' })).toBeInTheDocument()
-    expect(mockOnThemeChange).toHaveBeenCalledTimes(1)
+    expect(mockOnAppearanceChange).toHaveBeenCalledTimes(1)
   })
 })

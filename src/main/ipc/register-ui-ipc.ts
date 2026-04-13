@@ -1,21 +1,23 @@
-import { app, BrowserWindow, clipboard, dialog, ipcMain, nativeTheme } from 'electron'
+import { app, clipboard, dialog, ipcMain } from 'electron'
 import { store } from '../store'
 import { checkSummaryHealth, getDefaultSummarySettings, sanitizeSummarySettings } from '../ai-service'
-import type { Locale, PanelSizes, ResolvedLocale, SummaryPanelState, SummarySettings, ThemeSetting } from '@/shared/types'
+import type { AppearanceSettings, Locale, PanelSizes, ResolvedLocale, SummaryPanelState, SummarySettings } from '@/shared/types'
 import { resolveSystemLocale } from '@/shared/locale'
+import { broadcastAppearanceChange, getStoredAppearanceSettings, updateStoredAppearanceSettings } from '../appearance'
 
 export function registerUIIPC(): void {
-  ipcMain.handle('ui:theme:get', (): ThemeSetting => {
-    return store.get('theme', 'system')
+  ipcMain.handle('ui:appearance:get', (): AppearanceSettings => {
+    return getStoredAppearanceSettings()
   })
 
-  ipcMain.handle('ui:theme:set', (_, theme: ThemeSetting) => {
-    store.set('theme', theme)
-    const isDark = theme === 'dark' || (theme === 'system' && nativeTheme.shouldUseDarkColors)
-    BrowserWindow.getAllWindows().forEach((window) => {
-      window.webContents.send('theme:changed', isDark)
-    })
-  })
+  ipcMain.handle(
+    'ui:appearance:update',
+    (_, patch: Partial<AppearanceSettings>): AppearanceSettings => {
+      const updated = updateStoredAppearanceSettings(patch)
+      broadcastAppearanceChange()
+      return updated
+    }
+  )
 
   ipcMain.handle('ui:locale:get', (): Locale => {
     return store.get('locale', 'system')

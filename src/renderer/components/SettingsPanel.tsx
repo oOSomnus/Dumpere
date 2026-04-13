@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { ArrowLeft, SlidersHorizontal } from 'lucide-react'
-import type { Locale, SummarySettings } from '@/shared/types'
+import type { AppearanceSettings, ColorSchemeId, Locale, SummarySettings, ThemeMode } from '@/shared/types'
 import { cn } from '@/shared/cn'
 import { getElectronAPI } from '../lib/electron-api'
 import { useI18n } from '@/renderer/i18n'
@@ -16,16 +16,18 @@ const DEFAULT_SETTINGS: SummarySettings = {
 }
 
 interface SettingsPanelProps {
-  isDark: boolean
-  themeLoaded: boolean
-  onToggleTheme: (checked?: boolean) => Promise<void>
+  appearance: AppearanceSettings
+  appearanceLoaded: boolean
+  onModeChange: (mode: ThemeMode) => Promise<void>
+  onColorSchemeChange: (colorScheme: ColorSchemeId) => Promise<void>
   onBackToDumps?: () => void
 }
 
 export function SettingsPanel({
-  isDark,
-  themeLoaded,
-  onToggleTheme,
+  appearance,
+  appearanceLoaded,
+  onModeChange,
+  onColorSchemeChange,
   onBackToDumps
 }: SettingsPanelProps) {
   const api = getElectronAPI()
@@ -178,9 +180,10 @@ export function SettingsPanel({
           />
 
           <SettingsAppearanceSection
-            isDark={isDark}
-            themeLoaded={themeLoaded}
-            onToggleTheme={onToggleTheme}
+            appearance={appearance}
+            isLoaded={appearanceLoaded}
+            onModeChange={onModeChange}
+            onColorSchemeChange={onColorSchemeChange}
           />
         </>
       )}
