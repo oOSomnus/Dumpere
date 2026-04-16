@@ -63,8 +63,8 @@ export function getAllMalformTemplates() {
 export function getRandomMalform(category?: keyof ReturnType<typeof getAllMalformTemplates>) {
   const templates = getAllMalformTemplates()
   if (category && templates[category]) {
-    return templates[category][Math.floor(Math.random() * templates[category].length)]
+    return templates[category][Math.floor(Math.random() * templates[category].length)]!
   }
   const allValues = Object.values(templates).flat()
-  return allValues[Math.floor(Math.random() * allValues.length)]
+  return allValues[Math.floor(Math.random() * allValues.length)]!
 }

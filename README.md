@@ -42,4 +42,12 @@ pnpm dist:mac:dmg     # Build a macOS DMG (run on macOS)
 pnpm test             # Run unit tests
 pnpm test:e2e         # Run Playwright E2E tests
 pnpm test:e2e:headed  # Run E2E tests with visible browser
+pnpm fuzz             # Run the full fuzz test suite
+pnpm fuzz:ui          # Run UI-focused fuzz tests
+pnpm fuzz:ipc         # Run IPC/data-layer fuzz tests
+pnpm fuzz:quick       # Run a shorter smoke fuzz pass
 ```
+
+## License
+
+MIT

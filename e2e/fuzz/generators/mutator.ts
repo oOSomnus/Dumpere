@@ -81,7 +81,7 @@ export function corruptMetadata(metadata: VaultMetadata): VaultMetadata {
         ],
       }
     case 4: // Corrupt version
-      return { ...metadata, version: 999 }
+      return { ...metadata, version: 999 as unknown as VaultMetadata['version'] }
     case 5: // Missing required fields
       return { ...metadata, projects: [], tags: undefined as unknown as [] }
     default:

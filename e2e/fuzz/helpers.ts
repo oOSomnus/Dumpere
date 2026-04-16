@@ -29,7 +29,7 @@ export function createElectronApp() {
     ...process.env,
     ELECTRON_DISABLE_SANDBOX: '1',
   }
-  delete electronEnv.ELECTRON_RUN_AS_NODE
+  delete (electronEnv as any).ELECTRON_RUN_AS_NODE
 
   return electron.launch({
     args: ['--no-sandbox', appPath],

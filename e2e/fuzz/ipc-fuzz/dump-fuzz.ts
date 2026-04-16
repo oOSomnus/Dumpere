@@ -3,6 +3,7 @@
 import { createValidVault, createElectronApp, cleanupDir } from '../helpers'
 import * as random from '../generators/random'
 import * as malform from '../generators/malform'
+import type { CreateDumpInput, ElectronAPI } from '../../../src/shared/types'
 
 interface FuzzResult {
   test: string
@@ -16,26 +17,40 @@ export async function fuzzDumpOperations(iterations: number = 10): Promise<FuzzR
 
   for (let i = 0; i < iterations; i++) {
     let app
-    let vaultDir
+    let vaultDir = ''
 
     try {
       app = await createElectronApp()
-      const window = await app.firstWindow()
+      const page = await app.firstWindow()
       vaultDir = createValidVault()
 
-      await window.evaluate(async (vaultPath) => {
-        await window.electronAPI.vault.open(vaultPath)
+      await page.evaluate(async (vaultPath) => {
+        const electronAPI = (globalThis as typeof globalThis & { electronAPI: ElectronAPI }).electronAPI
+        await electronAPI.vault.open(vaultPath)
       }, vaultDir)
 
-      await window.evaluate(async () => {
-        await window.electronAPI.data.createProject('FuzzTest')
+      await page.evaluate(async () => {
+        const electronAPI = (globalThis as typeof globalThis & { electronAPI: ElectronAPI }).electronAPI
+        await electronAPI.data.createProject('FuzzTest')
       })
 
-      const [project] = await window.evaluate(() => window.electronAPI.data.getProjects())
+      const [project] = await page.evaluate(() => {
+        const electronAPI = (globalThis as typeof globalThis & { electronAPI: ElectronAPI }).electronAPI
+        return electronAPI.data.getProjects()
+      })
+
+      if (!project) {
+        throw new Error('Expected fuzz project to exist')
+      }
 
       const fuzzType = Math.floor(Math.random() * 8)
       let testName = ''
-      let fuzzedInput: Record<string, unknown> = {}
+      let fuzzedInput: CreateDumpInput = {
+        text: '',
+        filePaths: [],
+        projectId: project.id,
+        tagIds: [],
+      }
 
       switch (fuzzType) {
         case 0:
@@ -110,11 +125,15 @@ export async function fuzzDumpOperations(iterations: number = 10): Promise<FuzzR
             tagIds: [],
           }
           break
+        default:
+          testName = 'fallback'
+          break
       }
 
-      const result = await window.evaluate(async (input) => {
+      const result = await page.evaluate(async (input) => {
         try {
-          const dump = await window.electronAPI.data.createDump(input)
+          const electronAPI = (globalThis as typeof globalThis & { electronAPI: ElectronAPI }).electronAPI
+          const dump = await electronAPI.data.createDump(input)
           return { success: true, dumpId: dump.id }
         } catch (e) {
           return { success: false, error: String(e) }

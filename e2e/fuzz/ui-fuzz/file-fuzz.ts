@@ -5,6 +5,7 @@ import * as random from '../generators/random'
 import path from 'path'
 import fs from 'fs'
 import os from 'os'
+import type { ElectronAPI } from '../../../src/shared/types'
 
 interface FuzzResult {
   filename: string
@@ -62,11 +63,13 @@ export async function fuzzFileAttachments(iterations: number = 10): Promise<Fuzz
       vaultDir = createValidVault()
 
       await window.evaluate(async (vaultPath) => {
-        await window.electronAPI.vault.open(vaultPath)
+        const electronAPI = (globalThis as typeof globalThis & { electronAPI: ElectronAPI }).electronAPI
+        await electronAPI.vault.open(vaultPath)
       }, vaultDir)
 
       await window.evaluate(async () => {
-        await window.electronAPI.data.createProject('FuzzTest')
+        const electronAPI = (globalThis as typeof globalThis & { electronAPI: ElectronAPI }).electronAPI
+        await electronAPI.data.createProject('FuzzTest')
       })
 
       const fileTypes: Array<'image' | 'text' | 'binary' | 'oversized'> = ['image', 'text', 'binary', 'oversized']
@@ -75,8 +78,9 @@ export async function fuzzFileAttachments(iterations: number = 10): Promise<Fuzz
 
       const result = await window.evaluate(async (fpath) => {
         try {
-          const [project] = await window.electronAPI.data.getProjects()
-          const dump = await window.electronAPI.data.createDump({
+          const electronAPI = (globalThis as typeof globalThis & { electronAPI: ElectronAPI }).electronAPI
+          const [project] = await electronAPI.data.getProjects()
+          const dump = await electronAPI.data.createDump({
             text: 'File fuzz test',
             filePaths: [fpath],
             projectId: project.id,
@@ -101,7 +105,7 @@ export async function fuzzFileAttachments(iterations: number = 10): Promise<Fuzz
       })
     } finally {
       if (app) await app.close()
-      cleanupDir(vaultDir)
+      if (vaultDir) cleanupDir(vaultDir)
       cleanupDir(tempFilePath ? path.dirname(tempFilePath) : '')
     }
   }

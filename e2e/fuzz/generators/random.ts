@@ -6,7 +6,7 @@ function randomString(length: number, charset?: string): string {
   const chars = charset ?? defaultCharset
   let result = ''
   for (let i = 0; i < length; i++) {
-    result += chars[Math.floor(Math.random() * chars.length)]
+    result += chars[Math.floor(Math.random() * chars.length)]!
   }
   return result
 }

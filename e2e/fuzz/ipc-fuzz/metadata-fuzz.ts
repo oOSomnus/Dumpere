@@ -26,7 +26,7 @@ export async function fuzzMetadata(iterations: number = 10): Promise<FuzzResult[
         version: 2,
         createdAt: Date.now(),
         projects: [{ id: 'proj1', name: 'Test Project', createdAt: Date.now() }],
-        tags: [{ id: 'tag1', name: 'Test Tag', createdAt: Date.now() }],
+        tags: [{ id: 'tag1', name: 'Test Tag', createdAt: Date.now(), color: '#64748b' }],
         dumps: [{
           id: 'dump1',
           text: 'Test dump',
@@ -82,7 +82,7 @@ export async function fuzzMetadata(iterations: number = 10): Promise<FuzzResult[
           break
         case 4:
           // Invalid version
-          corruptedMetadata = { ...originalMetadata, version: 'invalid' as unknown as number }
+          corruptedMetadata = { ...originalMetadata, version: 'invalid' as unknown as VaultMetadata['version'] }
           break
         case 5:
           // Null bytes in file

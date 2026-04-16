@@ -3,6 +3,7 @@ import fs from 'fs'
 import os from 'os'
 import path from 'path'
 import { launchApp } from './electron'
+import type { ElectronAPI } from '../src/shared/types'
 
 function createTempDir(): string {
   return fs.mkdtempSync(path.join(os.tmpdir(), 'dumpere-e2e-'))
@@ -71,23 +72,32 @@ test.describe('Dump Operations E2E', () => {
 
     // Open the vault directly via IPC
     await window.evaluate(async (vaultPath) => {
-      await window.electronAPI.vault.open(vaultPath)
+      const electronAPI = (globalThis as typeof globalThis & { electronAPI: ElectronAPI }).electronAPI
+      await electronAPI.vault.open(vaultPath)
     }, vaultDir)
 
     // Verify vault opened
-    const state = await window.evaluate(() => window.electronAPI.vault.getState())
+    const state = await window.evaluate(() => {
+      const electronAPI = (globalThis as typeof globalThis & { electronAPI: ElectronAPI }).electronAPI
+      return electronAPI.vault.getState()
+    })
     expect(state.isOpen).toBe(true)
     expect(state.vaultPath).toBe(vaultDir)
 
     await window.evaluate(async () => {
-      await window.electronAPI.data.createProject('E2E Project')
+      const electronAPI = (globalThis as typeof globalThis & { electronAPI: ElectronAPI }).electronAPI
+      await electronAPI.data.createProject('E2E Project')
     })
 
-    const [project] = await window.evaluate(() => window.electronAPI.data.getProjects())
+    const [project] = await window.evaluate(() => {
+      const electronAPI = (globalThis as typeof globalThis & { electronAPI: ElectronAPI }).electronAPI
+      return electronAPI.data.getProjects()
+    })
 
     const dump = await window.evaluate(async () => {
-      const [activeProject] = await window.electronAPI.data.getProjects()
-      return await window.electronAPI.data.createDump({
+      const electronAPI = (globalThis as typeof globalThis & { electronAPI: ElectronAPI }).electronAPI
+      const [activeProject] = await electronAPI.data.getProjects()
+      return await electronAPI.data.createDump({
         text: 'Test dump content',
         filePaths: [],
         projectId: activeProject.id,
@@ -116,12 +126,14 @@ test.describe('Dump Operations E2E', () => {
 
     // Open vault
     await window.evaluate(async (vaultPath) => {
-      await window.electronAPI.vault.open(vaultPath)
+      const electronAPI = (globalThis as typeof globalThis & { electronAPI: ElectronAPI }).electronAPI
+      await electronAPI.vault.open(vaultPath)
     }, vaultDir)
 
     await window.evaluate(async () => {
-      const project = await window.electronAPI.data.createProject('E2E Project')
-      await window.electronAPI.data.createDump({
+      const electronAPI = (globalThis as typeof globalThis & { electronAPI: ElectronAPI }).electronAPI
+      const project = await electronAPI.data.createProject('E2E Project')
+      await electronAPI.data.createDump({
         text: 'My test dump',
         filePaths: [],
         projectId: project.id,
@@ -130,7 +142,10 @@ test.describe('Dump Operations E2E', () => {
     })
 
     // Get dumps
-    const dumps = await window.evaluate(() => window.electronAPI.data.getDumps())
+    const dumps = await window.evaluate(() => {
+      const electronAPI = (globalThis as typeof globalThis & { electronAPI: ElectronAPI }).electronAPI
+      return electronAPI.data.getDumps()
+    })
 
     expect(dumps).toHaveLength(1)
     expect(dumps[0].text).toBe('My test dump')
@@ -149,19 +164,24 @@ test.describe('Dump Operations E2E', () => {
 
     // Open vault
     await window.evaluate(async (vaultPath) => {
-      await window.electronAPI.vault.open(vaultPath)
+      const electronAPI = (globalThis as typeof globalThis & { electronAPI: ElectronAPI }).electronAPI
+      await electronAPI.vault.open(vaultPath)
     }, vaultDir)
 
     // Create multiple dumps
     await window.evaluate(async () => {
-      const project = await window.electronAPI.data.createProject('E2E Project')
-      await window.electronAPI.data.createDump({ text: 'First dump', filePaths: [], projectId: project.id, tagIds: [] })
-      await window.electronAPI.data.createDump({ text: 'Second dump', filePaths: [], projectId: project.id, tagIds: [] })
-      await window.electronAPI.data.createDump({ text: 'Third dump', filePaths: [], projectId: project.id, tagIds: [] })
+      const electronAPI = (globalThis as typeof globalThis & { electronAPI: ElectronAPI }).electronAPI
+      const project = await electronAPI.data.createProject('E2E Project')
+      await electronAPI.data.createDump({ text: 'First dump', filePaths: [], projectId: project.id, tagIds: [] })
+      await electronAPI.data.createDump({ text: 'Second dump', filePaths: [], projectId: project.id, tagIds: [] })
+      await electronAPI.data.createDump({ text: 'Third dump', filePaths: [], projectId: project.id, tagIds: [] })
     })
 
     // Verify dumps are stored
-    const dumps = await window.evaluate(() => window.electronAPI.data.getDumps())
+    const dumps = await window.evaluate(() => {
+      const electronAPI = (globalThis as typeof globalThis & { electronAPI: ElectronAPI }).electronAPI
+      return electronAPI.data.getDumps()
+    })
 
     expect(dumps).toHaveLength(3)
     // Newest first
@@ -183,13 +203,15 @@ test.describe('Dump Operations E2E', () => {
 
     // Open vault
     await window.evaluate(async (vaultPath) => {
-      await window.electronAPI.vault.open(vaultPath)
+      const electronAPI = (globalThis as typeof globalThis & { electronAPI: ElectronAPI }).electronAPI
+      await electronAPI.vault.open(vaultPath)
     }, vaultDir)
 
     // Create a dump
     await window.evaluate(async () => {
-      const project = await window.electronAPI.data.createProject('E2E Project')
-      await window.electronAPI.data.createDump({
+      const electronAPI = (globalThis as typeof globalThis & { electronAPI: ElectronAPI }).electronAPI
+      const project = await electronAPI.data.createProject('E2E Project')
+      await electronAPI.data.createDump({
         text: 'Dump for metadata test',
         filePaths: [],
         projectId: project.id,
@@ -225,15 +247,17 @@ test.describe('Dump Operations E2E', () => {
 
     // Open vault
     await window.evaluate(async (vaultPath) => {
-      await window.electronAPI.vault.open(vaultPath)
+      const electronAPI = (globalThis as typeof globalThis & { electronAPI: ElectronAPI }).electronAPI
+      await electronAPI.vault.open(vaultPath)
     }, vaultDir)
 
     // Create dump with file - for E2E, we simulate the file path handling
     // Note: In real scenario, files come from drag-drop which requires UI interaction
     // This test verifies the IPC handler works correctly
     const dump = await window.evaluate(async (filePath) => {
-      const project = await window.electronAPI.data.createProject('E2E Project')
-      return await window.electronAPI.data.createDump({
+      const electronAPI = (globalThis as typeof globalThis & { electronAPI: ElectronAPI }).electronAPI
+      const project = await electronAPI.data.createProject('E2E Project')
+      return await electronAPI.data.createDump({
         text: 'Dump with file',
         filePaths: [filePath],
         projectId: project.id,
@@ -273,7 +297,10 @@ test.describe('Dump Operations E2E', () => {
     await window.waitForTimeout(1000)
 
     // Check recent vaults
-    const recentVaults = await window.evaluate(() => window.electronAPI.vault.getRecent())
+    const recentVaults = await window.evaluate(() => {
+      const electronAPI = (globalThis as typeof globalThis & { electronAPI: ElectronAPI }).electronAPI
+      return electronAPI.vault.getRecent()
+    })
 
     expect(recentVaults.length).toBeGreaterThan(0)
     expect(recentVaults.some(vault => vault.path === vaultDir)).toBe(true)
