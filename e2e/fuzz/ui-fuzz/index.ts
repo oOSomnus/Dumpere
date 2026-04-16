@@ -1,17 +1,13 @@
 // e2e/fuzz/ui-fuzz/index.ts
 
-import { type ElectronApplication } from '@playwright/test'
 import { fuzzTextInputs } from './text-fuzz'
 import { fuzzFileAttachments } from './file-fuzz'
-import { launchApp } from '../../electron.js'
 
 export async function runUIFuzz(iterations: number = 10): Promise<void> {
   console.log(`[UI Fuzz] Starting with ${iterations} iterations per target...`)
 
-  const electronApp = await launchApp()
-
   console.log('[UI Fuzz] Testing text inputs...')
-  const textResults = await fuzzTextInputs(electronApp, iterations)
+  const textResults = await fuzzTextInputs(iterations)
   const textCrashes = textResults.filter(r => r.crashed)
   const textErrors = textResults.filter(r => r.error)
 
@@ -22,7 +18,7 @@ export async function runUIFuzz(iterations: number = 10): Promise<void> {
   }
 
   console.log('[UI Fuzz] Testing file attachments...')
-  const fileResults = await fuzzFileAttachments(electronApp, iterations)
+  const fileResults = await fuzzFileAttachments(iterations)
   const fileCrashes = fileResults.filter(r => r.crashed)
   const fileErrors = fileResults.filter(r => r.error)
 
@@ -31,8 +27,6 @@ export async function runUIFuzz(iterations: number = 10): Promise<void> {
     console.log('[UI Fuzz] File errors:')
     fileErrors.slice(0, 5).forEach(r => console.log(`  - ${r.filename}: ${r.error}`))
   }
-
-  await electronApp.close()
 
   // Exit with error code if crashes found
   if (textCrashes.length > 0 || fileCrashes.length > 0) {

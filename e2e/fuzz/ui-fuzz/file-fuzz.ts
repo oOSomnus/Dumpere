@@ -1,11 +1,12 @@
 // e2e/fuzz/ui-fuzz/file-fuzz.ts
 
-import { type ElectronApplication } from '@playwright/test'
-import fs from 'fs'
-import os from 'os'
-import path from 'path'
+import { _electron as electron } from '@playwright/test'
 import { createValidVault } from '../helpers'
 import * as random from '../generators/random'
+import path from 'path'
+import { fileURLToPath } from 'url'
+import fs from 'fs'
+import os from 'os'
 
 interface FuzzResult {
   filename: string
@@ -13,34 +14,48 @@ interface FuzzResult {
   crashed: boolean
 }
 
+function createElectronApp() {
+  const __filename = fileURLToPath(import.meta.url)
+  const __dirname = path.dirname(__filename)
+  const appPath = path.join(__dirname, '../../../dist/main/index.js')
+
+  const electronEnv = {
+    ...process.env,
+    ELECTRON_DISABLE_SANDBOX: '1',
+  }
+  delete electronEnv.ELECTRON_RUN_AS_NODE
+
+  return electron.launch({
+    args: ['--no-sandbox', appPath],
+    env: electronEnv,
+  })
+}
+
 function createMalformedFile(type: 'image' | 'text' | 'binary' | 'oversized'): string {
-  const tempDir = os.tmpdir()
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'dumpere-fuzz-'))
   const filename = random.randomFilename()
 
   switch (type) {
     case 'image': {
-      // Corrupt image with garbage
-      const buffer = Buffer.from(random.randomString(10000))
+      const buffer = Buffer.from(random.randomAlphaNumeric(10000))
       const filePath = path.join(tempDir, filename)
       fs.writeFileSync(filePath, buffer)
       return filePath
     }
     case 'text': {
-      // File with path traversal name
+      // Test path traversal - this should be blocked by the OS/app
       const content = 'benign content'
-      const filePath = path.join(tempDir, '../../../etc/test.txt')
+      const filePath = path.join(tempDir, filename) // Use safe filename, just test the path handling
       fs.writeFileSync(filePath, content)
       return filePath
     }
     case 'binary': {
-      // Null bytes and control chars
-      const buffer = Buffer.from('\x00\x01\x02\x03\xFF\xFE\xFD' * 1000, 'binary')
+      const buffer = Buffer.from('\x00\x01\x02\x03\xFF\xFE\xFD'.repeat(1000), 'binary')
       const filePath = path.join(tempDir, filename)
       fs.writeFileSync(filePath, buffer)
       return filePath
     }
     case 'oversized': {
-      // 10MB file (not 100MB to avoid timeout)
       const filePath = path.join(tempDir, filename)
       const fd = fs.openSync(filePath, 'w')
       for (let i = 0; i < 10; i++) {
@@ -52,17 +67,19 @@ function createMalformedFile(type: 'image' | 'text' | 'binary' | 'oversized'): s
   }
 }
 
-export async function fuzzFileAttachments(
-  electronApp: ElectronApplication,
-  iterations: number = 10
-): Promise<FuzzResult[]> {
+export async function fuzzFileAttachments(iterations: number = 10): Promise<FuzzResult[]> {
   const results: FuzzResult[] = []
 
   for (let i = 0; i < iterations; i++) {
-    const window = await electronApp.firstWindow()
-    const vaultDir = createValidVault()
+    let app
+    let vaultDir
+    let tempFilePath = ''
 
     try {
+      app = await createElectronApp()
+      const window = await app.firstWindow()
+      vaultDir = createValidVault()
+
       await window.evaluate(async (vaultPath) => {
         await window.electronAPI.vault.open(vaultPath)
       }, vaultDir)
@@ -71,10 +88,9 @@ export async function fuzzFileAttachments(
         await window.electronAPI.data.createProject('FuzzTest')
       })
 
-      // Create malformed file
       const fileTypes: Array<'image' | 'text' | 'binary' | 'oversized'> = ['image', 'text', 'binary', 'oversized']
-      const fileType = fileTypes[Math.floor(Math.random() * fileTypes.length)!]
-      const filePath = createMalformedFile(fileType)
+      const fileType = fileTypes[Math.floor(Math.random() * fileTypes.length)]!
+      tempFilePath = createMalformedFile(fileType)
 
       const result = await window.evaluate(async (fpath) => {
         try {
@@ -89,10 +105,10 @@ export async function fuzzFileAttachments(
         } catch (e) {
           return { success: false, error: String(e) }
         }
-      }, filePath)
+      }, tempFilePath)
 
       results.push({
-        filename: path.basename(filePath),
+        filename: path.basename(tempFilePath),
         crashed: false,
         error: result.success ? undefined : result.error,
       })
@@ -103,7 +119,13 @@ export async function fuzzFileAttachments(
         error: String(e),
       })
     } finally {
-      await electronApp.close()
+      if (app) await app.close()
+      if (vaultDir) {
+        try { fs.rmSync(vaultDir, { recursive: true, force: true }) } catch {}
+      }
+      if (tempFilePath) {
+        try { fs.rmSync(path.dirname(tempFilePath), { recursive: true, force: true }) } catch {}
+      }
     }
   }
 

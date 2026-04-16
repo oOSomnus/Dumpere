@@ -1,9 +1,12 @@
 // e2e/fuzz/ipc-fuzz/dump-fuzz.ts
 
-import { launchApp } from '../../electron.js'
+import { _electron as electron } from '@playwright/test'
 import { createValidVault } from '../helpers'
 import * as random from '../generators/random'
 import * as malform from '../generators/malform'
+import path from 'path'
+import { fileURLToPath } from 'url'
+import fs from 'fs'
 
 interface FuzzResult {
   test: string
@@ -12,34 +15,51 @@ interface FuzzResult {
   success: boolean
 }
 
+function createElectronApp() {
+  const __filename = fileURLToPath(import.meta.url)
+  const __dirname = path.dirname(__filename)
+  const appPath = path.join(__dirname, '../../../dist/main/index.js')
+
+  const electronEnv = {
+    ...process.env,
+    ELECTRON_DISABLE_SANDBOX: '1',
+  }
+  delete electronEnv.ELECTRON_RUN_AS_NODE
+
+  return electron.launch({
+    args: ['--no-sandbox', appPath],
+    env: electronEnv,
+  })
+}
+
 export async function fuzzDumpOperations(iterations: number = 10): Promise<FuzzResult[]> {
   const results: FuzzResult[] = []
 
   for (let i = 0; i < iterations; i++) {
-    const electronApp = await launchApp()
+    let app
+    let vaultDir
 
     try {
-      const window = await electronApp.firstWindow()
-      const vaultDir = createValidVault()
+      app = await createElectronApp()
+      const window = await app.firstWindow()
+      vaultDir = createValidVault()
 
       await window.evaluate(async (vaultPath) => {
         await window.electronAPI.vault.open(vaultPath)
       }, vaultDir)
 
-      // Create a project
       await window.evaluate(async () => {
         await window.electronAPI.data.createProject('FuzzTest')
       })
 
       const [project] = await window.evaluate(() => window.electronAPI.data.getProjects())
 
-      // Fuzz test cases
       const fuzzType = Math.floor(Math.random() * 8)
       let testName = ''
       let fuzzedInput: Record<string, unknown> = {}
 
       switch (fuzzType) {
-        case 0: // XSS in text
+        case 0:
           testName = 'xss_in_text'
           fuzzedInput = {
             text: malform.getRandomMalform('xssPayloads'),
@@ -48,7 +68,7 @@ export async function fuzzDumpOperations(iterations: number = 10): Promise<FuzzR
             tagIds: [],
           }
           break
-        case 1: // Empty text
+        case 1:
           testName = 'empty_text'
           fuzzedInput = {
             text: '',
@@ -57,7 +77,7 @@ export async function fuzzDumpOperations(iterations: number = 10): Promise<FuzzR
             tagIds: [],
           }
           break
-        case 2: // Super long text
+        case 2:
           testName = 'super_long_text'
           fuzzedInput = {
             text: random.randomUnicode(50000),
@@ -66,7 +86,7 @@ export async function fuzzDumpOperations(iterations: number = 10): Promise<FuzzR
             tagIds: [],
           }
           break
-        case 3: // Invalid projectId
+        case 3:
           testName = 'invalid_project_id'
           fuzzedInput = {
             text: 'test',
@@ -75,7 +95,7 @@ export async function fuzzDumpOperations(iterations: number = 10): Promise<FuzzR
             tagIds: [],
           }
           break
-        case 4: // Invalid tagIds
+        case 4:
           testName = 'invalid_tag_ids'
           fuzzedInput = {
             text: 'test',
@@ -84,7 +104,7 @@ export async function fuzzDumpOperations(iterations: number = 10): Promise<FuzzR
             tagIds: ['fake-tag-1', 'fake-tag-2'],
           }
           break
-        case 5: // Path traversal in tag name (via update)
+        case 5:
           testName = 'path_traversal_tags'
           fuzzedInput = {
             text: 'test',
@@ -93,7 +113,7 @@ export async function fuzzDumpOperations(iterations: number = 10): Promise<FuzzR
             tagIds: [],
           }
           break
-        case 6: // Unicode manipulation
+        case 6:
           testName = 'unicode_mischief'
           fuzzedInput = {
             text: malform.getRandomMalform('unicodeMischief'),
@@ -102,7 +122,7 @@ export async function fuzzDumpOperations(iterations: number = 10): Promise<FuzzR
             tagIds: [],
           }
           break
-        case 7: // Null bytes in text
+        case 7:
           testName = 'null_bytes'
           fuzzedInput = {
             text: 'hello\x00world',
@@ -136,7 +156,10 @@ export async function fuzzDumpOperations(iterations: number = 10): Promise<FuzzR
         error: String(e),
       })
     } finally {
-      await electronApp.close()
+      if (app) await app.close()
+      if (vaultDir) {
+        try { fs.rmSync(vaultDir, { recursive: true, force: true }) } catch {}
+      }
     }
   }
 

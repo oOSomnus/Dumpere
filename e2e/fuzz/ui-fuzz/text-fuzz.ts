@@ -1,9 +1,12 @@
 // e2e/fuzz/ui-fuzz/text-fuzz.ts
 
-import { type ElectronApplication } from '@playwright/test'
+import { _electron as electron } from '@playwright/test'
 import { createValidVault } from '../helpers'
 import * as malform from '../generators/malform'
 import * as random from '../generators/random'
+import path from 'path'
+import { fileURLToPath } from 'url'
+import fs from 'fs'
 
 interface FuzzResult {
   input: string
@@ -11,46 +14,61 @@ interface FuzzResult {
   crashed: boolean
 }
 
-export async function fuzzTextInputs(
-  electronApp: ElectronApplication,
-  iterations: number = 10
-): Promise<FuzzResult[]> {
+function createElectronApp() {
+  const __filename = fileURLToPath(import.meta.url)
+  const __dirname = path.dirname(__filename)
+  const appPath = path.join(__dirname, '../../../dist/main/index.js')
+
+  const electronEnv = {
+    ...process.env,
+    ELECTRON_DISABLE_SANDBOX: '1',
+  }
+  delete electronEnv.ELECTRON_RUN_AS_NODE
+
+  return electron.launch({
+    args: ['--no-sandbox', appPath],
+    env: electronEnv,
+  })
+}
+
+export async function fuzzTextInputs(iterations: number = 10): Promise<FuzzResult[]> {
   const results: FuzzResult[] = []
 
   for (let i = 0; i < iterations; i++) {
-    const window = await electronApp.firstWindow()
-    const vaultDir = createValidVault()
+    let app
+    let vaultDir
 
     try {
+      app = await createElectronApp()
+      const window = await app.firstWindow()
+      vaultDir = createValidVault()
+
       await window.evaluate(async (vaultPath) => {
         await window.electronAPI.vault.open(vaultPath)
       }, vaultDir)
 
-      // Create a project first
       await window.evaluate(async () => {
         await window.electronAPI.data.createProject('FuzzTest')
       })
 
-      // Generate fuzzed input
       const fuzzType = Math.floor(Math.random() * 4)
       let fuzzedText = ''
 
       switch (fuzzType) {
-        case 0: // XSS payload
+        case 0:
           fuzzedText = malform.getRandomMalform('xssPayloads')
           break
-        case 1: // Super long string
+        case 1:
           fuzzedText = random.randomUnicode(10000)
           break
-        case 2: // Special characters
-          fuzzedText = random.randomString(5000, '💩\x00\t\n\r\x01\x02')
+        case 2:
+          fuzzedText = random.randomAlphaNumeric(5000).split('').map(c => '💩\x00\t\n\r\x01\x02' [Math.floor(Math.random() * 7)] || c).join('')
           break
-        case 3: // Random
+        case 3:
           fuzzedText = random.randomDumpText()
           break
       }
 
-      // Try to create dump with fuzzed text
       const result = await window.evaluate(async (text) => {
         try {
           const [project] = await window.electronAPI.data.getProjects()
@@ -67,18 +85,21 @@ export async function fuzzTextInputs(
       }, fuzzedText)
 
       results.push({
-        input: fuzzedText.slice(0, 100), // Truncate for logging
+        input: fuzzedText.slice(0, 100),
         crashed: false,
         error: result.success ? undefined : result.error,
       })
     } catch (e) {
       results.push({
-        input: fuzzedText?.slice(0, 100) ?? 'unknown',
+        input: 'unknown',
         crashed: true,
         error: String(e),
       })
     } finally {
-      await electronApp.close()
+      if (app) await app.close()
+      if (vaultDir) {
+        try { fs.rmSync(vaultDir, { recursive: true, force: true }) } catch {}
+      }
     }
   }
 

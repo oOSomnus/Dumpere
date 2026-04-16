@@ -60,3 +60,5 @@ CLAUDE.md
 !.vscode/launch.json
 !.vscode/extensions.json
 release/
+.codex
+superpowers/
