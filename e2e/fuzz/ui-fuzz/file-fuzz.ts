@@ -1,10 +1,8 @@
 // e2e/fuzz/ui-fuzz/file-fuzz.ts
 
-import { _electron as electron } from '@playwright/test'
-import { createValidVault } from '../helpers'
+import { createValidVault, createElectronApp, cleanupDir } from '../helpers'
 import * as random from '../generators/random'
 import path from 'path'
-import { fileURLToPath } from 'url'
 import fs from 'fs'
 import os from 'os'
 
@@ -12,23 +10,6 @@ interface FuzzResult {
   filename: string
   error?: string
   crashed: boolean
-}
-
-function createElectronApp() {
-  const __filename = fileURLToPath(import.meta.url)
-  const __dirname = path.dirname(__filename)
-  const appPath = path.join(__dirname, '../../../dist/main/index.js')
-
-  const electronEnv = {
-    ...process.env,
-    ELECTRON_DISABLE_SANDBOX: '1',
-  }
-  delete electronEnv.ELECTRON_RUN_AS_NODE
-
-  return electron.launch({
-    args: ['--no-sandbox', appPath],
-    env: electronEnv,
-  })
 }
 
 function createMalformedFile(type: 'image' | 'text' | 'binary' | 'oversized'): string {
@@ -43,9 +24,9 @@ function createMalformedFile(type: 'image' | 'text' | 'binary' | 'oversized'): s
       return filePath
     }
     case 'text': {
-      // Test path traversal - this should be blocked by the OS/app
+      // Test with text file containing special content
       const content = 'benign content'
-      const filePath = path.join(tempDir, filename) // Use safe filename, just test the path handling
+      const filePath = path.join(tempDir, filename)
       fs.writeFileSync(filePath, content)
       return filePath
     }
@@ -120,12 +101,8 @@ export async function fuzzFileAttachments(iterations: number = 10): Promise<Fuzz
       })
     } finally {
       if (app) await app.close()
-      if (vaultDir) {
-        try { fs.rmSync(vaultDir, { recursive: true, force: true }) } catch {}
-      }
-      if (tempFilePath) {
-        try { fs.rmSync(path.dirname(tempFilePath), { recursive: true, force: true }) } catch {}
-      }
+      cleanupDir(vaultDir)
+      cleanupDir(tempFilePath ? path.dirname(tempFilePath) : '')
     }
   }
 

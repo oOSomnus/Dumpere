@@ -1,7 +1,7 @@
 // e2e/fuzz/generators/mutator.ts
 // Data mutation from valid inputs
 
-import type { DumpEntry, Project, Tag, VaultMetadata } from '@/shared/types'
+import type { DumpEntry, Project, Tag, VaultMetadata } from '../../../src/shared/types'
 
 function mutateString(str: string, intensity: number = 0.3): string {
   const mutations: (() => string)[] = [

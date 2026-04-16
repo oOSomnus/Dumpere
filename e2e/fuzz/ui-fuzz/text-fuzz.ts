@@ -1,34 +1,13 @@
 // e2e/fuzz/ui-fuzz/text-fuzz.ts
 
-import { _electron as electron } from '@playwright/test'
-import { createValidVault } from '../helpers'
+import { createValidVault, createElectronApp, cleanupDir } from '../helpers'
 import * as malform from '../generators/malform'
 import * as random from '../generators/random'
-import path from 'path'
-import { fileURLToPath } from 'url'
-import fs from 'fs'
 
 interface FuzzResult {
   input: string
   error?: string
   crashed: boolean
-}
-
-function createElectronApp() {
-  const __filename = fileURLToPath(import.meta.url)
-  const __dirname = path.dirname(__filename)
-  const appPath = path.join(__dirname, '../../../dist/main/index.js')
-
-  const electronEnv = {
-    ...process.env,
-    ELECTRON_DISABLE_SANDBOX: '1',
-  }
-  delete electronEnv.ELECTRON_RUN_AS_NODE
-
-  return electron.launch({
-    args: ['--no-sandbox', appPath],
-    env: electronEnv,
-  })
 }
 
 export async function fuzzTextInputs(iterations: number = 10): Promise<FuzzResult[]> {
@@ -97,9 +76,7 @@ export async function fuzzTextInputs(iterations: number = 10): Promise<FuzzResul
       })
     } finally {
       if (app) await app.close()
-      if (vaultDir) {
-        try { fs.rmSync(vaultDir, { recursive: true, force: true }) } catch {}
-      }
+      cleanupDir(vaultDir)
     }
   }
 

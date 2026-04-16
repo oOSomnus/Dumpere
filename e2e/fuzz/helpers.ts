@@ -3,9 +3,38 @@
 import fs from 'fs'
 import os from 'os'
 import path from 'path'
+import { _electron as electron } from '@playwright/test'
+import { fileURLToPath } from 'url'
 
 export function createTempDir(): string {
   return fs.mkdtempSync(path.join(os.tmpdir(), 'dumpere-fuzz-'))
+}
+
+export function cleanupDir(dir: string): void {
+  if (dir) {
+    try {
+      fs.rmSync(dir, { recursive: true, force: true })
+    } catch (e) {
+      console.warn(`[Helpers] Failed to cleanup ${dir}: ${e}`)
+    }
+  }
+}
+
+export function createElectronApp() {
+  const __filename = fileURLToPath(import.meta.url)
+  const __dirname = path.dirname(__filename)
+  const appPath = path.join(__dirname, '../../dist/main/index.js')
+
+  const electronEnv = {
+    ...process.env,
+    ELECTRON_DISABLE_SANDBOX: '1',
+  }
+  delete electronEnv.ELECTRON_RUN_AS_NODE
+
+  return electron.launch({
+    args: ['--no-sandbox', appPath],
+    env: electronEnv,
+  })
 }
 
 export function createValidVault(): string {

@@ -5,7 +5,7 @@ import path from 'path'
 import { createTempDir } from '../helpers'
 import * as malform from '../generators/malform'
 import { corruptMetadata } from '../generators/mutator'
-import type { VaultMetadata } from '@/shared/types'
+import type { VaultMetadata } from '../../../src/shared/types'
 
 interface FuzzResult {
   test: string
