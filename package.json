@@ -20,6 +20,10 @@
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "test:e2e:headed": "playwright test --headed",
+    "fuzz": "tsx e2e/fuzz/run-fuzz.ts",
+    "fuzz:ui": "tsx e2e/fuzz/ui-fuzz/index.ts",
+    "fuzz:ipc": "tsx e2e/fuzz/ipc-fuzz/index.ts",
+    "fuzz:quick": "tsx e2e/fuzz/run-fuzz.ts --quick",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage"
