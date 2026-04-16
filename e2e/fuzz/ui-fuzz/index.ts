@@ -2,6 +2,7 @@
 
 import { fuzzTextInputs } from './text-fuzz'
 import { fuzzFileAttachments } from './file-fuzz'
+import { isDirectExecution } from '../is-direct-execution'
 
 export async function runUIFuzz(iterations: number = 10): Promise<void> {
   console.log(`[UI Fuzz] Starting with ${iterations} iterations per target...`)
@@ -37,5 +38,7 @@ export async function runUIFuzz(iterations: number = 10): Promise<void> {
   console.log('[UI Fuzz] Complete - no crashes detected')
 }
 
-// Allow direct execution
-runUIFuzz(parseInt(process.argv[2] ?? '10', 10))
+if (isDirectExecution(import.meta.url)) {
+  const iterations = Number.parseInt(process.argv[2] ?? '10', 10)
+  void runUIFuzz(Number.isNaN(iterations) ? 10 : iterations)
+}

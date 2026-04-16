@@ -2,6 +2,7 @@
 
 import { fuzzMetadata } from './metadata-fuzz'
 import { fuzzDumpOperations } from './dump-fuzz'
+import { isDirectExecution } from '../is-direct-execution'
 
 export async function runIPCFuzz(iterations: number = 10): Promise<void> {
   console.log(`[IPC Fuzz] Starting with ${iterations} iterations per target...`)
@@ -34,5 +35,7 @@ export async function runIPCFuzz(iterations: number = 10): Promise<void> {
   console.log('[IPC Fuzz] Complete - no crashes detected')
 }
 
-// Allow direct execution
-runIPCFuzz(parseInt(process.argv[2] ?? '10', 10))
+if (isDirectExecution(import.meta.url)) {
+  const iterations = Number.parseInt(process.argv[2] ?? '10', 10)
+  void runIPCFuzz(Number.isNaN(iterations) ? 10 : iterations)
+}
