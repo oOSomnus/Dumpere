@@ -3,7 +3,7 @@
 import { type ElectronApplication } from '@playwright/test'
 import { fuzzTextInputs } from './text-fuzz'
 import { fuzzFileAttachments } from './file-fuzz'
-import { launchApp } from '../electron'
+import { launchApp } from '../../electron.js'
 
 export async function runUIFuzz(iterations: number = 10): Promise<void> {
   console.log(`[UI Fuzz] Starting with ${iterations} iterations per target...`)

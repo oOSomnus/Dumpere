@@ -1,7 +1,7 @@
 // e2e/fuzz/run-fuzz.ts
 
-import { runUIFuzz } from './ui-fuzz'
-import { fuzzMetadata, fuzzDumpOperations } from './ipc-fuzz'
+import { runUIFuzz } from './ui-fuzz/index.js'
+import { runIPCFuzz } from './ipc-fuzz/index.js'
 
 const isQuick = process.argv.includes('--quick')
 const isUI = process.argv.includes('--ui')
@@ -25,8 +25,7 @@ async function main() {
 
     if (!isUI) {
       console.log('[Runner] Starting IPC fuzzing...')
-      await fuzzMetadata(iterations)
-      await fuzzDumpOperations(iterations)
+      await runIPCFuzz(iterations)
     }
 
     console.log('')

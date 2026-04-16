@@ -1,6 +1,6 @@
 // e2e/fuzz/ipc-fuzz/dump-fuzz.ts
 
-import { launchApp } from '../electron'
+import { launchApp } from '../../electron.js'
 import { createValidVault } from '../helpers'
 import * as random from '../generators/random'
 import * as malform from '../generators/malform'
