@@ -150,7 +150,7 @@ export function useTagInputState({
 
   return {
     filterText,
-    setFilterText,
+    setFilterText: updateFilterText,
     highlightedIndex,
     setHighlightedIndex,
     aiSuggestions,
