@@ -47,6 +47,9 @@ playwright-report/
 # GSD planning (local only)
 .planning/
 .claude/
+
+# Worktrees
+.worktrees/
 CLAUDE.md
 
 # AI tooling
