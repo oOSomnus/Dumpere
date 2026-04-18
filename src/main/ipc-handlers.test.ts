@@ -350,6 +350,17 @@ describe('ipc-handlers', () => {
     expect(mocks.initializeVaultData).toHaveBeenCalled()
   })
 
+  it('initializes vault data after opening a vault', async () => {
+    await expect(handlers['vault:open'](null, '/vault')).resolves.toEqual({
+      isOpen: true,
+      vaultPath: '/vault',
+      vaultName: 'Vault'
+    })
+
+    expect(mocks.openVault).toHaveBeenCalledWith('/vault')
+    expect(mocks.initializeVaultData).toHaveBeenCalled()
+  })
+
   it('forwards workspace note updates through the workspace namespace', async () => {
     await expect(handlers['workspace:update-note'](null, 'project-1', 'index.md', '# Updated')).resolves.toEqual({
       projectId: 'project-1',

@@ -1,5 +1,6 @@
 import type { VaultMetadata } from '@/shared/types'
 import { readMetadata, writeMetadata } from '../metadata-service'
+import { requireVaultPath } from '../utils/vault-guard'
 let writeQueue = Promise.resolve()
 
 export function enqueueWrite<T>(operation: () => Promise<T>): Promise<T> {
@@ -7,8 +8,6 @@ export function enqueueWrite<T>(operation: () => Promise<T>): Promise<T> {
   writeQueue = next.then(() => undefined, () => undefined)
   return next
 }
-
-export { requireVaultPath } from '../utils/vault-guard'
 
 export async function readActiveMetadata(): Promise<VaultMetadata> {
   return readMetadata(requireVaultPath())
@@ -30,3 +29,4 @@ export function normalizeTagIds(metadata: VaultMetadata, tagIds: string[]): stri
 }
 
 export { readMetadata, writeMetadata }
+export { requireVaultPath }
