@@ -1,7 +1,5 @@
 import type { VaultMetadata } from '@/shared/types'
 import { readMetadata, writeMetadata } from '../metadata-service'
-import { getVaultState } from '../vault-service'
-
 let writeQueue = Promise.resolve()
 
 export function enqueueWrite<T>(operation: () => Promise<T>): Promise<T> {
@@ -10,14 +8,7 @@ export function enqueueWrite<T>(operation: () => Promise<T>): Promise<T> {
   return next
 }
 
-export function requireVaultPath(): string {
-  const state = getVaultState()
-  if (!state.isOpen || !state.vaultPath) {
-    throw new Error('No vault open')
-  }
-
-  return state.vaultPath
-}
+export { requireVaultPath } from '../utils/vault-guard'
 
 export async function readActiveMetadata(): Promise<VaultMetadata> {
   return readMetadata(requireVaultPath())

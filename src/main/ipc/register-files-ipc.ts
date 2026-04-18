@@ -2,7 +2,7 @@ import { app, ipcMain, shell } from 'electron'
 import { writeFile } from 'fs/promises'
 import { join } from 'path'
 import { getVaultFileUrl, resolveVaultFilePath } from '../file-service'
-import { getVaultState } from '../vault-service'
+import { requireVaultPath } from '../utils/vault-guard'
 
 const MIME_EXTENSION_MAP: Record<string, string> = {
   'image/png': 'png',
@@ -26,15 +26,6 @@ function sanitizeAttachmentName(name: string, mimeType: string): string {
   const ext = MIME_EXTENSION_MAP[mimeType] || 'bin'
   const prefix = mimeType.startsWith('image/') ? 'pasted-image' : 'pasted-file'
   return `${prefix}.${ext}`
-}
-
-function requireVaultPath(): string {
-  const state = getVaultState()
-  if (!state.isOpen || !state.vaultPath) {
-    throw new Error('No vault open')
-  }
-
-  return state.vaultPath
 }
 
 export function registerFilesIPC(): void {

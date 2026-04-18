@@ -1,20 +1,11 @@
 import { mkdir, readdir, readFile, rename, rm, stat, writeFile } from 'fs/promises'
 import { basename, dirname, extname, join, resolve } from 'path'
-import { getVaultState } from './vault-service'
 import type { WorkspaceNode, WorkspaceNote } from '@/shared/types'
 import { validateWorkspaceEntryName } from '@/shared/naming'
+import { requireVaultPath } from './utils/vault-guard'
 
 const WORKSPACES_DIR = 'workspaces'
 const DEFAULT_NOTE_PATH = 'index.md'
-
-function requireVaultPath(): string {
-  const state = getVaultState()
-  if (!state.isOpen || !state.vaultPath) {
-    throw new Error('No vault open')
-  }
-
-  return state.vaultPath
-}
 
 function getProjectWorkspaceRoot(projectId: string): string {
   const vaultPath = requireVaultPath()
